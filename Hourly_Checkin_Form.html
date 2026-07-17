@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hourly Check-In — Harpoon Can Line</title>
+    <!-- Add to Home Screen support (iOS Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hourly Check-In">
+    <link rel="apple-touch-icon" href="icon-hourly-checkin.png">
+    <style>
+    :root {
+        --navy:    #1F3864;
+        --navy-dk: #172d52;
+        --gold:    #C9A84C;
+        --green:   #2e7d32;
+        --green-bg:#e8f5e9;
+        --amber:   #e65100;
+        --amber-bg:#fff3e0;
+        --g100:    #f8f9fa;
+        --g200:    #e9ecef;
+        --g400:    #ced4da;
+        --g600:    #6c757d;
+        --g800:    #343a40;
+        --red:     #dc3545;
+        --shadow:  0 2px 8px rgba(0,0,0,.08);
+        --r:       10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #eef0f4; color: var(--g800); padding-bottom: 56px; }
+
+    /* HEADER */
+    .hdr { background: var(--navy); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+    .hdr-left h1 { font-size: 18px; font-weight: 700; }
+    .hdr-left p  { font-size: 12px; opacity: .8; margin-top: 1px; }
+    .hour-badge  { background: var(--gold); color: var(--navy); font-weight: 900; font-size: 13px; padding: 6px 14px; border-radius: 20px; letter-spacing: .5px; }
+
+    /* CONTEXT / WINDOW BARS */
+    .ctx-bar { background: var(--navy-dk); color: white; padding: 10px 18px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; }
+    .ctx-item { display: flex; flex-direction: column; gap: 1px; }
+    .ctx-lbl  { font-size: 10px; opacity: .65; text-transform: uppercase; letter-spacing: .4px; }
+    .ctx-val  { font-weight: 700; }
+    .win-bar  { background: white; border-bottom: 2px solid var(--g200); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+    .win-lbl  { color: var(--g600); }
+    .win-val  { font-weight: 700; font-size: 15px; color: var(--navy); }
+
+    /* ALERT BARS */
+    .no-run-bar { background: #fff3cd; border-bottom: 2px solid #ffc107; color: #856404; padding: 10px 18px; font-size: 14px; display: none; }
+    .no-run-bar.show { display: block; }
+    .err-bar { background: var(--red); color: white; padding: 12px 18px; font-size: 14px; display: none; word-break: break-all; }
+    .err-bar.show { display: block; }
+
+    /* LAYOUT */
+    .container { max-width: 780px; margin: 0 auto; padding: 16px; }
+    .card { background: white; border-radius: var(--r); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+    .card-hdr { background: var(--navy); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+    .card-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .card-title { font-size: 15px; font-weight: 700; }
+    .card-body  { padding: 16px; }
+
+    /* FORM GRID */
+    .row  { display: grid; gap: 12px; margin-bottom: 12px; }
+    .row:last-child { margin-bottom: 0; }
+    .c1   { grid-template-columns: 1fr; }
+    .c2   { grid-template-columns: 1fr 1fr; }
+    .c3   { grid-template-columns: 1fr 1fr 1fr; }
+    .fg   { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 11px; font-weight: 700; color: var(--g600); text-transform: uppercase; letter-spacing: .3px; }
+    input[type="text"], input[type="number"], textarea, select {
+        width: 100%; border: 1.5px solid var(--g400); border-radius: 8px;
+        padding: 12px 14px; font-size: 16px; color: var(--g800);
+        background: white; -webkit-appearance: none; transition: border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--navy); }
+    input.err { border-color: var(--red); }
+    .hint { font-size: 11px; color: var(--g600); font-style: italic; }
+    .req  { color: var(--red); }
+    .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
+
+    /* EFFICIENCY PANEL */
+    .eff-panel { border: 2px solid var(--g200); border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-around; margin-bottom: 12px; text-align: center; }
+    .eff-panel.green { border-color: var(--green); background: var(--green-bg); }
+    .eff-panel.amber { border-color: var(--amber); background: var(--amber-bg); }
+    .eff-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--g600); letter-spacing: .5px; }
+    .eff-val { font-size: 24px; font-weight: 900; color: var(--g800); margin: 2px 0; }
+    .eff-sub { font-size: 11px; color: var(--g600); }
+    .eff-panel.green .eff-val, .eff-panel.green .eff-lbl { color: var(--green); }
+    .eff-panel.amber .eff-val, .eff-panel.amber .eff-lbl { color: var(--amber); }
+
+    /* CAN WEIGHTS */
+    .wt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .wt-item input { padding: 10px 8px; font-size: 15px; text-align: center; }
+    .avg-row { background: var(--g100); border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .avg-val { font-size: 18px; font-weight: 900; color: var(--navy); }
+    .range-display { width: 100%; border: 1.5px solid var(--g200); border-radius: 8px; padding: 12px 14px; font-size: 16px; font-weight: 700; color: var(--navy); background: var(--g100); text-align: center; }
+
+    /* SENSORY BUTTONS */
+    .sense-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .sense-btn { flex: 1; min-width: 60px; padding: 12px 8px; border: 2px solid var(--g400); border-radius: 8px; background: var(--g100); font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+    .sense-btn.active { background: var(--navy); border-color: var(--navy); color: white; }
+
+    /* PASS/FAIL BUTTONS */
+    .pf-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .pf-btn { flex: 1; padding: 12px; border: 2px solid var(--g400); border-radius: 8px; background: white; font-size: 14px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .pf-btn.pass { background: var(--green); border-color: var(--green); color: white; }
+    .pf-btn.fail { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* CHECK TABLE */
+    .check-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .check-table th { background: var(--g100); padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--g600); text-align: left; border-bottom: 2px solid var(--g200); }
+    .check-table td { padding: 8px 12px; border-bottom: 1px solid var(--g200); }
+    .check-table tr:last-child td { border-bottom: none; }
+    .check-name { font-size: 14px; font-weight: 500; }
+    .check-table input[type="text"] { width: 64px; padding: 8px; font-size: 14px; text-align: center; border-radius: 6px; border: 1.5px solid var(--g400); }
+    .check-table .wide-input { width: 100%; max-width: none; text-align: left; }
+
+    /* YES/NO */
+    .yn-wrap { display: flex; gap: 6px; }
+    .yn-btn  { padding: 8px 14px; border: 1.5px solid var(--g400); border-radius: 6px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .yn-btn.yes { background: var(--green); border-color: var(--green); color: white; }
+    .yn-btn.no  { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* TWO-PERSON P/F CHECK (Filtec, Flowmeter) */
+    .check-group { margin-bottom: 16px; }
+    .check-group-lbl { font-size: 13px; font-weight: 700; color: var(--g800); display: block; margin-bottom: 6px; }
+    .check-group-sub { font-size: 11px; color: var(--g600); font-weight: 400; }
+    .two-person-row  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .two-person-row .pf-btn { flex: 0 0 100px; }
+    .two-person-row .init-in { width: 72px; padding: 10px 8px; font-size: 14px; text-align: center; border-radius: 8px; border: 1.5px solid var(--g400); }
+
+    /* COMPACT P/F FOR TABLE (End of Run final checks) */
+    .tbl-pf     { display: flex; gap: 4px; }
+    .tbl-pf-btn { flex: 1; min-width: 48px; padding: 7px 4px; border: 1.5px solid var(--g400); border-radius: 6px; background: white; font-size: 12px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: center; }
+    .tbl-pf-btn.pass { background: var(--green); border-color: var(--green); color: white; }
+    .tbl-pf-btn.fail { background: var(--red);   border-color: var(--red);   color: white; }
+    .tbl-pf-btn.yes  { background: var(--green); border-color: var(--green); color: white; }
+    .tbl-pf-btn.no   { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* DOWNTIME */
+    .dt-event-row, .eor-dt-event-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .btn-add-dt   { padding: 10px 16px; background: var(--g100); border: 1.5px dashed var(--g400); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 12px; color: var(--navy); }
+    .btn-remove   { padding: 8px 12px; background: var(--red); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    textarea      { resize: vertical; min-height: 80px; }
+
+    /* INITIALS */
+    .initials-input { text-transform: uppercase; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 2px; }
+
+    /* SUBMIT */
+    .btn-submit { display: block; width: 100%; padding: 18px; margin-top: 8px; background: var(--navy); color: white; border: none; border-radius: var(--r); font-size: 18px; font-weight: 700; cursor: pointer; letter-spacing: .5px; -webkit-tap-highlight-color: transparent; }
+    .btn-submit:active { background: var(--navy-dk); }
+
+    /* HISTORY */
+    .history-section { max-width: 780px; margin: 16px auto 0; padding: 0 16px; }
+    .history-toggle  { width: 100%; background: white; border: none; padding: 14px 16px; border-radius: var(--r); box-shadow: var(--shadow); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+    .history-list    { display: none; margin-top: 8px; }
+    .history-list.show { display: block; }
+    .hist-card  { background: white; border-radius: var(--r); box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
+    .hist-hour  { font-weight: 900; font-size: 15px; color: var(--navy); min-width: 40px; }
+    .hist-data  { font-size: 13px; color: var(--g600); flex: 1; }
+    .hist-eff   { font-weight: 700; font-size: 14px; }
+    .hist-eff.green { color: var(--green); }
+    .hist-eff.amber { color: var(--amber); }
+
+    /* CONFIRMATION OVERLAY */
+    .overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+    .overlay.show { display: flex; }
+    .conf-card { background: white; border-radius: var(--r); width: 100%; max-width: 480px; box-shadow: 0 10px 40px rgba(0,0,0,.3); max-height: 88vh; display: flex; flex-direction: column; }
+    .conf-hdr  { background: var(--navy); color: white; padding: 20px; text-align: center; border-radius: var(--r) var(--r) 0 0; }
+    .conf-hdr .icon { font-size: 36px; margin-bottom: 8px; }
+    .conf-hdr h2 { font-size: 20px; font-weight: 900; }
+    .conf-hdr p  { font-size: 13px; opacity: .8; margin-top: 4px; }
+    .conf-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .conf-row  { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--g200); }
+    .conf-row:last-child { border-bottom: none; }
+    .conf-lbl  { font-size: 13px; color: var(--g600); }
+    .conf-val  { font-size: 14px; font-weight: 700; }
+    .conf-val.green { color: var(--green); }
+    .conf-val.amber { color: var(--amber); }
+    .conf-foot { padding: 14px 20px; display: flex; gap: 10px; border-top: 1px solid var(--g200); flex-shrink: 0; }
+    .btn-edit      { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-next-hour { flex: 2; padding: 14px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* END OF RUN BUTTON */
+    .btn-end-run { display: block; width: 100%; padding: 15px; margin-top: 10px; background: white; color: var(--red); border: 2.5px solid var(--red); border-radius: var(--r); font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: .3px; -webkit-tap-highlight-color: transparent; }
+    .btn-end-run:active { background: #fff5f5; }
+    .or-divider { text-align: center; color: var(--g400); font-size: 12px; margin: 10px 0 2px; letter-spacing: 1px; }
+
+    /* END OF RUN OVERLAY */
+    .eor-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 600; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .eor-overlay.show { display: block; }
+    .eor-card { background: #eef0f4; border-radius: var(--r); width: 100%; max-width: 600px; margin: 20px auto; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .eor-hdr { background: var(--red); color: white; padding: 20px 24px; border-radius: var(--r) var(--r) 0 0; text-align: center; }
+    .eor-hdr .eor-icon { font-size: 32px; margin-bottom: 6px; }
+    .eor-hdr h2 { font-size: 22px; font-weight: 900; }
+    .eor-hdr p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+    .eor-body { padding: 12px 12px 4px; }
+    .eor-foot { background: white; border-top: 1px solid var(--g200); border-radius: 0 0 var(--r) var(--r); padding: 14px 16px; display: flex; gap: 10px; }
+    .btn-eor-cancel { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-eor-submit { flex: 2; padding: 14px; background: var(--red); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* SUMMARY TABLE */
+    .sum-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+    .sum-table td { padding: 8px 14px; border-bottom: 1px solid var(--g200); font-size: 13px; }
+    .sum-table tr:last-child td { border-bottom: none; }
+    .sum-table td:first-child { font-weight: 700; color: var(--g600); width: 55%; }
+    .sum-table td:last-child  { font-weight: 700; color: var(--g800); }
+
+    /* TOTALS BOXES */
+    .totals-row { display: flex; gap: 8px; margin-top: 8px; }
+    .total-box  { flex: 1; background: white; border-radius: 8px; padding: 12px 8px; text-align: center; border: 2px solid var(--g200); }
+    .total-box.hi { border-color: var(--navy); background: #f0f4ff; }
+    .total-lbl  { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--g600); letter-spacing: .4px; }
+    .total-val  { font-size: 20px; font-weight: 900; color: var(--navy); margin: 4px 0; }
+    .total-sub  { font-size: 10px; color: var(--g600); }
+
+    /* FINAL CONFIRMATION OVERLAY */
+    .final-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 700; align-items: center; justify-content: center; padding: 20px; }
+    .final-overlay.show { display: flex; }
+    .final-card { background: white; border-radius: var(--r); width: 100%; max-width: 460px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .final-hdr  { background: var(--green); color: white; padding: 24px; text-align: center; border-radius: var(--r) var(--r) 0 0; }
+    .final-hdr .icon { font-size: 42px; margin-bottom: 6px; }
+    .final-hdr h2 { font-size: 24px; font-weight: 900; }
+    .final-hdr p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+    .final-body { padding: 16px 20px; }
+    .final-foot { padding: 16px 20px; border-top: 1px solid var(--g200); }
+
+    @media (max-width: 500px) {
+        .c2 { grid-template-columns: 1fr; }
+        .c3 { grid-template-columns: 1fr 1fr; }
+        .wt-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+    <div class="hdr-left">
+        <h1>Hourly Check-In</h1>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour</p>
+    </div>
+    <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
+</div>
+
+<!-- RUN CONTEXT BAR -->
+<div class="ctx-bar" id="ctxBar">
+    <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">&mdash;</span></div>
+    <div class="ctx-item"><span class="ctx-lbl">Config</span><span class="ctx-val" id="ctxConfig">&mdash;</span></div>
+    <div class="ctx-item"><span class="ctx-lbl">Tank</span><span class="ctx-val" id="ctxTank">&mdash;</span></div>
+    <div class="ctx-item"><span class="ctx-lbl">Qual Start</span><span class="ctx-val" id="ctxStart">&mdash;</span></div>
+    <div class="ctx-item"><span class="ctx-lbl">Rated CPM</span><span class="ctx-val" id="ctxCPM">&mdash;</span></div>
+</div>
+
+<!-- HOUR WINDOW BAR -->
+<div class="win-bar">
+    <span class="win-lbl">This Hour Covers:</span>
+    <span class="win-val" id="windowDisplay">&mdash;:&mdash; to &mdash;:&mdash;</span>
+</div>
+
+<!-- NO-RUN WARNING -->
+<div class="no-run-bar" id="noRunBar">
+    No active run found &mdash; complete the Run Start Form first, then return here.
+</div>
+
+<!-- ERROR BAR: shows any JS errors visibly so we can diagnose on iPad -->
+<div class="err-bar" id="errBar"></div>
+
+<!-- FORM -->
+<div class="container">
+<form id="hourlyForm" novalidate>
+
+    <!-- 1: EFFICIENCY -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-num">1</div><div class="card-title">Efficiency</div></div>
+        <div class="card-body">
+
+            <div class="eff-panel" id="effPanel">
+                <div>
+                    <div class="eff-lbl">This Hour</div>
+                    <div class="eff-val" id="effPct">&mdash;</div>
+                    <div class="eff-sub" id="effSub">Enter filler counter below</div>
+                </div>
+                <div>
+                    <div class="eff-lbl">Units This Hour</div>
+                    <div class="eff-val" id="effUnits">&mdash;</div>
+                    <div class="eff-sub" id="effRated">Rated: &mdash; / hr</div>
+                </div>
+                <div>
+                    <div class="eff-lbl">Accumulative</div>
+                    <div class="eff-val" id="effAccum">&mdash;</div>
+                    <div class="eff-sub">total cans</div>
+                </div>
+            </div>
+
+            <div class="row c2">
+                <div class="fg">
+                    <label for="fillerCounter">Filler Counter Reading <span class="req">*</span></label>
+                    <input type="number" id="fillerCounter" name="fillerCounter" placeholder="e.g. 25000" min="0" required oninput="onCounter(this.value)">
+                    <span class="hint">Cumulative reading from filler display</span>
+                </div>
+                <div class="fg">
+                    <label for="dtMins">Downtime This Hour (mins)</label>
+                    <input type="number" id="dtMins" name="dtMins" placeholder="0" min="0" max="60" value="0" oninput="onDtChange(this.value)">
+                    <span class="hint">Auto-calculated &mdash; edit to override</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 2: CAN WEIGHTS -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-num">2</div><div class="card-title">Can Weights</div></div>
+        <div class="card-body">
+
+            <div class="wt-grid">
+                <div class="wt-item fg"><label>Can 1</label><input type="number" class="wt" name="wt1" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 2</label><input type="number" class="wt" name="wt2" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 3</label><input type="number" class="wt" name="wt3" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 4</label><input type="number" class="wt" name="wt4" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 5</label><input type="number" class="wt" name="wt5" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 6</label><input type="number" class="wt" name="wt6" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 7</label><input type="number" class="wt" name="wt7" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+                <div class="wt-item fg"><label>Can 8</label><input type="number" class="wt" name="wt8" placeholder="&mdash;" step="0.1" oninput="calcAvg()"></div>
+            </div>
+
+            <div class="avg-row">
+                <span>Average Weight</span>
+                <span class="avg-val" id="avgDisplay">&mdash; g</span>
+            </div>
+
+            <div class="row c2">
+                <div class="fg">
+                    <label for="targetWeight">Target Can Weight (g)</label>
+                    <input type="number" id="targetWeight" name="targetWeight" placeholder="e.g. 367.0" step="0.1" oninput="onTargetWeight(this.value)">
+                </div>
+                <div class="fg">
+                    <label>Acceptable Range</label>
+                    <div class="range-display" id="weightRange">&mdash;</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 3: QUALITY CHECKS -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-num">3</div><div class="card-title">Quality Checks</div></div>
+        <div class="card-body">
+
+            <div class="row c3">
+                <div class="fg">
+                    <label for="canDO">DO Can (ppm)</label>
+                    <input type="number" id="canDO" name="canDO" placeholder="e.g. 0.05" step="0.01">
+                </div>
+                <div class="fg">
+                    <label for="shakenDO">Shaken DO (ppm)</label>
+                    <input type="number" id="shakenDO" name="shakenDO" placeholder="e.g. 0.08" step="0.01">
+                </div>
+                <div class="fg">
+                    <label for="canCO2">CO2 Can (vol)</label>
+                    <input type="number" id="canCO2" name="canCO2" placeholder="e.g. 2.7" step="0.1">
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <label style="display:block; font-weight:700; font-size:12px; color:var(--g600); text-transform:uppercase; letter-spacing:.3px; margin-bottom:8px;">Sensory Check</label>
+            <div class="sense-row">
+                <button type="button" class="sense-btn" id="sB" onclick="setSensory('B')">B<br><span style="font-size:10px;font-weight:500;">Begin</span></button>
+                <button type="button" class="sense-btn" id="sM" onclick="setSensory('M')">M<br><span style="font-size:10px;font-weight:500;">Mid</span></button>
+                <button type="button" class="sense-btn" id="sE" onclick="setSensory('E')">E<br><span style="font-size:10px;font-weight:500;">End</span></button>
+                <button type="button" class="sense-btn" id="sN" onclick="setSensory('N')" style="background:var(--g200);border-color:var(--g400);">&#8212;<br><span style="font-size:10px;font-weight:500;">N/A</span></button>
+            </div>
+            <div class="pf-row">
+                <button type="button" class="pf-btn" id="pfPass" onclick="setPF('pass')">&#10003; Pass</button>
+                <button type="button" class="pf-btn" id="pfFail" onclick="setPF('fail')">&#10007; Fail</button>
+            </div>
+            <input type="hidden" id="sensoryPoint" name="sensoryPoint">
+            <input type="hidden" id="sensoryPF"    name="sensoryPF">
+
+            <hr class="divider">
+
+            <table class="check-table">
+                <thead>
+                    <tr><th>Check</th><th>Op Init.</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="check-name">Artwork / Logo</td>
+                        <td><input type="text" name="artOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Date Code</td>
+                        <td><input type="text" name="dcOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Lid Type</td>
+                        <td><input type="text" name="lcOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Seam Check</td>
+                        <td><input type="text" name="seamOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">QC Samples</td>
+                        <td>
+                            <div class="yn-wrap">
+                                <button type="button" class="yn-btn" id="qcY" onclick="setYN('Y')">Yes</button>
+                                <button type="button" class="yn-btn" id="qcN" onclick="setYN('N')">No</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Lid Plant</td>
+                        <td><input type="text" name="lidPlant" maxlength="10" oninput="this.value=this.value.toUpperCase()" placeholder="e.g. ENF" class="wide-input"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Lid Lot #</td>
+                        <td><input type="text" name="lidLot" maxlength="20" placeholder="e.g. N531140052" class="wide-input"></td>
+                    </tr>
+                    <tr>
+                        <td class="check-name">Can Lot #</td>
+                        <td><input type="text" name="canLot" maxlength="20" placeholder="e.g. L25072501" class="wide-input"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <input type="hidden" id="qcSamples" name="qcSamples">
+
+            <hr class="divider">
+
+            <!-- FILTEC -->
+            <div class="check-group">
+                <span class="check-group-lbl">Filtec</span>
+                <div class="two-person-row">
+                    <button type="button" class="pf-btn" id="filtecPass" onclick="setCheckPF('filtec','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="filtecFail" onclick="setCheckPF('filtec','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="filtecPF" name="filtecPF">
+            </div>
+
+            <!-- FLOWMETER / UNDERCOVER GASSER -->
+            <div class="check-group">
+                <span class="check-group-lbl">Flowmeter / Undercover Gasser</span>
+                <div class="two-person-row">
+                    <button type="button" class="pf-btn" id="flowPass" onclick="setCheckPF('flow','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="flowFail" onclick="setCheckPF('flow','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="flowPF" name="flowPF">
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 4: DOWNTIME BREAKDOWN (shown only when DT > 0) -->
+    <div class="card" id="dtCard" style="display:none;">
+        <div class="card-hdr"><div class="card-num">4</div><div class="card-title">Downtime Breakdown</div></div>
+        <div class="card-body">
+            <p class="hint" style="margin-bottom:12px;">Add a row for each machine that stopped this hour.</p>
+            <div id="dtRows"></div>
+            <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
+            <div class="fg">
+                <label for="dtNarrative">What Happened / Action Taken</label>
+                <textarea id="dtNarrative" name="dtNarrative" placeholder="Describe the issue and what was done to resolve it..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5: SIGN-OFF -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-num">5</div><div class="card-title">Sign-Off</div></div>
+        <div class="card-body">
+            <div class="row c2">
+                <div class="fg">
+                    <label for="opInit">Operator Initials <span class="req">*</span></label>
+                    <input type="text" id="opInit" name="opInit" class="initials-input" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn-submit">&#10003; Submit Hour</button>
+    <p class="or-divider">&#8212; or, if this is the last hour &#8212;</p>
+    <button type="button" class="btn-end-run" onclick="openEOR()">&#9675; End of Run</button>
+
+</form>
+</div>
+
+<!-- HISTORY -->
+<div class="history-section">
+    <button class="history-toggle" onclick="toggleHistory()">
+        <span id="histLbl">Previous Hours (0)</span>
+        <span id="histArrow">&#9660;</span>
+    </button>
+    <div class="history-list" id="histList"></div>
+</div>
+
+<!-- END OF RUN OVERLAY -->
+<div class="eor-overlay" id="eorOverlay">
+  <div class="eor-card">
+
+    <div class="eor-hdr">
+      <div class="eor-icon">&#9675;</div>
+      <h2>End of Run</h2>
+      <p>Fill out all fields below to close and archive this run.</p>
+    </div>
+
+    <div class="eor-body">
+
+      <!-- Summary (auto-filled) -->
+      <div class="card">
+        <div class="card-hdr"><div class="card-title">Run Summary</div></div>
+        <div class="card-body" style="padding:0;">
+          <table class="sum-table" id="eorSummaryTable"></table>
+        </div>
+      </div>
+
+      <!-- TOTAL DOWNTIME CALLOUT -->
+      <div style="background:var(--amber-bg);border:2px solid var(--amber);border-radius:8px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:14px;">
+        <div style="font-size:30px;line-height:1;margin-top:2px;">&#9201;</div>
+        <div style="flex:1;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--amber);margin-bottom:2px;">Total Run Downtime</div>
+          <div id="eorTotalDTVal" style="font-size:26px;font-weight:900;color:var(--amber);">&#8212; min</div>
+          <div id="eorDtBreakdown" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(230,81,0,.3);">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--amber);margin-bottom:3px;">
+              <span>Logged hours:</span><span id="eorDtLoggedPart">&#8212;</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--amber);">
+              <span>Final partial hour (auto):</span><span id="eorDtPartialPart">&#8212;</span>
+            </div>
+          </div>
+          <div id="eorTotalDTSub" style="font-size:11px;color:var(--g600);margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <form id="eorForm" novalidate>
+
+        <!-- 1: Timing -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-num">1</div><div class="card-title">Timing</div></div>
+          <div class="card-body">
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorEndTime">Run End Time <span class="req">*</span></label>
+                <input type="time" id="eorEndTime" name="eorEndTime" required oninput="calcEorEfficiency()">
+              </div>
+              <div class="fg">
+                <label for="eorFinalCounter">Final Filler Counter <span class="req">*</span></label>
+                <input type="number" id="eorFinalCounter" name="eorFinalCounter" placeholder="e.g. 42500" min="0" required oninput="onEorCounter(this.value); calcEorEfficiency()">
+                <span class="hint">Current reading from filler display</span>
+              </div>
+            </div>
+            <hr class="divider">
+            <p class="hint" style="margin-bottom:8px;">Add a row for each machine / event that caused DT this run.</p>
+            <div id="eorDtRows"></div>
+            <button type="button" class="btn-add-dt" onclick="addEorDTRow()">+ Add Machine</button>
+            <div class="fg">
+              <label for="eorDtNarrative">What Happened / Action Taken</label>
+              <textarea id="eorDtNarrative" name="eorDtNarrative" placeholder="Describe DT causes and any actions taken..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- EFFICIENCY SUMMARY (shown once end time + counter are entered) -->
+        <div class="card" id="eorEffCard" style="display:none;">
+          <div class="card-hdr"><div class="card-title">Efficiency Summary</div></div>
+          <div class="card-body">
+            <div id="eorEffRows"></div>
+            <div class="avg-row" style="margin-top:4px;">
+              <span>Overall Run Efficiency</span>
+              <span class="avg-val" id="eorOverallEff">&mdash;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2: Quality -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-num">2</div><div class="card-title">Quality</div></div>
+          <div class="card-body">
+            <div class="row c3">
+              <div class="fg">
+                <label for="eorFiltecPct">Filtec % (run avg)</label>
+                <input type="number" id="eorFiltecPct" name="eorFiltecPct" placeholder="e.g. 98.5" step="0.1" min="0" max="100">
+              </div>
+              <div class="fg">
+                <label for="eorFiltecLowReject">Low Reject Cans</label>
+                <input type="number" id="eorFiltecLowReject" name="eorFiltecLowReject" placeholder="0" min="0">
+              </div>
+              <div class="fg">
+                <label for="eorFiltecDudReject">Dud Reject Cans</label>
+                <input type="number" id="eorFiltecDudReject" name="eorFiltecDudReject" placeholder="0" min="0">
+              </div>
+            </div>
+            <div class="row c1">
+              <div class="fg">
+                <label for="eorFiltecTotal">Total Cans Through Filtec</label>
+                <input type="number" id="eorFiltecTotal" name="eorFiltecTotal" placeholder="0" min="0">
+              </div>
+            </div>
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorFlowStart">Flowmeter Start</label>
+                <input type="number" id="eorFlowStart" name="eorFlowStart" placeholder="e.g. 1.23" step="0.01">
+              </div>
+              <div class="fg">
+                <label for="eorFlowEnd">Flowmeter End</label>
+                <input type="number" id="eorFlowEnd" name="eorFlowEnd" placeholder="e.g. 1.21" step="0.01">
+              </div>
+            </div>
+            <div class="row c2" id="eorSleeveRow" style="display:none;">
+              <div class="fg">
+                <label for="eorSleeveCount">Total Sleeve Count <span class="req">*</span></label>
+                <input type="number" id="eorSleeveCount" name="eorSleeveCount" placeholder="0" min="0">
+                <span class="hint">Total sleeves used this run</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3: Final Checks -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-num">3</div><div class="card-title">Final Checks</div></div>
+          <div class="card-body">
+
+            <!-- Final Can Weights -->
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;">Final Can Weights</label>
+            <div class="wt-grid">
+              <div class="wt-item fg"><label>Can 1</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 2</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 3</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 4</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 5</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 6</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 7</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+              <div class="wt-item fg"><label>Can 8</label><input type="number" class="eor-wt" placeholder="&#8212;" step="0.1" oninput="calcEorFcAvg()"></div>
+            </div>
+            <div class="avg-row">
+              <span>Average Weight</span>
+              <span class="avg-val" id="eorFcAvgDisplay">&#8212; g</span>
+            </div>
+            <div class="row c2" style="margin-bottom:14px;">
+              <div class="fg">
+                <label for="eorFcTargetWeight">Target Can Weight (g)</label>
+                <input type="number" id="eorFcTargetWeight" name="eorFcTargetWeight" placeholder="e.g. 367.0" step="0.1" oninput="onEorFcWeight(this.value)">
+              </div>
+              <div class="fg">
+                <label>Acceptable Range</label>
+                <div class="range-display" id="eorFcWeightRange">&#8212;</div>
+              </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Gas Readings -->
+            <div class="row c3" style="margin-bottom:14px;">
+              <div class="fg">
+                <label for="eorFcCanDO">DO Can (ppm)</label>
+                <input type="number" id="eorFcCanDO" name="eorFcCanDO" placeholder="e.g. 0.05" step="0.01">
+              </div>
+              <div class="fg">
+                <label for="eorFcShakenDO">Shaken DO (ppm)</label>
+                <input type="number" id="eorFcShakenDO" name="eorFcShakenDO" placeholder="e.g. 0.08" step="0.01">
+              </div>
+              <div class="fg">
+                <label for="eorFcCanCO2">CO2 Can (vol)</label>
+                <input type="number" id="eorFcCanCO2" name="eorFcCanCO2" placeholder="e.g. 2.7" step="0.1">
+              </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Lid & Can Info -->
+            <div class="row c2" style="margin-bottom:12px;">
+              <div class="fg">
+                <label for="eorFcLidPlant">Lid Plant</label>
+                <input type="text" id="eorFcLidPlant" name="eorFcLidPlant" maxlength="10" oninput="this.value=this.value.toUpperCase()" placeholder="e.g. ENF">
+              </div>
+              <div class="fg">
+                <label for="eorFcLidLot">Lid Lot #</label>
+                <input type="text" id="eorFcLidLot" name="eorFcLidLot" maxlength="20" placeholder="e.g. N531140052">
+              </div>
+            </div>
+            <div class="row c2" style="margin-bottom:14px;">
+              <div class="fg">
+                <label for="eorFcLidColor">Lid Color</label>
+                <input type="text" id="eorFcLidColor" name="eorFcLidColor" maxlength="20" placeholder="e.g. Silver">
+              </div>
+              <div class="fg">
+                <label for="eorFcCanLot">Can Lot #</label>
+                <input type="text" id="eorFcCanLot" name="eorFcCanLot" maxlength="20" placeholder="e.g. L25072501">
+              </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- P/F Check Table -->
+            <table class="check-table">
+              <thead>
+                <tr><th>Final Check</th><th>Result</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="check-name">Package Match (Can &amp; Lid)</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcPkgPass" onclick="setEorFcPF('Pkg','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcPkgFail" onclick="setEorFcPF('Pkg','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcPkgPF" name="eorFcPkgPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">Sensory &mdash; End of Run</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcSensoryPass" onclick="setEorFcPF('Sensory','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcSensoryFail" onclick="setEorFcPF('Sensory','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcSensoryPF" name="eorFcSensoryPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">Can Art</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcArtPass" onclick="setEorFcPF('Art','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcArtFail" onclick="setEorFcPF('Art','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcArtPF" name="eorFcArtPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">Date Code</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcDcPass" onclick="setEorFcPF('Dc','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcDcFail" onclick="setEorFcPF('Dc','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcDcPF" name="eorFcDcPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">Filtec</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcFiltecPass" onclick="setEorFcPF('Filtec','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcFiltecFail" onclick="setEorFcPF('Filtec','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcFiltecPF" name="eorFcFiltecPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">Seam Check</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcSeamPass" onclick="setEorFcPF('Seam','pass')">&#10003; Pass</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcSeamFail" onclick="setEorFcPF('Seam','fail')">&#10007; Fail</button>
+                    </div>
+                    <input type="hidden" id="eorFcSeamPF" name="eorFcSeamPF">
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="check-name">QC Samples</td>
+                  <td>
+                    <div class="tbl-pf">
+                      <button type="button" class="tbl-pf-btn" id="eorFcQcY" onclick="setEorFcQC('Y')">&#10003; Yes</button>
+                      <button type="button" class="tbl-pf-btn" id="eorFcQcN" onclick="setEorFcQC('N')">&#10007; No</button>
+                    </div>
+                    <input type="hidden" id="eorFcQcSamplesHid" name="eorFcQcSamples">
+                  </td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+        <!-- 4: Run Totals -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-num">4</div><div class="card-title">Run Totals</div></div>
+          <div class="card-body">
+            <div style="background:var(--g100);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--g600);">
+              Filler counter estimate: <strong id="eorTotalCans">&mdash;</strong> cans
+              &nbsp;(&asymp;&nbsp;<strong id="eorEstCases">&mdash;</strong> cases at <span id="eorCansPerCase">&mdash;</span>/case) &mdash; for reference only
+            </div>
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorTotalCasesInput">Total Cases Produced <span class="req">*</span></label>
+                <input type="number" id="eorTotalCasesInput" name="eorTotalCasesInput" placeholder="0" min="0" required oninput="onEorCasesInput(this.value)">
+                <span class="hint">Must match forklift Deacom entry</span>
+              </div>
+              <div class="fg">
+                <label for="eorCasesHold">Cases on Hold</label>
+                <input type="number" id="eorCasesHold" name="eorCasesHold" placeholder="0" min="0" value="0" oninput="onEorHoldChange(this.value)">
+              </div>
+            </div>
+            <div class="avg-row" style="margin-top:4px;">
+              <span>Net Good Cases</span>
+              <span class="avg-val" id="eorNetDisplay">&mdash;</span>
+            </div>
+            <input type="hidden" id="eorTotalCansHid"  name="eorTotalCansHid"  value="0">
+            <input type="hidden" id="eorNetCasesHid"   name="eorNetCasesHid"   value="0">
+            <input type="hidden" id="eorGrandTotalDT"  name="eorGrandTotalDT"  value="0">
+          </div>
+        </div>
+
+        <!-- 5: Sign-Off -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-num">5</div><div class="card-title">Sign-Off</div></div>
+          <div class="card-body">
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorOpInit">Operator Initials <span class="req">*</span></label>
+                <input type="text" id="eorOpInit" name="eorOpInit" class="initials-input" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()">
+              </div>
+              <div class="fg">
+                <label for="eorVrInit">Verifier Initials <span class="req">*</span></label>
+                <input type="text" id="eorVrInit" name="eorVrInit" class="initials-input" maxlength="4" placeholder="DC" required oninput="this.value=this.value.toUpperCase()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </form>
+    </div><!-- /eor-body -->
+
+    <div class="eor-foot">
+      <button type="button" class="btn-eor-cancel" onclick="closeEOR()">&#10005; Cancel</button>
+      <button type="button" class="btn-eor-submit" onclick="submitEOR()">&#10003; End Run &amp; Archive</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- FINAL RUN COMPLETE OVERLAY -->
+<div class="final-overlay" id="finalOverlay">
+  <div class="final-card">
+    <div class="final-hdr">
+      <div class="icon">&#9646;</div>
+      <h2>Run Complete</h2>
+      <p id="finalSub">Data has been archived.</p>
+    </div>
+    <div class="final-body" id="finalBody"></div>
+    <div class="final-foot" id="finalFoot" style="display:flex;gap:10px;">
+      <button type="button" onclick="goToRunStart()" style="flex:1;padding:16px;background:var(--navy);color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">
+        &#43; Start New Run &#8594;
+      </button>
+      <button type="button" onclick="endDay()" style="flex:1;padding:16px;background:var(--g100);color:var(--g800);border:1.5px solid var(--g400);border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">
+        &#10003; End Day
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DEBUG / ADMIN BUTTONS -->
+<div style="max-width:780px;margin:0 auto;padding:0 16px 16px;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button type="button" onclick="showDebug()" style="flex:1;padding:10px;background:#f8f9fa;border:1.5px dashed #ced4da;border-radius:8px;font-size:12px;color:#6c757d;cursor:pointer;">
+            &#x1F50D; Show Storage State
+        </button>
+        <button type="button" onclick="clearHourlyData()" style="flex:1;padding:10px;background:#fff5f5;border:1.5px dashed #dc3545;border-radius:8px;font-size:12px;color:#dc3545;cursor:pointer;">
+            &#x1F5D1; Clear Hourly Data (Test Reset)
+        </button>
+    </div>
+    <div id="debugOut" style="display:none;background:#f1f3f5;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;font-family:monospace;word-break:break-all;white-space:pre-wrap;color:#343a40;"></div>
+</div>
+
+<!-- CONFIRMATION OVERLAY -->
+<div class="overlay" id="overlay">
+    <div class="conf-card">
+        <div class="conf-hdr">
+            <div class="icon">&#10003;</div>
+            <h2 id="confTitle">Hour Recorded</h2>
+            <p id="confSub"></p>
+        </div>
+        <div class="conf-body" id="confBody"></div>
+        <div class="conf-foot">
+            <button class="btn-edit"      onclick="closeConf()">&#9998; Edit</button>
+            <button class="btn-next-hour" onclick="nextHour()">Next Hour &#8594;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────
+var LS_RUN    = 'harpoon_run_start_v1';
+var LS_HOURLY = 'harpoon_hourly_v1';
+
+var DT_MACHINES = [
+    'Depal','Depal Accum Table','Tripak','Air Rinser',
+    'Filler Infeed','Filler','Seamer','Warmer','Filtec',
+    'Lowerator','Accum Table','Case Packer','Glue Machine',
+    'Case Coder','Tray Packer','Paktech','Check Weigher',
+    'Wrapper','Palletizer','Can Coder','Other',
+    'Changeover','Maintenance Downtime','Planned DT'
+];
+
+// ── STATE ─────────────────────────────────────────────────
+var runData      = null;
+var hourlyData   = [];
+var dtRowCount   = 0;
+var eorDtRowCount = 0;
+var eorLoggedDT  = 0;  // DT from completed logged hours — set in openEOR()
+
+// ── INIT ──────────────────────────────────────────────────
+window.onload = function() {
+    try {
+        loadRunContext();
+        loadHourlyHistory();
+        updateHourBadge();
+        updateWindowDisplay();
+        document.getElementById('hourlyForm').onsubmit = onSubmit;
+    } catch(e) {
+        showErr('Init error: ' + e.message);
+    }
+};
+
+// ── LOAD RUN CONTEXT ──────────────────────────────────────
+function loadRunContext() {
+    var raw = localStorage.getItem(LS_RUN);
+    if (!raw) {
+        document.getElementById('noRunBar').classList.add('show');
+        return;
+    }
+    try {
+        runData = JSON.parse(raw);
+        document.getElementById('ctxBeer').textContent   = runData.beerCode  || '-';
+        document.getElementById('ctxConfig').textContent = runData.pkgConfig || '-';
+        document.getElementById('ctxTank').textContent   = runData.tankNum   || '-';
+        document.getElementById('ctxStart').textContent  = runData.qualTime  || '-';
+        document.getElementById('ctxCPM').textContent    = runData.ratedCPM  ? runData.ratedCPM + ' CPM' : '-';
+        if (runData.ratedUPH) {
+            document.getElementById('effRated').textContent =
+                'Rated: ' + parseInt(runData.ratedUPH).toLocaleString() + ' / hr';
+        }
+        // Set weight range tolerance now that we know the config
+        onTargetWeight('');
+    } catch(err) {
+        showErr('Error loading run data: ' + err.message);
+    }
+}
+
+// ── LOAD HOURLY HISTORY ───────────────────────────────────
+function loadHourlyHistory() {
+    var raw = localStorage.getItem(LS_HOURLY);
+    if (raw) {
+        try { hourlyData = JSON.parse(raw); } catch(e) { hourlyData = []; }
+    }
+    renderHistory();
+}
+
+// ── HOUR / TIME WINDOW ────────────────────────────────────
+function currentHourNum() { return hourlyData.length + 1; }
+
+function updateHourBadge() {
+    document.getElementById('hourBadge').textContent = 'HOUR ' + currentHourNum();
+}
+
+function updateWindowDisplay() {
+    if (!runData || !runData.qualTime) return;
+    var h     = currentHourNum();
+    var parts = runData.qualTime.split(':');
+    var qh    = parseInt(parts[0]) || 0;
+    var qm    = parseInt(parts[1]) || 0;
+    var s     = qh * 60 + qm + (h - 1) * 60;
+    document.getElementById('windowDisplay').textContent = fmtMins(s) + ' - ' + fmtMins(s + 60);
+}
+
+function fmtMins(t) {
+    var h    = Math.floor(t / 60) % 24;
+    var m    = t % 60;
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    return ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+}
+
+// ── TARGET CAN WEIGHT / ACCEPTABLE RANGE ─────────────────
+function getWeightTol() {
+    if (!runData || !runData.pkgConfig) return 0.2;
+    return runData.pkgConfig.indexOf('19.2oz') !== -1 ? 0.3 : 0.2;
+}
+
+function onTargetWeight(val) {
+    var tol = getWeightTol();
+    var el  = document.getElementById('weightRange');
+    var wt  = parseFloat(val);
+    if (!val || isNaN(wt)) {
+        el.textContent = '± ' + tol.toFixed(1) + ' g';
+    } else {
+        el.textContent = (wt - tol).toFixed(1) + ' – ' + (wt + tol).toFixed(1) + ' g';
+    }
+}
+
+// ── FILLER COUNTER → EFFICIENCY + AUTO DT ────────────────
+function onCounter(val) {
+    var counter = parseFloat(val);
+    if (isNaN(counter) || !runData) return;
+
+    var prevCounter = hourlyData.length > 0
+        ? (parseFloat(hourlyData[hourlyData.length - 1].fillerCounter) || 0) : 0;
+
+    var units    = Math.max(0, counter - prevCounter);
+    var ratedUPH = parseFloat(runData.ratedUPH) || 1;
+    var ratedCPM = parseFloat(runData.ratedCPM) || 1;
+    var eff      = (units / ratedUPH) * 100;
+
+    document.getElementById('effUnits').textContent = units.toLocaleString();
+    document.getElementById('effAccum').textContent = counter.toLocaleString();
+    document.getElementById('effPct').textContent   = eff.toFixed(1) + '%';
+    document.getElementById('effSub').textContent   = units.toLocaleString() + ' of ' + ratedUPH.toLocaleString() + ' rated';
+
+    var panel = document.getElementById('effPanel');
+    panel.className = 'eff-panel ' + (eff >= 80 ? 'green' : 'amber');
+
+    // Auto-calculate DT: 60 minutes minus actual run time
+    var dtCalc = Math.round(Math.max(0, 60 - (units / ratedCPM)));
+    document.getElementById('dtMins').value = dtCalc;
+    onDtChange(dtCalc);
+}
+
+// ── CAN WEIGHT AVERAGE ────────────────────────────────────
+function calcAvg() {
+    var vals = [];
+    var inputs = document.querySelectorAll('.wt');
+    for (var i = 0; i < inputs.length; i++) {
+        var v = parseFloat(inputs[i].value);
+        if (!isNaN(v)) vals.push(v);
+    }
+    if (vals.length === 0) { document.getElementById('avgDisplay').textContent = '- g'; return; }
+    var sum = 0;
+    for (var j = 0; j < vals.length; j++) sum += vals[j];
+    document.getElementById('avgDisplay').textContent = (sum / vals.length).toFixed(1) + ' g';
+}
+
+// ── SENSORY ───────────────────────────────────────────────
+function setSensory(point) {
+    var pts = ['B','M','E','N'];
+    for (var i = 0; i < pts.length; i++) {
+        var btn = document.getElementById('s' + pts[i]);
+        if (pts[i] === point) btn.classList.add('active');
+        else btn.classList.remove('active');
+    }
+    document.getElementById('sensoryPoint').value = point;
+    if (point === 'N') {
+        document.getElementById('sensoryPF').value = 'N/A';
+        document.getElementById('pfPass').className = 'pf-btn';
+        document.getElementById('pfFail').className = 'pf-btn';
+    }
+}
+
+function setPF(result) {
+    document.getElementById('pfPass').className = 'pf-btn' + (result === 'pass' ? ' pass' : '');
+    document.getElementById('pfFail').className = 'pf-btn' + (result === 'fail' ? ' fail' : '');
+    document.getElementById('sensoryPF').value  = result;
+}
+
+// ── FILTEC / FLOWMETER P/F ────────────────────────────────
+function setCheckPF(which, result) {
+    document.getElementById(which + 'Pass').className = 'pf-btn' + (result === 'pass' ? ' pass' : '');
+    document.getElementById(which + 'Fail').className = 'pf-btn' + (result === 'fail' ? ' fail' : '');
+    document.getElementById(which + 'PF').value       = result;
+}
+
+// ── QC SAMPLES ────────────────────────────────────────────
+function setYN(val) {
+    document.getElementById('qcSamples').value = val;
+    document.getElementById('qcY').className = 'yn-btn' + (val === 'Y' ? ' yes' : '');
+    document.getElementById('qcN').className = 'yn-btn' + (val === 'N' ? ' no'  : '');
+}
+
+// ── DOWNTIME ──────────────────────────────────────────────
+function onDtChange(val) {
+    document.getElementById('dtCard').style.display = (parseInt(val) || 0) > 0 ? 'block' : 'none';
+}
+
+function addDTRow() {
+    dtRowCount++;
+    var id  = 'dtr' + dtRowCount;
+    var idx = dtRowCount;
+    var opts = '';
+    for (var i = 0; i < DT_MACHINES.length; i++) {
+        opts += '<option>' + DT_MACHINES[i] + '</option>';
+    }
+    var row = document.createElement('div');
+    row.className = 'dt-event-row';
+    row.id = id;
+    row.innerHTML = '<select name="dtMachine_' + idx + '">' + opts + '</select>'
+        + '<input type="number" name="dtMins_' + idx + '" placeholder="mins" min="0" max="60" style="width:80px;">'
+        + '<button type="button" class="btn-remove" onclick="rmRow(\'' + id + '\')">&#215;</button>';
+    document.getElementById('dtRows').appendChild(row);
+}
+
+function rmRow(id) {
+    var el = document.getElementById(id);
+    if (el) el.parentNode.removeChild(el);
+}
+
+// ── EOR DOWNTIME ROWS ─────────────────────────────────────
+function addEorDTRow() {
+    eorDtRowCount++;
+    var id   = 'eordtr' + eorDtRowCount;
+    var idx  = eorDtRowCount;
+    var opts = '';
+    for (var i = 0; i < DT_MACHINES.length; i++) {
+        opts += '<option>' + DT_MACHINES[i] + '</option>';
+    }
+    var row = document.createElement('div');
+    row.className = 'eor-dt-event-row';
+    row.id = id;
+    row.innerHTML = '<select name="eorDtMachine_' + idx + '">' + opts + '</select>'
+        + '<input type="number" name="eorDtMins_' + idx + '" placeholder="mins" min="0" style="width:80px;">'
+        + '<button type="button" class="btn-remove" onclick="rmEorDtRow(\'' + id + '\')">&#215;</button>';
+    document.getElementById('eorDtRows').appendChild(row);
+}
+
+function rmEorDtRow(id) {
+    var el = document.getElementById(id);
+    if (el) el.parentNode.removeChild(el);
+}
+
+function collectEorDT() {
+    var events = [];
+    var rows = document.querySelectorAll('.eor-dt-event-row');
+    for (var i = 0; i < rows.length; i++) {
+        var sel = rows[i].querySelector('select');
+        var inp = rows[i].querySelector('input[type="number"]');
+        if (sel && inp && inp.value) {
+            events.push({ machine: sel.value, mins: parseInt(inp.value) || 0 });
+        }
+    }
+    return events;
+}
+
+function collectDT() {
+    var events = [];
+    var rows   = document.querySelectorAll('.dt-event-row');
+    for (var i = 0; i < rows.length; i++) {
+        var sel = rows[i].querySelector('select');
+        var inp = rows[i].querySelector('input[type="number"]');
+        if (sel && inp && inp.value) {
+            events.push({ machine: sel.value, minutes: parseInt(inp.value) || 0 });
+        }
+    }
+    return events;
+}
+
+// ── VALIDATE ──────────────────────────────────────────────
+function validate() {
+    var ok  = true;
+    var els = document.querySelectorAll('#hourlyForm [required]');
+    for (var i = 0; i < els.length; i++) {
+        els[i].classList.remove('err');
+        if (!els[i].value.trim()) { els[i].classList.add('err'); ok = false; }
+    }
+    if (!ok) {
+        var first = document.querySelector('#hourlyForm .err');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return ok;
+}
+
+// ── SUBMIT ────────────────────────────────────────────────
+function onSubmit(ev) {
+    ev.preventDefault();
+    if (!validate()) return;
+
+    try {
+        var counter = parseFloat(document.getElementById('fillerCounter').value) || 0;
+        var prev    = hourlyData.length > 0 ? (parseFloat(hourlyData[hourlyData.length - 1].fillerCounter) || 0) : 0;
+        var units   = Math.max(0, counter - prev);
+        var rUPH    = parseFloat(runData ? runData.ratedUPH : 0) || 1;
+        var eff     = parseFloat(((units / rUPH) * 100).toFixed(1));
+
+        var hourNum  = currentHourNum();
+        var winStart = '-', winEnd = '-';
+        if (runData && runData.qualTime) {
+            var p  = runData.qualTime.split(':');
+            var qh = parseInt(p[0]) || 0;
+            var qm = parseInt(p[1]) || 0;
+            var s  = qh * 60 + qm + (hourNum - 1) * 60;
+            winStart = fmtMins(s);
+            winEnd   = fmtMins(s + 60);
+        }
+
+        var wtVals = [], wtSum = 0;
+        var wtInputs = document.querySelectorAll('.wt');
+        for (var i = 0; i < wtInputs.length; i++) {
+            if (wtInputs[i].value) { wtVals.push(wtInputs[i].value); wtSum += parseFloat(wtInputs[i].value); }
+        }
+        var avgWeight = wtVals.length > 0 ? (wtSum / wtVals.length).toFixed(1) : '';
+
+        var entry = {
+            hourNum:      hourNum,
+            windowStart:  winStart,
+            windowEnd:    winEnd,
+            fillerCounter: counter,
+            unitsThisHour: units,
+            effPct:        eff,
+            dtMins:        parseInt(document.getElementById('dtMins').value) || 0,
+            dtEvents:      collectDT(),
+            dtNarrative:   document.getElementById('dtNarrative').value,
+            avgWeight:     avgWeight,
+            targetWeight:  document.getElementById('targetWeight').value,
+            canDO:         document.getElementById('canDO').value,
+            shakenDO:      document.getElementById('shakenDO').value,
+            canCO2:        document.getElementById('canCO2').value,
+            sensoryPoint:  document.getElementById('sensoryPoint').value,
+            sensoryPF:     document.getElementById('sensoryPF').value,
+            artOp:         document.querySelector('[name=artOp]').value,
+            dcOp:          document.querySelector('[name=dcOp]').value,
+            lcOp:          document.querySelector('[name=lcOp]').value,
+            seamOp:        document.querySelector('[name=seamOp]').value,
+            qcSamples:     document.getElementById('qcSamples').value,
+            lidPlant:      document.querySelector('[name=lidPlant]').value,
+            lidLot:        document.querySelector('[name=lidLot]').value,
+            canLot:        document.querySelector('[name=canLot]').value,
+            filtecPF:      document.getElementById('filtecPF').value,
+            flowPF:        document.getElementById('flowPF').value,
+            opInit:        document.getElementById('opInit').value,
+            _ts:           new Date().toISOString()
+        };
+
+        hourlyData.push(entry);
+        localStorage.setItem(LS_HOURLY, JSON.stringify(hourlyData));
+        showConf(entry);
+
+    } catch(err) {
+        showErr('Submit failed: ' + err.message);
+    }
+}
+
+// ── CONFIRMATION ──────────────────────────────────────────
+function showConf(e) {
+    var cls = e.effPct >= 80 ? 'green' : 'amber';
+
+    document.getElementById('confTitle').textContent = 'Hour ' + e.hourNum + ' Recorded';
+    document.getElementById('confSub').textContent   =
+        e.windowStart + ' to ' + e.windowEnd + '  |  Saved ' +
+        new Date(e._ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    var rows = [
+        ['Filler Counter',  (parseInt(e.fillerCounter) || 0).toLocaleString(), ''],
+        ['Units This Hour', (parseInt(e.unitsThisHour) || 0).toLocaleString(), ''],
+        ['Efficiency',      (parseFloat(e.effPct) || 0).toFixed(1) + '%', cls],
+        ['Downtime',        e.dtMins + ' min', ''],
+        ['Avg Can Weight',  e.avgWeight ? e.avgWeight + ' g' : '-', ''],
+        ['Sensory',         (e.sensoryPoint && e.sensoryPoint !== 'N') ? e.sensoryPoint + ' - ' + e.sensoryPF : 'N/A', ''],
+        ['Filtec',          e.filtecPF ? cap(e.filtecPF) : '-', ''],
+        ['Flowmeter / UG',  e.flowPF   ? cap(e.flowPF)   : '-', ''],
+        ['Operator',        e.opInit, '']
+    ];
+
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+        html += '<div class="conf-row">'
+              + '<span class="conf-lbl">' + rows[i][0] + '</span>'
+              + '<span class="conf-val ' + rows[i][2] + '">' + (rows[i][1] || '-') + '</span>'
+              + '</div>';
+    }
+    document.getElementById('confBody').innerHTML = html;
+    document.getElementById('overlay').className  = 'overlay show';
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function closeConf() {
+    document.getElementById('overlay').className = 'overlay';
+}
+
+function nextHour() {
+    closeConf();
+    resetForm();
+    updateHourBadge();
+    updateWindowDisplay();
+    renderHistory();
+    window.scrollTo(0, 0);
+}
+
+// ── RESET FORM ────────────────────────────────────────────
+function resetForm() {
+    document.getElementById('hourlyForm').reset();
+    dtRowCount = 0;
+    document.getElementById('dtRows').innerHTML      = '';
+    document.getElementById('dtNarrative').value     = '';
+    document.getElementById('dtCard').style.display  = 'none';
+    document.getElementById('effPanel').className    = 'eff-panel';
+    document.getElementById('effPct').textContent    = '-';
+    document.getElementById('effUnits').textContent  = '-';
+    document.getElementById('effAccum').textContent  = '-';
+    document.getElementById('effSub').textContent    = 'Enter filler counter below';
+    document.getElementById('avgDisplay').textContent= '- g';
+    onTargetWeight(''); // reset range display to just ± tolerance
+
+    var btns = ['sB','sM','sE','sN'];
+    for (var i = 0; i < btns.length; i++) document.getElementById(btns[i]).classList.remove('active');
+
+    var pfBtns = ['pfPass','pfFail','filtecPass','filtecFail','flowPass','flowFail'];
+    for (var j = 0; j < pfBtns.length; j++) document.getElementById(pfBtns[j]).className = 'pf-btn';
+
+    document.getElementById('qcY').className = 'yn-btn';
+    document.getElementById('qcN').className = 'yn-btn';
+
+    var hids = ['sensoryPoint','sensoryPF','filtecPF','flowPF','qcSamples'];
+    for (var k = 0; k < hids.length; k++) document.getElementById(hids[k]).value = '';
+}
+
+// ── HISTORY ───────────────────────────────────────────────
+function toggleHistory() {
+    var list  = document.getElementById('histList');
+    var open  = list.className.indexOf('show') === -1;
+    list.className = open ? 'history-list show' : 'history-list';
+    document.getElementById('histArrow').innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
+function renderHistory() {
+    var list = document.getElementById('histList');
+    var lbl  = document.getElementById('histLbl');
+    lbl.textContent = 'Previous Hours (' + hourlyData.length + ')';
+    if (hourlyData.length === 0) {
+        list.innerHTML = '<p style="padding:12px;color:var(--g600);font-size:13px;">No hours logged yet.</p>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < hourlyData.length; i++) {
+        var e       = hourlyData[i];
+        var units   = parseInt(e.unitsThisHour) || 0;
+        var eff     = parseFloat(e.effPct)      || 0;
+        var dtMins  = parseInt(e.dtMins)         || 0;
+        var cls     = eff >= 80 ? 'green' : 'amber';
+        var dt      = dtMins > 0 ? ' | ' + dtMins + ' min DT' : '';
+        var win     = (e.windowStart || '-') + ' to ' + (e.windowEnd || '-');
+        html += '<div class="hist-card">'
+              + '<span class="hist-hour">HR ' + (e.hourNum || i + 1) + '</span>'
+              + '<div class="hist-data">' + win + dt
+              + '<br>' + units.toLocaleString() + ' cans | Avg ' + (e.avgWeight || '-') + ' g</div>'
+              + '<span class="hist-eff ' + cls + '">' + eff.toFixed(1) + '%</span>'
+              + '</div>';
+    }
+    list.innerHTML = html;
+}
+
+// ── ERROR DISPLAY ─────────────────────────────────────────
+function showErr(msg) {
+    var bar = document.getElementById('errBar');
+    bar.textContent = 'ERROR: ' + msg;
+    bar.className   = 'err-bar show';
+    bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── EOR FINAL CHECKS ─────────────────────────────────────
+function calcEorFcAvg() {
+    var vals   = [];
+    var inputs = document.querySelectorAll('.eor-wt');
+    for (var i = 0; i < inputs.length; i++) {
+        var v = parseFloat(inputs[i].value);
+        if (!isNaN(v)) vals.push(v);
+    }
+    if (vals.length === 0) {
+        document.getElementById('eorFcAvgDisplay').textContent = '- g';
+        return;
+    }
+    var sum = 0;
+    for (var j = 0; j < vals.length; j++) sum += vals[j];
+    document.getElementById('eorFcAvgDisplay').textContent = (sum / vals.length).toFixed(1) + ' g';
+}
+
+function onEorFcWeight(val) {
+    // Reuses same tolerance logic as hourly weight range
+    var tol = getWeightTol();
+    var el  = document.getElementById('eorFcWeightRange');
+    var wt  = parseFloat(val);
+    if (!val || isNaN(wt)) {
+        el.textContent = '± ' + tol.toFixed(1) + ' g';
+    } else {
+        el.textContent = (wt - tol).toFixed(1) + ' – ' + (wt + tol).toFixed(1) + ' g';
+    }
+}
+
+function setEorFcPF(which, result) {
+    document.getElementById('eorFc' + which + 'Pass').className = 'tbl-pf-btn' + (result === 'pass' ? ' pass' : '');
+    document.getElementById('eorFc' + which + 'Fail').className = 'tbl-pf-btn' + (result === 'fail' ? ' fail' : '');
+    document.getElementById('eorFc' + which + 'PF').value       = result;
+}
+
+function setEorFcQC(val) {
+    document.getElementById('eorFcQcSamplesHid').value = val;
+    document.getElementById('eorFcQcY').className = 'tbl-pf-btn' + (val === 'Y' ? ' yes' : '');
+    document.getElementById('eorFcQcN').className = 'tbl-pf-btn' + (val === 'N' ? ' no'  : '');
+}
+
+// ── CANS PER CASE LOOKUP ──────────────────────────────────
+// Physical cans per outer shipping case by package config.
+// Verify these match actual case counts before going live.
+var CANS_PER_CASE = {
+    '12oz 4/6 Wrap NS':   24,
+    '12oz 4/6 Wrap SLV':  24,
+    '12oz 6/4 PT NS':     24,
+    '12oz 6/4 PT SLV':    24,
+    '12oz 2/12 Wrap NS':  24,
+    '12oz 2/12 Wrap SLV': 24,
+    '12oz 15pk Wrap NS':  15,
+    '12oz 15pk Wrap SLV': 15,
+    '12oz 24pk Wrap NS':  24,
+    '12oz 24pk Wrap SLV': 24,
+    '16oz 6/4 PT NS':     24,
+    '16oz 6/4 PT SLV':    24,
+    '19.2oz 12pk NS':     12,
+    '19.2oz 12pk SLV':    12,
+    '19.2oz 24pk LSE NS': 24,
+    '19.2oz 24pk LSE SLV':24
+};
+
+// ── END OF RUN ────────────────────────────────────────────
+function openEOR() {
+    // Build summary table
+    var beer   = runData ? (runData.beerCode  || '-') : '-';
+    var config = runData ? (runData.pkgConfig || '-') : '-';
+    var tank   = runData ? (runData.tankNum   || '-') : '-';
+    var qstart = runData ? (runData.qualTime  || '-') : '-';
+
+    var totalHourlyUnits = 0;
+    var effSum = 0;
+    var totalDT = 0;
+    for (var i = 0; i < hourlyData.length; i++) {
+        totalHourlyUnits += parseInt(hourlyData[i].unitsThisHour) || 0;
+        effSum           += parseFloat(hourlyData[i].effPct)      || 0;
+        totalDT          += parseInt(hourlyData[i].dtMins)         || 0;
+    }
+    var avgEff = hourlyData.length > 0 ? (effSum / hourlyData.length).toFixed(1) : '-';
+
+    document.getElementById('eorSummaryTable').innerHTML =
+        '<tr><td>Beer</td><td>' + beer + '</td></tr>'
+      + '<tr><td>Config</td><td>' + config + '</td></tr>'
+      + '<tr><td>Tank</td><td>' + tank + '</td></tr>'
+      + '<tr><td>Run Start</td><td>' + qstart + '</td></tr>'
+      + '<tr><td>Complete Hours Logged</td><td>' + hourlyData.length + '</td></tr>'
+      + '<tr><td>Total DT (logged hours)</td><td>' + totalDT + ' min</td></tr>'
+      + '<tr><td>Cans (logged hours)</td><td>' + totalHourlyUnits.toLocaleString() + '</td></tr>'
+      + '<tr><td>Avg Efficiency</td><td>' + avgEff + '%</td></tr>';
+
+    // Update Total DT callout (logged hours only — partial hour added when end time entered)
+    eorLoggedDT = totalDT;
+    document.getElementById('eorTotalDTVal').textContent = totalDT + ' min';
+    document.getElementById('eorDtBreakdown').style.display = 'none';
+    document.getElementById('eorTotalDTSub').textContent = hourlyData.length > 0
+        ? totalDT + ' min from ' + hourlyData.length + ' logged hour(s) — final partial added when end time is entered'
+        : 'Enter end time and counter to calculate total';
+    document.getElementById('eorGrandTotalDT').value = totalDT;
+
+    // Seed final checks weight range tolerance
+    onEorFcWeight('');
+
+    // Pre-set cans/case from config (before counter is entered)
+    var cpc = CANS_PER_CASE[config] || 24;
+    document.getElementById('eorCansPerCase').textContent = cpc;
+
+    // Show sleeve count only for SLV (sleeved) configs
+    var sleeveRow = document.getElementById('eorSleeveRow');
+    var sleeveIn  = document.getElementById('eorSleeveCount');
+    if (config.indexOf('SLV') !== -1) {
+        sleeveRow.style.display = '';
+        sleeveIn.required = true;
+    } else {
+        sleeveRow.style.display = 'none';
+        sleeveIn.required = false;
+        sleeveIn.value = '';
+    }
+
+    document.getElementById('eorOverlay').className = 'eor-overlay show';
+    document.getElementById('eorOverlay').scrollTop = 0;
+}
+
+function closeEOR() {
+    document.getElementById('eorOverlay').className = 'eor-overlay';
+}
+
+function onEorCounter(val) {
+    // Filler counter updates the REFERENCE estimate only — not the official case count
+    var finalCounter = parseFloat(val);
+    if (isNaN(finalCounter)) {
+        document.getElementById('eorTotalCans').textContent = '-';
+        document.getElementById('eorEstCases').textContent  = '-';
+        document.getElementById('eorTotalCansHid').value    = 0;
+        return;
+    }
+    var completeUnits = 0;
+    for (var i = 0; i < hourlyData.length; i++) {
+        completeUnits += parseInt(hourlyData[i].unitsThisHour) || 0;
+    }
+    var lastCounter  = hourlyData.length > 0
+        ? (parseFloat(hourlyData[hourlyData.length - 1].fillerCounter) || 0) : 0;
+    var partialUnits = Math.max(0, finalCounter - lastCounter);
+    var totalCans    = completeUnits + partialUnits;
+    var config       = runData ? (runData.pkgConfig || '') : '';
+    var cpc          = CANS_PER_CASE[config] || 24;
+    var estCases     = Math.floor(totalCans / cpc);
+
+    document.getElementById('eorTotalCans').textContent  = totalCans.toLocaleString();
+    document.getElementById('eorEstCases').textContent   = estCases.toLocaleString();
+    document.getElementById('eorCansPerCase').textContent = cpc;
+    document.getElementById('eorTotalCansHid').value      = totalCans;
+}
+
+function calcEorEfficiency() {
+    var endTime      = document.getElementById('eorEndTime').value;
+    var finalCounter = parseFloat(document.getElementById('eorFinalCounter').value);
+    if (!endTime || isNaN(finalCounter) || !runData || !runData.qualTime) {
+        document.getElementById('eorEffCard').style.display = 'none';
+        return;
+    }
+
+    var ratedCPM  = parseFloat(runData.ratedCPM) || 1;
+
+    // Convert times to total minutes from midnight
+    var eParts   = endTime.split(':');
+    var endMins  = parseInt(eParts[0]) * 60 + parseInt(eParts[1]);
+    var qParts   = runData.qualTime.split(':');
+    var qualMins = parseInt(qParts[0]) * 60 + parseInt(qParts[1]);
+
+    // Partial hour starts where the last complete hour ended
+    var partialStartMins = qualMins + hourlyData.length * 60;
+
+    // Duration of partial hour in minutes (handle midnight rollover)
+    var partialDuration = endMins - partialStartMins;
+    if (partialDuration < 0) partialDuration += 1440; // 24 * 60
+
+    // Partial units = finalCounter - last logged counter
+    var lastCounter  = hourlyData.length > 0
+        ? (parseFloat(hourlyData[hourlyData.length - 1].fillerCounter) || 0) : 0;
+    var partialUnits = Math.max(0, finalCounter - lastCounter);
+
+    // Partial hour DT: time in partial window not spent producing cans
+    var partialDT   = Math.round(Math.max(0, partialDuration - (partialUnits / ratedCPM)));
+    var grandTotalDT = eorLoggedDT + partialDT;
+    document.getElementById('eorTotalDTVal').textContent      = grandTotalDT + ' min';
+    document.getElementById('eorDtLoggedPart').textContent    = eorLoggedDT + ' min';
+    document.getElementById('eorDtPartialPart').textContent   = partialDT   + ' min';
+    document.getElementById('eorDtBreakdown').style.display   = 'block';
+    document.getElementById('eorTotalDTSub').textContent      = '';
+    document.getElementById('eorGrandTotalDT').value          = grandTotalDT;
+
+    // Partial hour efficiency
+    var ratedPartial = ratedCPM * partialDuration;
+    var partialEff   = ratedPartial > 0 ? (partialUnits / ratedPartial) * 100 : 0;
+
+    // Build rows for each logged hour + partial hour
+    var html         = '';
+    var totalActual  = 0;
+    var totalMinutes = 0;
+
+    for (var i = 0; i < hourlyData.length; i++) {
+        var e   = hourlyData[i];
+        var eff = parseFloat(e.effPct) || 0;
+        var cls = eff >= 80 ? 'var(--green)' : 'var(--amber)';
+        totalActual  += parseInt(e.unitsThisHour) || 0;
+        totalMinutes += 60;
+        html += '<div class="conf-row">'
+              + '<span class="conf-lbl">Hour ' + (e.hourNum || i + 1) + ' &nbsp;<span style="font-weight:400;color:var(--g600)">(60 min)</span></span>'
+              + '<span class="conf-val" style="color:' + cls + '">' + eff.toFixed(1) + '%</span>'
+              + '</div>';
+    }
+
+    // Partial hour row (only show if there was some partial time)
+    if (partialDuration > 0) {
+        var partHourNum = hourlyData.length + 1;
+        var partCls     = partialEff >= 80 ? 'var(--green)' : 'var(--amber)';
+        totalActual  += partialUnits;
+        totalMinutes += partialDuration;
+        html += '<div class="conf-row" style="background:var(--g100);border-radius:6px;padding:8px 4px;">'
+              + '<span class="conf-lbl">Hour ' + partHourNum + ' &nbsp;<span style="font-weight:400;color:var(--g600)">(' + Math.round(partialDuration) + ' min &mdash; partial)</span></span>'
+              + '<span class="conf-val" style="color:' + partCls + '">' + partialEff.toFixed(1) + '%</span>'
+              + '</div>';
+    }
+
+    document.getElementById('eorEffRows').innerHTML = html;
+
+    // Overall efficiency = total cans produced / total rated cans over full run time
+    var totalRated  = ratedCPM * totalMinutes;
+    var overallEff  = totalRated > 0 ? (totalActual / totalRated) * 100 : 0;
+    var overallCls  = overallEff >= 80 ? 'var(--green)' : 'var(--amber)';
+    var overallEl   = document.getElementById('eorOverallEff');
+    overallEl.textContent = overallEff.toFixed(1) + '%';
+    overallEl.style.color = overallCls;
+
+    document.getElementById('eorEffCard').style.display = 'block';
+}
+
+function onEorCasesInput(val) {
+    // Recalculate net cases whenever the operator changes total cases
+    var total = parseInt(val) || 0;
+    var hold  = parseInt(document.getElementById('eorCasesHold').value) || 0;
+    var net   = Math.max(0, total - hold);
+    document.getElementById('eorNetDisplay').textContent = net.toLocaleString();
+    document.getElementById('eorNetCasesHid').value      = net;
+}
+
+function onEorHoldChange(val) {
+    // Recalculate net cases when hold quantity changes
+    var total = parseInt(document.getElementById('eorTotalCasesInput').value) || 0;
+    var hold  = parseInt(val) || 0;
+    var net   = Math.max(0, total - hold);
+    document.getElementById('eorNetDisplay').textContent = net.toLocaleString();
+    document.getElementById('eorNetCasesHid').value      = net;
+}
+
+function validateEOR() {
+    var ok  = true;
+    var els = document.querySelectorAll('#eorForm [required]');
+    for (var i = 0; i < els.length; i++) {
+        els[i].classList.remove('err');
+        if (!els[i].value.trim()) { els[i].classList.add('err'); ok = false; }
+    }
+    if (!ok) {
+        var first = document.querySelector('#eorForm .err');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return ok;
+}
+
+function submitEOR() {
+    if (!validateEOR()) return;
+    try {
+        // Sum total DT from all logged hours (before hourlyData is cleared)
+        var runTotalDT = 0;
+        for (var di = 0; di < hourlyData.length; di++) {
+            runTotalDT += parseInt(hourlyData[di].dtMins) || 0;
+        }
+
+        // Collect final check can weight average
+        var eorWtVals = [], eorWtSum = 0;
+        var eorWtInputs = document.querySelectorAll('.eor-wt');
+        for (var wi = 0; wi < eorWtInputs.length; wi++) {
+            if (eorWtInputs[wi].value) {
+                eorWtVals.push(eorWtInputs[wi].value);
+                eorWtSum += parseFloat(eorWtInputs[wi].value);
+            }
+        }
+        var eorFcAvgWt = eorWtVals.length > 0 ? (eorWtSum / eorWtVals.length).toFixed(1) : '';
+
+        var eorEntry = {
+            // Timing
+            endTime:       document.getElementById('eorEndTime').value,
+            finalCounter:  parseFloat(document.getElementById('eorFinalCounter').value) || 0,
+            dtEvents:      collectEorDT(),
+            dtNarrative:   document.getElementById('eorDtNarrative').value,
+            // Quality — Filtec
+            filtecPct:         document.getElementById('eorFiltecPct').value,
+            filtecLowReject:   parseInt(document.getElementById('eorFiltecLowReject').value) || 0,
+            filtecDudReject:   parseInt(document.getElementById('eorFiltecDudReject').value) || 0,
+            filtecTotal:       parseInt(document.getElementById('eorFiltecTotal').value)     || 0,
+            // Quality — Flowmeter / Sleeves
+            flowStart:     document.getElementById('eorFlowStart').value,
+            flowEnd:       document.getElementById('eorFlowEnd').value,
+            sleeveCount:   document.getElementById('eorSleeveCount').value,
+            // Final Checks — weights
+            fcAvgWeight:   eorFcAvgWt,
+            fcTargetWeight:document.getElementById('eorFcTargetWeight').value,
+            // Final Checks — gas
+            fcCanDO:       document.getElementById('eorFcCanDO').value,
+            fcShakenDO:    document.getElementById('eorFcShakenDO').value,
+            fcCanCO2:      document.getElementById('eorFcCanCO2').value,
+            // Final Checks — lid & can info
+            fcLidPlant:    document.getElementById('eorFcLidPlant').value,
+            fcLidLot:      document.getElementById('eorFcLidLot').value,
+            fcLidColor:    document.getElementById('eorFcLidColor').value,
+            fcCanLot:      document.getElementById('eorFcCanLot').value,
+            // Final Checks — P/F
+            fcPkgMatchPF:  document.getElementById('eorFcPkgPF').value,
+            fcSensoryPF:   document.getElementById('eorFcSensoryPF').value,
+            fcArtPF:       document.getElementById('eorFcArtPF').value,
+            fcDcPF:        document.getElementById('eorFcDcPF').value,
+            fcFiltecPF:    document.getElementById('eorFcFiltecPF').value,
+            fcSeamPF:      document.getElementById('eorFcSeamPF').value,
+            fcQcSamples:   document.getElementById('eorFcQcSamplesHid').value,
+            // Run Totals
+            casesOnHold:   parseInt(document.getElementById('eorCasesHold').value) || 0,
+            totalCans:     parseInt(document.getElementById('eorTotalCansHid').value)     || 0,
+            totalCases:    parseInt(document.getElementById('eorTotalCasesInput').value)  || 0,
+            netCases:      parseInt(document.getElementById('eorNetCasesHid').value)      || 0,
+            overallEff:    document.getElementById('eorOverallEff').textContent,
+            totalDT:       parseInt(document.getElementById('eorGrandTotalDT').value) || runTotalDT,
+            // Sign-Off
+            opInit:        document.getElementById('eorOpInit').value,
+            vrInit:        document.getElementById('eorVrInit').value,
+            _ts:           new Date().toISOString()
+        };
+
+        // Build full run archive object
+        var runStartData = null;
+        var rsRaw = localStorage.getItem(LS_RUN);
+        if (rsRaw) { try { runStartData = JSON.parse(rsRaw); } catch(e2) {} }
+
+        var completedRun = {
+            runStart:      runStartData,
+            hourlyEntries: hourlyData,
+            endOfRun:      eorEntry,
+            archivedAt:    new Date().toISOString()
+        };
+
+        // Append to archive
+        var archiveRaw = localStorage.getItem('harpoon_completed_runs_v1');
+        var archive    = [];
+        if (archiveRaw) { try { archive = JSON.parse(archiveRaw); } catch(e3) {} }
+        archive.push(completedRun);
+        localStorage.setItem('harpoon_completed_runs_v1', JSON.stringify(archive));
+
+        // Clear active run keys
+        localStorage.removeItem(LS_RUN);
+        localStorage.removeItem(LS_HOURLY);
+        runData    = null;
+        hourlyData = [];
+
+        // Show final confirmation
+        closeEOR();
+        showFinalConf(eorEntry, completedRun);
+
+    } catch(e) {
+        showErr('End of Run submit failed: ' + e.message);
+    }
+}
+
+function showFinalConf(eor, run) {
+    var beer   = run.runStart ? (run.runStart.beerCode  || '-') : '-';
+    var config = run.runStart ? (run.runStart.pkgConfig || '-') : '-';
+
+    document.getElementById('finalSub').textContent = beer + ' — ' + config;
+
+    document.getElementById('finalBody').innerHTML =
+        '<table class="sum-table">'
+      + '<tr><td>Total Cans</td><td>' + (eor.totalCans || 0).toLocaleString() + '</td></tr>'
+      + '<tr><td>Total Cases</td><td>' + (eor.totalCases || 0).toLocaleString() + '</td></tr>'
+      + '<tr><td>Cases on Hold</td><td>' + (eor.casesOnHold || 0) + '</td></tr>'
+      + '<tr><td>Net Good Cases</td><td>' + (eor.netCases || 0).toLocaleString() + '</td></tr>'
+      + '<tr><td>Total Downtime</td><td>' + (eor.totalDT || 0) + ' min</td></tr>'
+      + (eor.dtEvents && eor.dtEvents.length ? '<tr><td>DT Events</td><td>' + eor.dtEvents.length + ' event(s) logged</td></tr>' : '')
+      + (eor.dtNarrative ? '<tr><td>DT Notes</td><td>' + eor.dtNarrative + '</td></tr>' : '')
+      + '<tr><td>Overall Efficiency</td><td>' + (eor.overallEff || '-') + '</td></tr>'
+      + '<tr><td>Filtec %</td><td>' + (eor.filtecPct || '-') + '</td></tr>'
+      + '<tr><td>Filtec Low Reject</td><td>' + (eor.filtecLowReject || 0) + ' cans</td></tr>'
+      + '<tr><td>Filtec Dud Reject</td><td>' + (eor.filtecDudReject || 0) + ' cans</td></tr>'
+      + '<tr><td>Total Through Filtec</td><td>' + (eor.filtecTotal ? parseInt(eor.filtecTotal).toLocaleString() : '-') + '</td></tr>'
+      + '<tr><td>Flowmeter Start</td><td>' + (eor.flowStart || '-') + '</td></tr>'
+      + '<tr><td>Flowmeter End</td><td>' + (eor.flowEnd   || '-') + '</td></tr>'
+      + (eor.sleeveCount ? '<tr><td>Sleeve Count</td><td>' + eor.sleeveCount + '</td></tr>' : '')
+      + '<tr><td>Hours Logged</td><td>' + run.hourlyEntries.length + '</td></tr>'
+      + '<tr><td>End Time</td><td>' + (eor.endTime || '-') + '</td></tr>'
+      + '</table>'
+      + '<p style="font-size:12px;color:var(--g600);text-align:center;margin-top:10px;">Run archived. Active run data has been cleared.</p>';
+
+    document.getElementById('finalOverlay').className = 'final-overlay show';
+}
+
+function goToRunStart() {
+    window.location.href = 'Run_Start_Form.html';
+}
+
+function endDay() {
+    document.getElementById('finalFoot').innerHTML =
+        '<p style="text-align:center;color:var(--g600);font-size:14px;padding:6px 0;width:100%;">' +
+        'Day complete &mdash; thanks! This tablet is ready for the next run whenever you are.</p>';
+}
+
+// ── CLEAR TEST DATA ───────────────────────────────────────
+function clearHourlyData() {
+    if (!confirm('Clear all saved hourly entries for this run? This cannot be undone.')) return;
+    localStorage.removeItem(LS_HOURLY);
+    hourlyData = [];
+    renderHistory();
+    updateHourBadge();
+    updateWindowDisplay();
+    document.getElementById('debugOut').style.display = 'none';
+}
+
+// ── DEBUG ─────────────────────────────────────────────────
+function showDebug() {
+    var out = document.getElementById('debugOut');
+    var runRaw    = localStorage.getItem('harpoon_run_start_v1');
+    var hourlyRaw = localStorage.getItem('harpoon_hourly_v1');
+    var lines = [];
+    lines.push('=== harpoon_run_start_v1 ===');
+    if (runRaw) {
+        try {
+            var d = JSON.parse(runRaw);
+            lines.push('beerCode: ' + d.beerCode);
+            lines.push('pkgConfig: ' + d.pkgConfig);
+            lines.push('qualTime: ' + d.qualTime);
+            lines.push('ratedCPM: ' + d.ratedCPM);
+            lines.push('ratedUPH: ' + d.ratedUPH);
+        } catch(e) { lines.push('PARSE ERROR: ' + e.message); }
+    } else {
+        lines.push('(not found)');
+    }
+    lines.push('');
+    lines.push('=== harpoon_hourly_v1 ===');
+    if (hourlyRaw) {
+        try {
+            var arr = JSON.parse(hourlyRaw);
+            lines.push('Entries: ' + arr.length);
+            for (var i = 0; i < arr.length; i++) {
+                lines.push('  HR' + arr[i].hourNum + ': counter=' + arr[i].fillerCounter
+                    + ' units=' + arr[i].unitsThisHour + ' eff=' + arr[i].effPct + '%'
+                    + ' op=' + arr[i].opInit);
+            }
+        } catch(e) { lines.push('PARSE ERROR: ' + e.message); }
+    } else {
+        lines.push('(not found)');
+    }
+    out.textContent = lines.join('\n');
+    out.style.display = 'block';
+}
+</script>
+</body>
+</html>

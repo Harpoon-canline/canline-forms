@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Run Start Form — Harpoon Can Line</title>
+    <!-- Add to Home Screen support (iOS Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Run Start">
+    <link rel="apple-touch-icon" href="icon-run-start.png">
+    <style>
+        :root {
+            --navy:        #1F3864;
+            --navy-light:  #2d4f8a;
+            --accent:      #C9A84C;
+            --green:       #375623;
+            --green-light: #4a7a30;
+            --white:       #ffffff;
+            --gray-100:    #f8f9fa;
+            --gray-200:    #e9ecef;
+            --gray-400:    #ced4da;
+            --gray-600:    #6c757d;
+            --gray-800:    #343a40;
+            --danger:      #dc3545;
+            --warning-bg:  #fff3cd;
+            --warning-bd:  #ffc107;
+            --warning-tx:  #856404;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --radius:      10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #eef0f4;
+            color: var(--gray-800);
+            min-height: 100vh;
+            padding-bottom: 48px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: var(--navy);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+        }
+        .header h1  { font-size: 20px; font-weight: 700; }
+        .header p   { font-size: 12px; opacity: .75; margin-top: 2px; }
+        .header-badge {
+            background: var(--accent);
+            color: var(--navy);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            letter-spacing: .5px;
+            white-space: nowrap;
+        }
+
+        /* ── EXISTING-RUN BANNER ── */
+        .banner {
+            background: var(--warning-bg);
+            border-left: 4px solid var(--warning-bd);
+            padding: 14px 18px;
+            display: none;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .banner.show { display: flex; }
+        .banner p  { flex: 1; font-size: 14px; color: var(--warning-tx); font-weight: 500; line-height: 1.4; }
+        .btn-clear {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 42px;
+            white-space: nowrap;
+        }
+
+        /* ── LAYOUT ── */
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* ── SECTION CARD ── */
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .card-header {
+            background: var(--navy);
+            color: white;
+            padding: 13px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-num {
+            background: rgba(255,255,255,.22);
+            width: 27px; height: 27px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .card-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+        .card-body  { padding: 18px; }
+
+        /* ── FIELDS ── */
+        .row { display: grid; gap: 14px; margin-bottom: 14px; }
+        .row:last-child { margin-bottom: 0; }
+        .col-1 { grid-template-columns: 1fr; }
+        .col-2 { grid-template-columns: 1fr 1fr; }
+        .col-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        .fg { display: flex; flex-direction: column; gap: 6px; }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-600);
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+        .req { color: var(--danger); margin-left: 2px; }
+
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--gray-800);
+            background: white;
+            min-height: 50px;
+            transition: border-color .15s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--navy); }
+        input.readonly { background: var(--gray-100); color: var(--gray-600); cursor: default; }
+        input.error, select.error { border-color: var(--danger); }
+
+        .hint { font-size: 11px; color: var(--gray-600); font-style: italic; margin-top: 1px; }
+
+        /* ── RATED SPEED PANEL ── */
+        .rated-panel {
+            background: #eaf4e8;
+            border: 2px solid #4a7a30;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+            gap: 0;
+            margin-top: 4px;
+            margin-bottom: 14px;
+        }
+        .rated-panel.show { display: flex; }
+        .rated-item { flex: 1; text-align: center; }
+        .rated-item + .rated-item { border-left: 1px solid #b7d9b0; }
+        .rated-item .r-label { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .4px; }
+        .rated-item .r-value { font-size: 26px; font-weight: 800; color: var(--green); line-height: 1.15; }
+        .rated-item .r-unit  { font-size: 12px; color: var(--green-light); }
+
+        /* ── CONDITIONAL FIELDS ── */
+        .cond { display: none; flex-direction: column; gap: 6px; }
+        .cond.show { display: flex; }
+
+        /* ── DIVIDER ── */
+        .divider { border: none; border-top: 1px solid var(--gray-200); margin: 16px 0; }
+
+        /* ── PASS / FAIL BUTTONS ── */
+        .pf-row { display: flex; gap: 10px; margin-bottom: 4px; }
+        .pf-btn { flex: 1; padding: 13px 10px; border: 2px solid var(--gray-400); border-radius: 8px; background: white; font-size: 15px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .pf-btn.pass { background: #2e7d32; border-color: #2e7d32; color: white; }
+        .pf-btn.fail { background: var(--danger); border-color: var(--danger); color: white; }
+
+        /* ── YES / NO BUTTONS ── */
+        .yn-row { display: flex; gap: 10px; margin-bottom: 4px; }
+        .yn-btn { flex: 1; padding: 13px 10px; border: 2px solid var(--gray-400); border-radius: 8px; background: white; font-size: 15px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .yn-btn.yes { background: #2e7d32; border-color: #2e7d32; color: white; }
+        .yn-btn.no  { background: var(--danger); border-color: var(--danger); color: white; }
+
+        /* ── CHECK BLOCK LABEL ── */
+        .check-lbl { display: block; font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+        .check-sub { font-size: 11px; color: var(--gray-600); font-weight: 400; }
+
+        /* ── INITIALS ── */
+        .initials {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 800;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        /* ── SUBMIT ── */
+        .btn-submit {
+            width: 100%;
+            background: var(--navy);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 62px;
+            letter-spacing: .3px;
+            margin-top: 4px;
+            transition: background .15s;
+        }
+        .btn-submit:active { background: var(--navy-light); }
+
+        /* ── CONFIRMATION OVERLAY ── */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; right: 0; bottom: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,.6);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .overlay.show { display: flex; }
+
+        .conf-card {
+            background: white;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,.35);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .conf-head {
+            background: var(--green);
+            color: white;
+            padding: 22px 20px 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .conf-head .icon { font-size: 38px; line-height: 1; margin-bottom: 6px; }
+        .conf-head h2 { font-size: 20px; font-weight: 700; }
+        .conf-head p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+
+        .conf-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .conf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 14px;
+            gap: 12px;
+        }
+        .conf-row:last-child { border-bottom: none; }
+        .conf-lbl { color: var(--gray-600); font-weight: 500; white-space: nowrap; }
+        .conf-val { font-weight: 700; color: var(--gray-800); text-align: right; }
+
+        .conf-foot {
+            padding: 14px 20px;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--gray-200);
+        }
+        .btn-edit {
+            background: var(--gray-200);
+            color: var(--gray-800);
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-next {
+            flex: 1;
+            background: var(--navy);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 500px) {
+            .col-2 { grid-template-columns: 1fr; }
+            .col-3 { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div>
+        <h1>Run Start Form</h1>
+        <p>Harpoon Can Line &mdash; Fill at Qualification</p>
+    </div>
+    <div class="header-badge">FORM 1 OF 3</div>
+</div>
+
+<!-- EXISTING RUN BANNER -->
+<div class="banner" id="banner">
+    <p id="bannerText">A run is already saved.</p>
+    <button class="btn-clear" onclick="clearRun()">Clear &amp; Start New</button>
+</div>
+
+<!-- FORM -->
+<div class="container">
+<form id="form" novalidate>
+
+    <!-- ① RUN INFO -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">1</div>
+            <div class="card-title">Run Info</div>
+        </div>
+        <div class="card-body">
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="runDate">Date <span class="req">*</span></label>
+                    <input type="date" id="runDate" name="runDate" required>
+                </div>
+                <div class="fg">
+                    <label for="julianDate">Julian Date</label>
+                    <input type="text" id="julianDate" name="julianDate" class="readonly" readonly placeholder="Auto">
+                    <span class="hint">Auto-calculated from date</span>
+                </div>
+            </div>
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="dateCode">Date Code Type <span class="req">*</span></label>
+                    <select id="dateCode" name="dateCode" required>
+                        <option value="">— Select Type —</option>
+                        <option>Packaged On</option>
+                        <option>Canned On</option>
+                    </select>
+                </div>
+                <div class="fg">
+                    <label for="packagedOn">Date Packaged <span class="req">*</span></label>
+                    <input type="date" id="packagedOn" name="packagedOn" required>
+                </div>
+            </div>
+
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="qualTime">Qualification / Run Start Time <span class="req">*</span></label>
+                    <input type="time" id="qualTime" name="qualTime" required>
+                    <span class="hint">Clock anchor &mdash; all hourly windows are measured from this time</span>
+                </div>
+                <div class="fg">
+                    <label for="deacomJobNum">Deacom Job Number <span class="req">*</span></label>
+                    <input type="text" id="deacomJobNum" name="deacomJobNum" placeholder="e.g. 12345" required>
+                </div>
+                <div class="fg">
+                    <label for="batchNum">Batch # <span class="req">*</span></label>
+                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. LTALE13" required>
+                    <span class="hint">Same batch code Downstairs records &mdash; the join key across both tablets</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ② TANK & BEER -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">2</div>
+            <div class="card-title">Tank &amp; Beer</div>
+        </div>
+        <div class="card-body">
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="tankNum">Tank / BBT Number <span class="req">*</span></label>
+                    <input type="text" id="tankNum" name="tankNum" placeholder="e.g. F16" required>
+                </div>
+                <div class="fg">
+                    <label for="beerCode">Beer / Product Code <span class="req">*</span></label>
+                    <input type="text" id="beerCode" name="beerCode" placeholder="e.g. LTVTIPA" required>
+                </div>
+            </div>
+
+            <div class="row col-1">
+                <div class="fg">
+                    <label for="pkgConfig">Package Configuration <span class="req">*</span></label>
+                    <select id="pkgConfig" name="pkgConfig" required onchange="onConfig()">
+                        <option value="">— Select Package Format —</option>
+                        <option>12oz 4/6 Wrap NS</option>
+                        <option>12oz 4/6 Wrap SLV</option>
+                        <option>12oz 4/6 PT NS</option>
+                        <option>12oz 4/6 PT SLV</option>
+                        <option>12oz 6/4 PT NS</option>
+                        <option>12oz 6/4 PT SLV</option>
+                        <option>12oz 2/12 Wrap NS</option>
+                        <option>12oz 2/12 Wrap SLV</option>
+                        <option>12oz 15pk Wrap NS</option>
+                        <option>12oz 15pk Wrap SLV</option>
+                        <option>12oz 24pk Wrap NS</option>
+                        <option>12oz 24pk Wrap SLV</option>
+                        <option>16oz 6/4 PT NS</option>
+                        <option>16oz 6/4 PT SLV</option>
+                        <option>19.2oz 12pk NS</option>
+                        <option>19.2oz 12pk SLV</option>
+                        <option>19.2oz 24pk LSE NS</option>
+                        <option>19.2oz 24pk LSE SLV</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Rated speed panel -->
+            <div class="rated-panel" id="ratedPanel">
+                <div class="rated-item">
+                    <div class="r-label">Rated CPM</div>
+                    <div class="r-value" id="rCPM">—</div>
+                    <div class="r-unit">cans / min</div>
+                </div>
+                <div class="rated-item">
+                    <div class="r-label">Rated Units / Hour</div>
+                    <div class="r-value" id="rUPH">—</div>
+                    <div class="r-unit">cans / hr</div>
+                </div>
+            </div>
+            <input type="hidden" id="ratedCPM" name="ratedCPM">
+            <input type="hidden" id="ratedUPH" name="ratedUPH">
+
+            <hr class="divider">
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="schedCases">Scheduled Case QTY <span class="req">*</span></label>
+                    <input type="number" id="schedCases" name="schedCases" placeholder="0" min="0" required>
+                </div>
+            </div>
+            <p class="hint" style="margin-top:4px;">Sleeve count is recorded at End of Run on the Hourly Check-In form.</p>
+
+        </div>
+    </div>
+
+    <!-- ③ QUALITY READINGS -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">3</div>
+            <div class="card-title">Quality Readings</div>
+        </div>
+        <div class="card-body">
+
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="beerTemp">Beer Temp <span class="req">*</span></label>
+                    <input type="number" id="beerTemp" name="beerTemp" placeholder="0.0" step="0.1" required>
+                </div>
+                <div class="fg">
+                    <label for="co2BBT">CO2 BBT <span class="req">*</span></label>
+                    <input type="number" id="co2BBT" name="co2BBT" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="fg">
+                    <label for="doBBT">DO BBT <span class="req">*</span></label>
+                    <input type="number" id="doBBT" name="doBBT" placeholder="0.00" step="0.01" required>
+                </div>
+            </div>
+
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="tpCO2">CO2 Can <span class="req">*</span></label>
+                    <input type="number" id="tpCO2" name="tpCO2" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="fg">
+                    <label for="tpDO">DO Can <span class="req">*</span></label>
+                    <input type="number" id="tpDO" name="tpDO" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="fg">
+                    <label for="preFilters">Pre-Filters <span class="req">*</span></label>
+                    <input type="number" id="preFilters" name="preFilters" placeholder="0.00" step="0.01" required>
+                </div>
+            </div>
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="shakenDO">Shaken DO (ppm)</label>
+                    <input type="number" id="shakenDO" name="shakenDO" placeholder="0.000" step="0.001">
+                </div>
+                <div class="fg">
+                    <label for="hazeEBC">Haze EBC <span class="hint" style="font-style:italic;font-weight:400;text-transform:none;">&#8212; optional</span></label>
+                    <input type="number" id="hazeEBC" name="hazeEBC" placeholder="leave blank if N/A" step="0.1" min="0">
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <span class="check-lbl">Bowl Dump Readings</span>
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="bowlDO">Bowl DO (ppm)</label>
+                    <input type="number" id="bowlDO" name="bowlDO" placeholder="0.000" step="0.001">
+                </div>
+                <div class="fg">
+                    <label for="bowlCO2">Bowl CO2 (vol)</label>
+                    <input type="number" id="bowlCO2" name="bowlCO2" placeholder="0.00" step="0.01">
+                </div>
+                <div class="fg">
+                    <label for="bowlBeerTemp">Bowl Beer Temp</label>
+                    <input type="number" id="bowlBeerTemp" name="bowlBeerTemp" placeholder="0.0" step="0.1">
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ④ FILLER STARTUP CHECKS -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">4</div>
+            <div class="card-title">Filler Startup Checks</div>
+        </div>
+        <div class="card-body">
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="fillerHours">Filler Working Hours</label>
+                    <input type="number" id="fillerHours" name="fillerHours" placeholder="e.g. 12480" min="0">
+                    <span class="hint">Odometer reading at start of run</span>
+                </div>
+                <div class="fg">
+                    <label for="headPressure">Head Pressure</label>
+                    <input type="number" id="headPressure" name="headPressure" placeholder="e.g. 25.0" step="0.1" min="0">
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">CO2 on at BBT</span>
+                <div class="yn-row">
+                    <button type="button" class="yn-btn" id="co2BbtY" onclick="setYN('co2Bbt','Y')">&#10003; Yes</button>
+                    <button type="button" class="yn-btn" id="co2BbtN" onclick="setYN('co2Bbt','N')">&#10007; No</button>
+                </div>
+                <input type="hidden" id="co2BbtYN" name="co2BbtYN">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Filtec &amp; Dud Detection <span class="check-sub">&#8212; checked and operational</span></span>
+                <div class="pf-row">
+                    <button type="button" class="pf-btn" id="filtecPass" onclick="setPF('filtec','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="filtecFail" onclick="setPF('filtec','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="filtecPF" name="filtecPF">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Leaks Under Filler <span class="check-sub">&#8212; visual check before run</span></span>
+                <div class="pf-row">
+                    <button type="button" class="pf-btn" id="leaksPass" onclick="setPF('leaks','pass')">&#10003; Pass &#8212; No Leaks</button>
+                    <button type="button" class="pf-btn" id="leaksFail" onclick="setPF('leaks','fail')">&#10007; Fail &#8212; Leaks Found</button>
+                </div>
+                <input type="hidden" id="leaksPF" name="leaksPF">
+            </div>
+
+            <hr class="divider">
+
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Beginning Sensory <span class="check-sub">&#8212; two-person verification</span></span>
+                <div class="pf-row" style="margin-bottom:10px;">
+                    <button type="button" class="pf-btn" id="sensoryPass" onclick="setPF('sensory','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="sensoryFail" onclick="setPF('sensory','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="sensoryPF" name="sensoryPF">
+                <div class="row col-2" style="margin-top:8px;margin-bottom:0;">
+                    <div class="fg">
+                        <label for="sensoryOpInit">Operator Initials</label>
+                        <input type="text" id="sensoryOpInit" name="sensoryOpInit" class="initials" maxlength="4" placeholder="CS" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                    <div class="fg">
+                        <label for="sensoryVrInit">Verifier Initials</label>
+                        <input type="text" id="sensoryVrInit" name="sensoryVrInit" class="initials" maxlength="4" placeholder="DC" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <span class="check-lbl">Beginning Seam Check <span class="check-sub">&#8212; two-person verification</span></span>
+                <div class="pf-row" style="margin-bottom:10px;">
+                    <button type="button" class="pf-btn" id="seamPass" onclick="setPF('seam','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="seamFail" onclick="setPF('seam','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="seamPF" name="seamPF">
+                <div class="row col-2" style="margin-top:8px;margin-bottom:0;">
+                    <div class="fg">
+                        <label for="seamOpInit">Operator Initials</label>
+                        <input type="text" id="seamOpInit" name="seamOpInit" class="initials" maxlength="4" placeholder="CS" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                    <div class="fg">
+                        <label for="seamVrInit">Verifier Initials</label>
+                        <input type="text" id="seamVrInit" name="seamVrInit" class="initials" maxlength="4" placeholder="DC" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ⑤ LID & PACKAGING VERIFICATION -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">5</div>
+            <div class="card-title">Lid &amp; Packaging Verification</div>
+        </div>
+        <div class="card-body">
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="lidType">Lid Type <span class="req">*</span></label>
+                    <select id="lidType" name="lidType" required>
+                        <option value="">— Select Lid Type —</option>
+                        <option>CDL11 - Silver - Beer</option>
+                        <option>CDL11 - Gold - Beer</option>
+                        <option>CDR Lid - Silver - CDR</option>
+                    </select>
+                </div>
+            </div>
+            <p class="hint" style="margin-top:4px;">Lid Plant and Lid Lot are recorded each hour on the Hourly Check-In form. Wrap, Tray, and Paktech lot numbers are recorded by downstairs ops on Pages 6&ndash;7.</p>
+
+            <hr class="divider">
+
+            <label style="display:block; font-weight:600; margin-bottom:10px;">
+                Pallet Tag Verification <span class="req">*</span>
+            </label>
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="ptOpInit">Operator Initials</label>
+                    <input type="text" id="ptOpInit" name="ptOpInit"
+                           class="initials" maxlength="4" placeholder="CS" required
+                           oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="fg">
+                    <label for="ptVrInit">Verifier Initials</label>
+                    <input type="text" id="ptVrInit" name="ptVrInit"
+                           class="initials" maxlength="4" placeholder="DC" required
+                           oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ⑥ OPERATOR SIGN-OFF -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-num">6</div>
+            <div class="card-title">Operator Sign-Off</div>
+        </div>
+        <div class="card-body">
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="opInitials">Operator Initials <span class="req">*</span></label>
+                    <input type="text" id="opInitials" name="opInitials"
+                           class="initials" maxlength="4" placeholder="CS" required
+                           oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="fg">
+                    <label for="vrInitials">Verifier Initials <span class="req">*</span></label>
+                    <input type="text" id="vrInitials" name="vrInitials"
+                           class="initials" maxlength="4" placeholder="DC" required
+                           oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <button type="submit" class="btn-submit">&#10003; Submit Run Start</button>
+
+</form>
+</div>
+
+<!-- CONFIRMATION OVERLAY -->
+<div class="overlay" id="overlay">
+    <div class="conf-card">
+        <div class="conf-head">
+            <div class="icon">&#10003;</div>
+            <h2>Run Start Recorded</h2>
+            <p id="confTime"></p>
+        </div>
+        <div class="conf-body" id="confBody"></div>
+        <div class="conf-foot">
+            <button class="btn-edit" onclick="closeConf()">&#9998; Edit</button>
+            <button class="btn-next" onclick="nextForm()">Start Hourly Entry &#8594;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// SPEED REFERENCE
+// Source: SpeedRef sheet — Can_Line_Run_Log.xlsx
+// Key = Package Config name, Value = Rated CPM
+// ─────────────────────────────────────────────
+const SPEED = {
+    '12oz 4/6 Wrap NS':      220,
+    '12oz 4/6 Wrap SLV':     190,
+    '12oz 4/6 PT NS':        190,
+    '12oz 4/6 PT SLV':       190,
+    '12oz 6/4 PT NS':        190,
+    '12oz 6/4 PT SLV':       190,
+    '12oz 2/12 Wrap NS':     240,
+    '12oz 2/12 Wrap SLV':    190,
+    '12oz 15pk Wrap NS':     240,
+    '12oz 15pk Wrap SLV':    190,
+    '12oz 24pk Wrap NS':     215,
+    '12oz 24pk Wrap SLV':    180,
+    '16oz 6/4 PT NS':        160,
+    '16oz 6/4 PT SLV':       160,
+    '19.2oz 12pk NS':        125,
+    '19.2oz 12pk SLV':       125,
+    '19.2oz 24pk LSE NS':    125,
+    '19.2oz 24pk LSE SLV':   125
+};
+
+const LS_KEY = 'harpoon_run_start_v1';
+
+// ─────────────────────────────────────────────
+// PASS / FAIL BUTTONS
+// ─────────────────────────────────────────────
+function setPF(which, result) {
+    document.getElementById(which + 'Pass').className = 'pf-btn' + (result === 'pass' ? ' pass' : '');
+    document.getElementById(which + 'Fail').className = 'pf-btn' + (result === 'fail' ? ' fail' : '');
+    document.getElementById(which + 'PF').value       = result;
+}
+
+// ─────────────────────────────────────────────
+// YES / NO BUTTONS
+// ─────────────────────────────────────────────
+function setYN(which, val) {
+    document.getElementById(which + 'Y').className  = 'yn-btn' + (val === 'Y' ? ' yes' : '');
+    document.getElementById(which + 'N').className  = 'yn-btn' + (val === 'N' ? ' no'  : '');
+    document.getElementById(which + 'YN').value     = val;
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    initDate();
+    checkSaved();
+    document.getElementById('form').addEventListener('submit', onSubmit);
+    document.getElementById('runDate').addEventListener('change', e => {
+        updateDateFields(e.target.value);
+        const po = document.getElementById('packagedOn');
+        if (!po.dataset.changed) po.value = e.target.value;
+    });
+    document.getElementById('packagedOn').addEventListener('change', e => {
+        e.target.dataset.changed = '1';
+    });
+});
+
+// ─────────────────────────────────────────────
+// DATE AUTO-FILL
+// ─────────────────────────────────────────────
+function initDate() {
+    const today = isoToday();
+    document.getElementById('runDate').value     = today;
+    document.getElementById('packagedOn').value  = today;
+    updateDateFields(today);
+}
+
+function isoToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function updateDateFields(iso) {
+    if (!iso) return;
+    // Use noon to avoid DST issues
+    const d = new Date(iso + 'T12:00:00');
+
+    // Julian = day-of-year (1 = Jan 1)
+    const start = new Date(d.getFullYear(), 0, 0);
+    const julian = Math.floor((d - start) / 86400000);
+    document.getElementById('julianDate').value = julian;
+
+    // dateCode is now a dropdown (Packaged On / Canned On) — not auto-filled
+}
+
+// ─────────────────────────────────────────────
+// PACKAGE CONFIG — rated speed + conditionals
+// ─────────────────────────────────────────────
+function onConfig() {
+    const cfg = document.getElementById('pkgConfig').value;
+    const cpm = SPEED[cfg];
+
+    // Rated panel
+    if (cpm !== undefined) {
+        const uph = cpm * 60;
+        document.getElementById('rCPM').textContent  = cpm.toLocaleString();
+        document.getElementById('rUPH').textContent  = uph.toLocaleString();
+        document.getElementById('ratedCPM').value    = cpm;
+        document.getElementById('ratedUPH').value    = uph;
+        document.getElementById('ratedPanel').classList.add('show');
+    } else {
+        document.getElementById('ratedPanel').classList.remove('show');
+        document.getElementById('ratedCPM').value = '';
+        document.getElementById('ratedUPH').value = '';
+    }
+
+    // Paktech lot number is recorded by downstairs ops (Pages 6-7) — not on this form
+    // Sleeve count is recorded at End of Run on the Hourly Check-In form
+}
+
+// ─────────────────────────────────────────────
+// SAVED RUN CHECK
+// ─────────────────────────────────────────────
+function checkSaved() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    try {
+        const d = JSON.parse(raw);
+        const t = new Date(d._ts);
+        const dateStr = t.toLocaleDateString([], {month:'short', day:'numeric'});
+        const timeStr = t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('bannerText').textContent =
+            `A run from ${dateStr} at ${timeStr} is already saved`
+            + (d.beerCode  ? ` — ${d.beerCode}` : '')
+            + (d.pkgConfig ? `, ${d.pkgConfig}` : '')
+            + `. Starting a new run will clear it.`;
+        document.getElementById('banner').classList.add('show');
+    } catch(e) {}
+}
+
+function clearRun() {
+    localStorage.removeItem(LS_KEY);
+    document.getElementById('banner').classList.remove('show');
+}
+
+// ─────────────────────────────────────────────
+// SUBMIT
+// ─────────────────────────────────────────────
+function onSubmit(e) {
+    e.preventDefault();
+    if (!validate()) return;
+    const data = collect();
+    data._ts = new Date().toISOString();
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    showConf(data);
+}
+
+function collect() {
+    const data = {};
+    document.querySelectorAll('#form input, #form select').forEach(el => {
+        if (el.name) data[el.name] = el.value;
+    });
+    return data;
+}
+
+function validate() {
+    let ok = true;
+    document.querySelectorAll('#form [required]').forEach(el => {
+        el.classList.remove('error');
+        if (!el.value.trim()) { el.classList.add('error'); ok = false; }
+    });
+    if (!ok) {
+        const first = document.querySelector('#form .error');
+        if (first) first.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    return ok;
+}
+
+// ─────────────────────────────────────────────
+// CONFIRMATION
+// ─────────────────────────────────────────────
+function showConf(d) {
+    document.getElementById('confTime').textContent =
+        'Saved at ' + new Date(d._ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+    const rows = [
+        ['Beer / Product',       d.beerCode],
+        ['Package Config',       d.pkgConfig],
+        ['Tank / BBT',           d.tankNum],
+        ['Date',                 d.runDate],
+        ['Julian Date',          d.julianDate],
+        ['Date Code Type',       d.dateCode],
+        ['Date Packaged',        d.packagedOn],
+        ['Deacom Job #',         d.deacomJobNum],
+        ['Qual. Start Time',     d.qualTime],
+        ['Rated CPM',            d.ratedCPM ? d.ratedCPM + ' CPM' : '—'],
+        ['Rated Units/Hr',       d.ratedUPH ? parseInt(d.ratedUPH).toLocaleString() + ' cans' : '—'],
+        ['Beer Temp',            d.beerTemp],
+        ['CO2 BBT',              d.co2BBT],
+        ['DO BBT',               d.doBBT],
+        ['CO2 Can',              d.tpCO2],
+        ['DO Can',               d.tpDO],
+        ['Pre-Filters',          d.preFilters],
+        ['Shaken DO',            d.shakenDO || '—'],
+        ['Haze EBC',             d.hazeEBC  || '—'],
+        ['Bowl DO',              d.bowlDO   || '—'],
+        ['Bowl CO2',             d.bowlCO2  || '—'],
+        ['Bowl Beer Temp',       d.bowlBeerTemp || '—'],
+        ['Filler Hours',         d.fillerHours  || '—'],
+        ['Head Pressure',        d.headPressure || '—'],
+        ['CO2 on at BBT',        d.co2BbtYN     || '—'],
+        ['Filtec / Dud Det.',    cap(d.filtecPF)],
+        ['Leaks Under Filler',   cap(d.leaksPF)],
+        ['Beginning Sensory',    cap(d.sensoryPF) + (d.sensoryOpInit ? '  Op: ' + d.sensoryOpInit + ' / Vr: ' + d.sensoryVrInit : '')],
+        ['Beginning Seam Check', cap(d.seamPF)    + (d.seamOpInit    ? '  Op: ' + d.seamOpInit    + ' / Vr: ' + d.seamVrInit    : '')],
+        ['Lid Type',             d.lidType],
+        ['Scheduled Cases',      d.schedCases],
+        ['Pallet Tags (Op)',      d.ptOpInit],
+        ['Pallet Tags (Vr)',      d.ptVrInit],
+        ['Operator',             d.opInitials],
+        ['Verifier',             d.vrInitials],
+    ];
+
+    document.getElementById('confBody').innerHTML = rows
+        .map(([l,v]) => `<div class="conf-row">
+            <span class="conf-lbl">${l}</span>
+            <span class="conf-val">${v || '&mdash;'}</span>
+        </div>`).join('');
+
+    document.getElementById('overlay').classList.add('show');
+}
+
+function closeConf() {
+    document.getElementById('overlay').classList.remove('show');
+}
+
+function nextForm() {
+    window.location.href = 'Hourly_Checkin_Form.html';
+}
+</script>
+
+</body>
+</html>
