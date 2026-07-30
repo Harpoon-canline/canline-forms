@@ -906,11 +906,17 @@ function submitToFlow(data) {
         console.warn('Run Start flow URL not configured — skipping submit.');
         return;
     }
-    const payload = Object.assign({}, data);
-    // JulianDate is the only integer-typed field in the flow's trigger schema
-    if (payload.julianDate !== undefined && payload.julianDate !== '') {
-        payload.julianDate = parseInt(payload.julianDate, 10);
-    }
+            const payload = Object.assign({}, data);
+            // Cast fields to match the flow's trigger schema types (Integer / Number)
+            const intFields = ['julianDate', 'ratedCPM', 'ratedUPH', 'schedCases', 'fillerHours'];
+            const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'preFilters', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure'];
+            intFields.forEach(f => {
+                            if (payload[f] !== undefined && payload[f] !== '') payload[f] = parseInt(payload[f], 10);
+            });
+            numFields.forEach(f => {
+                            if (payload[f] !== undefined && payload[f] !== '') payload[f] = parseFloat(payload[f]);
+            });
+            intFields.concat(numFields).forEach(f => { if (payload[f] === '') delete payload[f]; });
     fetch(FLOW_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
