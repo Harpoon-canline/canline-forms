@@ -894,6 +894,7 @@
 // ── CONSTANTS ─────────────────────────────────────────────
 var LS_RUN    = 'harpoon_run_start_v1';
 var LS_HOURLY = 'harpoon_hourly_v1';
+    const FLOW_URL_HOURLY = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/5c14c0a6a7194e3c8350a5cd1177971b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fNVvXcEWajCiXSeb58s3dv-SX3OdIqLnhrchHJHn6hA';
 
 var DT_MACHINES = [
     'Depal','Depal Accum Table','Tripak','Air Rinser',
@@ -1198,6 +1199,7 @@ function onSubmit(ev) {
         var avgWeight = wtVals.length > 0 ? (wtSum / wtVals.length).toFixed(1) : '';
 
         var entry = {
+                    jobNumKey:    (runData ? runData.deacomJobNum : ''),
             hourNum:      hourNum,
             windowStart:  winStart,
             windowEnd:    winEnd,
@@ -1230,12 +1232,28 @@ function onSubmit(ev) {
 
         hourlyData.push(entry);
         localStorage.setItem(LS_HOURLY, JSON.stringify(hourlyData));
+                submitToFlowHourly(entry);
         showConf(entry);
 
     } catch(err) {
         showErr('Submit failed: ' + err.message);
     }
 }
+
+        // — SUBMIT TO POWER AUTOMATE (Hourly) ─────────────────────
+        function submitToFlowHourly(data) {
+            var intFields = ['hourNum','dtMins'];
+                    var numFields = ['fillerCounter','unitsThisHour','effPct','avgWeight','targetWeight','canDO','shakenDO','canCO2'];
+                    var payload = {};
+            for (var k in data) { payload[k] = data[k]; }
+                    intFields.forEach(function(f){ payload[f] = parseInt(payload[f]) || 0; });
+                    numFields.forEach(function(f){ payload[f] = parseFloat(payload[f]) || 0; });
+                            fetch(FLOW_URL_HOURLY, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(payload)
+                            }).catch(function(e){ console.warn('Hourly flow submit failed', e); });
+            }
 
 // ── CONFIRMATION ──────────────────────────────────────────
 function showConf(e) {
