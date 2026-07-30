@@ -757,6 +757,12 @@ const SPEED = {
 const LS_KEY = 'harpoon_run_start_v1';
 
 // ─────────────────────────────────────────────
+// POWER AUTOMATE FLOW ENDPOINT
+// "Run Start Form to SharePoint" — HTTP trigger (Anyone)
+// ─────────────────────────────────────────────
+const FLOW_URL = '__PASTE_FLOW_URL_HERE__';
+
+// ─────────────────────────────────────────────
 // PASS / FAIL BUTTONS
 // ─────────────────────────────────────────────
 function setPF(which, result) {
@@ -880,6 +886,7 @@ function onSubmit(e) {
     const data = collect();
     data._ts = new Date().toISOString();
     localStorage.setItem(LS_KEY, JSON.stringify(data));
+    submitToFlow(data);
     showConf(data);
 }
 
@@ -889,6 +896,28 @@ function collect() {
         if (el.name) data[el.name] = el.value;
     });
     return data;
+}
+
+// ─────────────────────────────────────────────
+// SEND TO POWER AUTOMATE
+// ─────────────────────────────────────────────
+function submitToFlow(data) {
+    if (!FLOW_URL || FLOW_URL.indexOf('PASTE_FLOW_URL_HERE') !== -1) {
+        console.warn('Run Start flow URL not configured — skipping submit.');
+        return;
+    }
+    const payload = Object.assign({}, data);
+    // JulianDate is the only integer-typed field in the flow's trigger schema
+    if (payload.julianDate !== undefined && payload.julianDate !== '') {
+        payload.julianDate = parseInt(payload.julianDate, 10);
+    }
+    fetch(FLOW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(err => {
+        console.error('Run Start flow submit failed (data is still saved locally):', err);
+    });
 }
 
 function validate() {
