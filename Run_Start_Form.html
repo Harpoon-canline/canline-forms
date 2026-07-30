@@ -760,7 +760,7 @@ const LS_KEY = 'harpoon_run_start_v1';
 // POWER AUTOMATE FLOW ENDPOINT
 // "Run Start Form to SharePoint" — HTTP trigger (Anyone)
 // ─────────────────────────────────────────────
-const FLOW_URL = '__PASTE_FLOW_URL_HERE__';
+const FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/4abdcf26972b467ead0976be0da0df28/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JwU5gUn2_Vzz-jIjqFLKPgcQNyW-2YUVLdn_glSyNiQ';
 
 // ─────────────────────────────────────────────
 // PASS / FAIL BUTTONS
@@ -902,7 +902,7 @@ function collect() {
 // SEND TO POWER AUTOMATE
 // ─────────────────────────────────────────────
 function submitToFlow(data) {
-    if (!FLOW_URL || FLOW_URL.indexOf('PASTE_FLOW_URL_HERE') !== -1) {
+        if (!FLOW_URL) {
         console.warn('Run Start flow URL not configured — skipping submit.');
         return;
     }
