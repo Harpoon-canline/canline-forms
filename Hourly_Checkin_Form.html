@@ -884,7 +884,7 @@
         </div>
         <div class="conf-body" id="confBody"></div>
         <div class="conf-foot">
-            <button class="btn-edit"      onclick="closeConf()">&#9998; Edit</button>
+            <button class="btn-edit"      onclick="closeConf()">&#9998; Edit</button>        
             <button class="btn-next-hour" onclick="nextHour()">Next Hour &#8594;</button>
         </div>
     </div>
@@ -895,6 +895,7 @@
 var LS_RUN    = 'harpoon_run_start_v1';
 var LS_HOURLY = 'harpoon_hourly_v1';
     const FLOW_URL_HOURLY = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/5c14c0a6a7194e3c8350a5cd1177971b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fNVvXcEWajCiXSeb58s3dv-SX3OdIqLnhrchHJHn6hA';
+    const FLOW_URL_EOR = '__PASTE_EOR_FLOW_URL_HERE__';
 
 var DT_MACHINES = [
     'Depal','Depal Accum Table','Tripak','Air Rinser',
@@ -1254,6 +1255,19 @@ function onSubmit(ev) {
                                             body: JSON.stringify(payload)
                             }).catch(function(e){ console.warn('Hourly flow submit failed', e); });
             }
+
+    // --- SUBMIT TO POWER AUTOMATE (End of Run) ---
+    function submitToFlowEOR(data) {
+    var numFields = ['filtecPct','flowStart','flowEnd','sleeveCount','fcAvgWeight','fcTargetWeight','fcCanDO','fcShakenDO','fcCanCO2','overallFillerEff','overallPkgLineEff'];
+    var payload = {};
+    for (var k in data) { payload[k] = data[k]; }
+    numFields.forEach(function(f){ payload[f] = parseFloat(payload[f]) || 0; });
+        fetch(FLOW_URL_EOR, {
+    method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+    }).catch(function(e){ console.warn('EOR flow submit failed', e); });
+    }
 
 // ── CONFIRMATION ──────────────────────────────────────────
 function showConf(e) {
@@ -1662,8 +1676,20 @@ function submitEOR() {
             }
         }
         var eorFcAvgWt = eorWtVals.length > 0 ? (eorWtSum / eorWtVals.length).toFixed(1) : '';
+        // Overall efficiency -- two distinct metrics (Kyle's call 2026-08-05): filler vs. package-line yield
+        var effSum = 0, effCount = 0;
+        for (var ei = 0; ei < hourlyData.length; ei++) {
+    var ep = parseFloat(hourlyData[ei].effPct);
+            if (!isNaN(ep)) { effSum += ep; effCount++; }
+    }
+        var overallFillerEff = effCount > 0 ? (effSum / effCount).toFixed(1) : '';
+
+    var eorNetCasesForEff = parseInt(document.getElementById('eorNetCasesHid').value) || 0;
+    var schedCasesForEff = (runData && runData.schedCases) ? parseFloat(runData.schedCases) : 0;
+    var overallPkgLineEff = schedCasesForEff > 0 ? (eorNetCasesForEff / schedCasesForEff * 100).toFixed(1) : '';
 
         var eorEntry = {
+            jobNumKey: (runData ? runData.deacomJobNum : ''),
             // Timing
             endTime:       document.getElementById('eorEndTime').value,
             finalCounter:  parseFloat(document.getElementById('eorFinalCounter').value) || 0,
@@ -1704,6 +1730,8 @@ function submitEOR() {
             totalCases:    parseInt(document.getElementById('eorTotalCasesInput').value)  || 0,
             netCases:      parseInt(document.getElementById('eorNetCasesHid').value)      || 0,
             overallEff:    document.getElementById('eorOverallEff').textContent,
+            overallFillerEff:  overallFillerEff,
+    overallPkgLineEff: overallPkgLineEff,
             totalDT:       parseInt(document.getElementById('eorGrandTotalDT').value) || runTotalDT,
             // Sign-Off
             opInit:        document.getElementById('eorOpInit').value,
@@ -1729,6 +1757,8 @@ function submitEOR() {
         if (archiveRaw) { try { archive = JSON.parse(archiveRaw); } catch(e3) {} }
         archive.push(completedRun);
         localStorage.setItem('harpoon_completed_runs_v1', JSON.stringify(archive));
+
+    submitToFlowEOR(eorEntry);
 
         // Clear active run keys
         localStorage.removeItem(LS_RUN);
