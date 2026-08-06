@@ -886,13 +886,18 @@ function onSubmit(e) {
     // — POWER AUTOMATE SUBMIT
     const FLOW_URL_DOWNSTAIRS = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/8c09070b54a84c65b89f54ccba6eb157/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6NUNJVrEHAMRBWlJSrBoH6MWU_rFa93Qyf7nyoE1U7E';
 
-    function submitToFlowDownstairs(data) {
-            fetch(FLOW_URL_DOWNSTAIRS, {
-                        method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(data)
-            }).catch(function(err) {});
-    }
+  function submitToFlowDownstairs(data) {
+                  fetch(FLOW_URL_DOWNSTAIRS, {
+                                      method: 'POST',
+                                      headers: {'Content-Type': 'application/json'},
+                                      body: JSON.stringify(data)
+                  }).then(function(r) {
+                                      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                                      document.getElementById('errBar').classList.remove('show');
+                  }).catch(function(err) {
+                                      showErr('Check ' + data.checkNum + ' did not sync to SharePoint (' + err.message + '). Saved on this tablet -- let Kyle know.');
+                  });
+  }
 
 // ── CONFIRMATION ──────────────────────────────────────────
 function showConf(c) {
