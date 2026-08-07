@@ -835,6 +835,12 @@ function onSubmit(e) {
         if (!validate()) return;
         saveRunInfo();
 
+        // Recompute Julian dates fresh at submit time. A hidden/shown section
+        // toggle earlier in the session (see toggleCond) clears these readonly
+        // fields, so never trust whatever is currently sitting in the DOM.
+        calcJulian('wrapDateCode', 'wrapJulian');
+        calcJulian('canDateCode', 'canJulian');
+
         var entry = {
             checkNum: currentCheckNum(),
             checkTime: document.getElementById('checkTime').value,
