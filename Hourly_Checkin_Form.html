@@ -139,9 +139,11 @@
     .tbl-pf-btn.no   { background: var(--red);   border-color: var(--red);   color: white; }
 
     /* DOWNTIME */
-    .dt-event-row, .eor-dt-event-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .dt-event-row, .eor-dt-event-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; margin-bottom: 8px; align-items: center; }
     .btn-add-dt   { padding: 10px 16px; background: var(--g100); border: 1.5px dashed var(--g400); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 12px; color: var(--navy); }
     .btn-remove   { padding: 8px 12px; background: var(--red); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .dt-planned-btn { padding: 8px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; border: 1.5px solid var(--g400); background: var(--g100); color: var(--g600); cursor: pointer; white-space: nowrap; }
+    .dt-planned-btn.on { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
     textarea      { resize: vertical; min-height: 80px; }
 
     /* INITIALS */
@@ -1098,6 +1100,7 @@ function addDTRow() {
     row.id = id;
     row.innerHTML = '<select name="dtMachine_' + idx + '">' + opts + '</select>'
         + '<input type="number" name="dtMins_' + idx + '" placeholder="mins" min="0" max="60" style="width:80px;">'
+        + '<button type="button" class="dt-planned-btn" id="' + id + '_planned" onclick="toggleDtPlanned(\'' + id + '\')">Unplanned</button>'
         + '<button type="button" class="btn-remove" onclick="rmRow(\'' + id + '\')">&#215;</button>';
     document.getElementById('dtRows').appendChild(row);
 }
@@ -1121,6 +1124,7 @@ function addEorDTRow() {
     row.id = id;
     row.innerHTML = '<select name="eorDtMachine_' + idx + '">' + opts + '</select>'
         + '<input type="number" name="eorDtMins_' + idx + '" placeholder="mins" min="0" style="width:80px;">'
+        + '<button type="button" class="dt-planned-btn" id="' + id + '_planned" onclick="toggleDtPlanned(\'' + id + '\')">Unplanned</button>'
         + '<button type="button" class="btn-remove" onclick="rmEorDtRow(\'' + id + '\')">&#215;</button>';
     document.getElementById('eorDtRows').appendChild(row);
 }
@@ -1130,14 +1134,29 @@ function rmEorDtRow(id) {
     if (el) el.parentNode.removeChild(el);
 }
 
+// Shared by both hourly and EOR downtime rows -- toggles the per-event
+// Planned/Unplanned flag so planned DT (changeovers, scheduled CIP, etc.)
+// can be backed out of published efficiency later (Kyle, 2026-08-10).
+function toggleDtPlanned(id) {
+    var btn = document.getElementById(id + '_planned');
+    if (!btn) return;
+    var isOn = btn.classList.toggle('on');
+    btn.textContent = isOn ? 'Planned' : 'Unplanned';
+}
+
 function collectEorDT() {
     var events = [];
     var rows = document.querySelectorAll('.eor-dt-event-row');
     for (var i = 0; i < rows.length; i++) {
-        var sel = rows[i].querySelector('select');
-        var inp = rows[i].querySelector('input[type="number"]');
+        var sel      = rows[i].querySelector('select');
+        var inp      = rows[i].querySelector('input[type="number"]');
+        var plannedB = rows[i].querySelector('.dt-planned-btn');
         if (sel && inp && inp.value) {
-            events.push({ machine: sel.value, mins: parseInt(inp.value) || 0 });
+            events.push({
+                machine: sel.value,
+                mins: parseInt(inp.value) || 0,
+                planned: (plannedB && plannedB.classList.contains('on')) ? 'planned' : 'unplanned'
+            });
         }
     }
     return events;
@@ -1147,10 +1166,15 @@ function collectDT() {
     var events = [];
     var rows   = document.querySelectorAll('.dt-event-row');
     for (var i = 0; i < rows.length; i++) {
-        var sel = rows[i].querySelector('select');
-        var inp = rows[i].querySelector('input[type="number"]');
+        var sel      = rows[i].querySelector('select');
+        var inp      = rows[i].querySelector('input[type="number"]');
+        var plannedB = rows[i].querySelector('.dt-planned-btn');
         if (sel && inp && inp.value) {
-            events.push({ machine: sel.value, minutes: parseInt(inp.value) || 0 });
+            events.push({
+                machine: sel.value,
+                minutes: parseInt(inp.value) || 0,
+                planned: (plannedB && plannedB.classList.contains('on')) ? 'planned' : 'unplanned'
+            });
         }
     }
     return events;
