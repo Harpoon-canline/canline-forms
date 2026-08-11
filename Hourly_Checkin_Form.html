@@ -833,6 +833,8 @@
       </form>
     </div><!-- /eor-body -->
 
+    <div class="err-bar" id="eorSubmitErr" style="margin:0 16px 12px;"></div>
+
     <div class="eor-foot">
       <button type="button" class="btn-eor-cancel" onclick="closeEOR()">&#10005; Cancel</button>
       <button type="button" class="btn-eor-submit" onclick="submitEOR()">&#10003; End Run &amp; Archive</button>
@@ -1253,20 +1255,30 @@ function onSubmit(ev) {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify(payload)
-                            }).catch(function(e){ console.warn('Hourly flow submit failed', e); });
+                            }).then(function(r){
+                                            if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                                            document.getElementById('errBar').classList.remove('show');
+                            }).catch(function(e){
+                                            console.warn('Hourly flow submit failed', e);
+                                            showErr('Hour ' + data.hourNum + ' did not sync to SharePoint (' + e.message + '). Saved on this tablet -- let Kyle know.');
+                            });
             }
 
     // --- SUBMIT TO POWER AUTOMATE (End of Run) ---
+    // Returns the fetch promise so the caller can wait for confirmed success
+    // before clearing local data -- a failed/incomplete save must NOT look like a success.
     function submitToFlowEOR(data) {
     var numFields = ['filtecPct','flowStart','flowEnd','sleeveCount','fcAvgWeight','fcTargetWeight','fcCanDO','fcShakenDO','fcCanCO2','overallFillerEff','overallPkgLineEff'];
     var payload = {};
     for (var k in data) { payload[k] = data[k]; }
     numFields.forEach(function(f){ payload[f] = parseFloat(payload[f]) || 0; });
-        fetch(FLOW_URL_EOR, {
+        return fetch(FLOW_URL_EOR, {
     method: 'POST',
             headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-    }).catch(function(e){ console.warn('EOR flow submit failed', e); });
+    }).then(function(r){
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+    });
     }
 
 // ── CONFIRMATION ──────────────────────────────────────────
@@ -1758,9 +1770,15 @@ function submitEOR() {
         archive.push(completedRun);
         localStorage.setItem('harpoon_completed_runs_v1', JSON.stringify(archive));
 
-    submitToFlowEOR(eorEntry);
+    var eorSubmitBtn = document.querySelector('.btn-eor-submit');
+    var eorErrBox    = document.getElementById('eorSubmitErr');
+    if (eorErrBox)    { eorErrBox.className = 'err-bar'; eorErrBox.textContent = ''; }
+    if (eorSubmitBtn) { eorSubmitBtn.disabled = true; eorSubmitBtn.textContent = 'Saving...'; }
 
-        // Clear active run keys
+    submitToFlowEOR(eorEntry).then(function(){
+        // Only clear active run keys once the save is CONFIRMED -- this is the fix.
+        // Previously this ran unconditionally right after firing the request, so a
+        // failed/slow save still wiped local data and showed "Run Complete."
         localStorage.removeItem(LS_RUN);
         localStorage.removeItem(LS_HOURLY);
         runData    = null;
@@ -1769,6 +1787,15 @@ function submitEOR() {
         // Show final confirmation
         closeEOR();
         showFinalConf(eorEntry, completedRun);
+    }).catch(function(e){
+        console.warn('EOR flow submit failed', e);
+        if (eorSubmitBtn) { eorSubmitBtn.disabled = false; eorSubmitBtn.textContent = '✓ End Run & Archive'; }
+        if (eorErrBox) {
+            eorErrBox.textContent = 'ERROR: End of Run did NOT save (' + e.message + '). Nothing has been cleared -- check the connection and press End Run & Archive again.';
+            eorErrBox.className   = 'err-bar show';
+            eorErrBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 
     } catch(e) {
         showErr('End of Run submit failed: ' + e.message);
