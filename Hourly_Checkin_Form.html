@@ -982,10 +982,9 @@ function updateWindowDisplay() {
 }
 
 function fmtMins(t) {
-    var h    = Math.floor(t / 60) % 24;
-    var m    = t % 60;
-    var ampm = h >= 12 ? 'PM' : 'AM';
-    return ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    var h = Math.floor(t / 60) % 24;
+    var m = t % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
 }
 
 // ── TARGET CAN WEIGHT / ACCEPTABLE RANGE ─────────────────
