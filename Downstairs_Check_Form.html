@@ -717,15 +717,18 @@ function setNowTime() {
 }
 
 // ── JULIAN DATE (day-of-year, zero-padded to 3 digits) ───
-// Identical formula to the Run Start Form: Jan 1 = 001. Triggered off the Wrap/Can Date
-// Code fields here (not the Run Date) because the printed code date is what's actually
-// being verified — it can legitimately run a day ahead of the calendar date near a
-// shift change, and that's exactly the kind of mismatch this check exists to catch.
+// ALWAYS the true physical packaging day (today) — never the Wrap/Can Date Code field.
+// The date code can legitimately be backdated (e.g. a mix pack physically made today but
+// coded for an earlier batch date for paperwork reasons); Julian must not follow it, since
+// it's a physically-stamped traceability code for the day the material actually ran.
+// Kyle confirmed 2026-08-18: Julian always = today, the date code is what backdates.
+// `val` is still checked below — that's not a date source, just a gate so a section that
+// isn't in use this run (e.g. no wrap on a Paktech-only config) doesn't get a stray Julian.
 function calcJulian(srcId, outId) {
     var val = document.getElementById(srcId).value;
     var out = document.getElementById(outId);
     if (!val) { out.value = ''; return; }
-    var d = new Date(val + 'T12:00:00'); // noon avoids DST edge cases
+    var d = new Date(); // always today — deliberately ignores the (possibly backdated) date-code value
     var start = new Date(d.getFullYear(), 0, 0);
     var julian = Math.floor((d - start) / 86400000);
     out.value = String(julian).padStart(3, '0');

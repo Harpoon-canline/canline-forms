@@ -815,11 +815,11 @@ function isoToday() {
 function pad(n) { return String(n).padStart(2,'0'); }
 
 function updateDateFields(iso) {
-    if (!iso) return;
-    // Use noon to avoid DST issues
-    const d = new Date(iso + 'T12:00:00');
-
-    // Julian = day-of-year (1 = Jan 1)
+    // Julian = day-of-year (1 = Jan 1), ALWAYS the true physical day this run is being
+    // qualified/packaged — deliberately ignores `iso` (the Date field), which can be
+    // backdated for paperwork/lot reasons. Kyle confirmed 2026-08-18: Julian always = today,
+    // Date Packaged (with its Date Code Type) is what backdates.
+    const d = new Date();
     const start = new Date(d.getFullYear(), 0, 0);
     const julian = Math.floor((d - start) / 86400000);
     document.getElementById('julianDate').value = julian;
@@ -883,6 +883,7 @@ function clearRun() {
 function onSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
+    updateDateFields(); // refresh Julian fresh at submit time too, same defensive pattern as the Downstairs form
     const data = collect();
     data._ts = new Date().toISOString();
     localStorage.setItem(LS_KEY, JSON.stringify(data));
