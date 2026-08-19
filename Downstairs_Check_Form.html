@@ -355,12 +355,21 @@ textarea      { resize: vertical; min-height: 70px; }
         <div class="card-body">
 
             <div class="cond check-block" id="glueShotBlock">
-                <span class="check-lbl">Glue Shot Size Correct? <span class="check-sub">Small = Mix Packs &middot; Large = Regular</span></span>
+                <span class="check-lbl">Glue Shot Size <span class="check-sub">Large = Non-Mix (Regular) &middot; Small = Mix Packs Only</span></span>
                 <div class="pf-row">
-                    <button type="button" class="pf-btn" id="gluePass" onclick="setPF('glue','pass')">&#10003; Correct</button>
-                    <button type="button" class="pf-btn" id="glueFail" onclick="setPF('glue','fail')">&#10007; Incorrect</button>
+                    <button type="button" class="pf-btn" id="glueSizeLargeBtn" onclick="setGlueSize('large')">Large (Non-Mix)</button>
+                    <button type="button" class="pf-btn" id="glueSizeSmallBtn" onclick="setGlueSize('small')">Small (Mix Only)</button>
                 </div>
-                <input type="hidden" id="gluePF" name="gluePF">
+                <input type="hidden" id="glueSizeSetting" name="glueSizeSetting">
+            </div>
+
+            <div class="check-block">
+                <span class="check-lbl">Glue Shot Verification &mdash; Tray Packer</span>
+                <div class="pf-row">
+                    <button type="button" class="pf-btn" id="trayGluePass" onclick="setPF('trayGlue','pass')">&#10003; Pass</button>
+                    <button type="button" class="pf-btn" id="trayGlueFail" onclick="setPF('trayGlue','fail')">&#10007; Fail</button>
+                </div>
+                <input type="hidden" id="trayGluePF" name="trayGluePF">
             </div>
 
             <div class="check-block">
@@ -741,6 +750,14 @@ function setPF(which, result) {
     document.getElementById(which + 'PF').value       = result;
 }
 
+// Two-option informational selector (not pass/fail — neither Large nor Small is
+// "wrong," this just records which glue shot size was actually set for this check).
+function setGlueSize(value) {
+    document.getElementById('glueSizeLargeBtn').className = 'pf-btn' + (value === 'large' ? ' pass' : '');
+    document.getElementById('glueSizeSmallBtn').className = 'pf-btn' + (value === 'small' ? ' pass' : '');
+    document.getElementById('glueSizeSetting').value      = value;
+}
+
 // ── DOWNTIME ROWS ─────────────────────────────────────────
 function addDTRow() {
     dtRowCount++;
@@ -798,7 +815,7 @@ function renderHistory() {
     document.getElementById('histLbl').textContent = 'Previous Checks (' + checksData.length + ')';
     var html = checksData.slice().reverse().map(function(c) {
         var fails = [];
-        if (c.gluePF === 'fail')  fails.push('Glue Shot');
+        if (c.trayGluePF === 'fail') fails.push('Tray Glue');
         if (c.artPF === 'fail')   fails.push('Artwork');
         if (c.shakePF === 'fail') fails.push('Shake Test');
         if (c.cwPF === 'fail')    fails.push('Check Weigher');
@@ -868,7 +885,8 @@ function onSubmit(e) {
             paktechLotNum: document.getElementById('paktechLotNum').value,
             trayLotNum: document.getElementById('trayLotNum').value,
 
-            gluePF: document.getElementById('gluePF').value,
+            glueSizeSetting: document.getElementById('glueSizeSetting').value,
+            trayGluePF: document.getElementById('trayGluePF').value,
             artPF: document.getElementById('artPF').value,
             shakePF: document.getElementById('shakePF').value,
             cwPF: document.getElementById('cwPF').value,
@@ -925,7 +943,8 @@ function showConf(c) {
     if (c.canDateCode)  rows.push(['Can Date Code', c.canDateCode + ' (Jul. ' + c.canJulian + ')']);
     if (c.paktechLotNum) rows.push(['Paktech Lot #', c.paktechLotNum]);
     rows.push(['Tray Lot #', c.trayLotNum]);
-    if (c.gluePF)  rows.push(['Glue Shot', c.gluePF]);
+    if (c.glueSizeSetting) rows.push(['Glue Shot Size', c.glueSizeSetting]);
+    rows.push(['Glue Shot Verification (Tray)', c.trayGluePF || '—']);
     rows.push(['Artwork', c.artPF || '—']);
     if (c.shakePF) rows.push(['Shake Test', c.shakePF]);
     rows.push(['Check Weigher', c.cwPF || '—']);
@@ -986,7 +1005,7 @@ function aggregateRunTotals() {
         wrapCartoner += c.wrapLossCartoner || 0;
         trayMfg      += c.trayLossMfg      || 0;
         trayPacker   += c.trayLossPacker   || 0;
-        ['gluePF','artPF','shakePF','cwPF'].forEach(function(k) { if (c[k] === 'fail') fails++; });
+        ['trayGluePF','artPF','shakePF','cwPF'].forEach(function(k) { if (c[k] === 'fail') fails++; });
     });
     return {
         totalDT: totalDT, dtByMachine: dtByMachine,
