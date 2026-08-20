@@ -29,16 +29,22 @@
     border-left: 8px solid #ffb400;
   }
   .split-card h2 { margin: 0 0 12px; font-size: 1.8rem; color: #ffb400; }
-  .split-card .field {
+  .field {
     display: flex;
     justify-content: space-between;
     font-size: 1.15rem;
     padding: 4px 0;
     border-bottom: 1px solid #3a3a3a;
   }
-  .split-card .field span:first-child { color: #aaa; }
-  .split-card .field span:last-child { font-weight: 600; }
-  .split-card .details { margin-top: 12px; font-size: 1.1rem; color: #ddd; }
+  .field span:first-child { color: #aaa; }
+  .field span:last-child { font-weight: 600; text-align: right; margin-left: 16px; }
+  .details-heading {
+    margin-top: 16px;
+    padding-top: 12px;
+    font-size: 1.3rem;
+    color: #ffb400;
+    border-top: 1px solid #3a3a3a;
+  }
   .empty-state { text-align: center; font-size: 1.5rem; color: #888; margin-top: 60px; }
 </style>
 </head>
@@ -61,6 +67,20 @@
     });
   }
 
+  function parseDetails(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html || '';
+    const text = temp.textContent || temp.innerText || '';
+    return text.split(/\||\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(item => {
+        const idx = item.indexOf(':');
+        if (idx === -1) return { label: '', value: item };
+        return { label: item.slice(0, idx).trim(), value: item.slice(idx + 1).trim() };
+      });
+  }
+
   function renderSplits(rows) {
     const container = document.getElementById('split-container');
     const status = document.getElementById('status');
@@ -75,6 +95,10 @@
     status.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
 
     rows.forEach(row => {
+      const detailRows = parseDetails(row.PackagingDetails)
+        .map(d => `<div class="field"><span>${d.label}</span><span>${d.value}</span></div>`)
+        .join('');
+
       const card = document.createElement('div');
       card.className = 'split-card';
       card.innerHTML = `
@@ -87,7 +111,8 @@
         <div class="field"><span>Extra Beer Volume</span><span>${row.ExtraBeerVolume ?? ''}</span></div>
         <div class="field"><span>Extra Beer After Split</span><span>${row.ExtraBeerAfterSplit ?? ''}</span></div>
         <div class="field"><span>Total Beer Volume To Be Packaged</span><span>${row.TotalBeerVolumeToBePackaged ?? ''}</span></div>
-        <div class="details">${row.PackagingDetails ?? ''}</div>
+        <div class="details-heading">Packaging Details</div>
+        ${detailRows}
       `;
       container.appendChild(card);
     });
