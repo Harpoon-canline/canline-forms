@@ -42,12 +42,22 @@
     display: flex;
     justify-content: space-between;
     font-size: 1.15rem;
-    padding: 4px 0;
+    padding: 4px 6px;
     border-bottom: 1px solid #2c3a5e;
     color: #ffffff;
   }
   .field span:first-child { color: #b8c2e0; }
   .field span:last-child { font-weight: 600; text-align: right; margin-left: 16px; color: #ffffff; }
+  .field.category {
+    background: rgba(255, 209, 102, 0.12);
+    border-left: 4px solid #ffd166;
+    border-radius: 4px;
+  }
+  .field.category span:first-child,
+  .field.category span:last-child {
+    color: #ffd166;
+    font-weight: 700;
+  }
   .details-heading.card-heading {
     display: block;
     width: fit-content;
@@ -85,8 +95,11 @@
       .filter(s => s.length > 0)
       .map(item => {
         const idx = item.indexOf(':');
-        if (idx === -1) return { label: '', value: item };
-        return { label: item.slice(0, idx).trim(), value: item.slice(idx + 1).trim() };
+        if (idx === -1) return { label: '', value: item, isCategory: false };
+        const label = item.slice(0, idx).trim();
+        const value = item.slice(idx + 1).trim();
+        const isCategory = /total qty/i.test(value);
+        return { label, value, isCategory };
       });
   }
 
@@ -105,7 +118,7 @@
 
     rows.forEach(row => {
       const detailRows = parseDetails(row.PackagingDetails)
-        .map(d => `<div class="field"><span>${d.label}</span><span>${d.value}</span></div>`)
+        .map(d => `<div class="field${d.isCategory ? ' category' : ''}"><span>${d.label}</span><span>${d.value}</span></div>`)
         .join('');
 
       const card = document.createElement('div');
