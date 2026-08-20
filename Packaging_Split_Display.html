@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Today's Packaging Splits</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #1a1a1a;
+    color: #f0f0f0;
+    padding: 24px;
+  }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 2.5rem; margin: 0; color: #ffb400; }
+  header p { font-size: 1.2rem; color: #aaa; margin: 8px 0 0; }
+  #status { text-align: center; font-size: 1rem; color: #888; margin-bottom: 16px; }
+  .split-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+  }
+  .split-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 20px 24px;
+    border-left: 8px solid #ffb400;
+  }
+  .split-card h2 { margin: 0 0 12px; font-size: 1.8rem; color: #ffb400; }
+  .split-card .field {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.15rem;
+    padding: 4px 0;
+    border-bottom: 1px solid #3a3a3a;
+  }
+  .split-card .field span:first-child { color: #aaa; }
+  .split-card .field span:last-child { font-weight: 600; }
+  .split-card .details { margin-top: 12px; font-size: 1.1rem; color: #ddd; }
+  .empty-state { text-align: center; font-size: 1.5rem; color: #888; margin-top: 60px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Today's Packaging Splits</h1>
+    <p id="today-date"></p>
+  </header>
+  <div id="status">Loading...</div>
+  <div id="split-container" class="split-grid"></div>
+
+<script>
+  const FLOW_URL = https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/77de2ad55a5447168524f93111297b0d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bfm67jPfzS6IOBUOC8dNzgisGqKCo4OYl2I_Nzk-QP0;
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  function formatDateHeader() {
+    const today = new Date();
+    document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function renderSplits(rows) {
+    const container = document.getElementById('split-container');
+    const status = document.getElementById('status');
+    container.innerHTML = '';
+
+    if (!rows || rows.length === 0) {
+      status.textContent = '';
+      container.innerHTML = '<div class="empty-state">No packaging splits scheduled for today.</div>';
+      return;
+    }
+
+    status.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+    rows.forEach(row => {
+      const card = document.createElement('div');
+      card.className = 'split-card';
+      card.innerHTML = `
+        <h2>${row.BeerBatch ?? ''}</h2>
+        <div class="field"><span>BBT</span><span>${row.BBT ?? ''}</span></div>
+        <div class="field"><span>Deacom Job</span><span>${row.DeacomJob ?? ''}</span></div>
+        <div class="field"><span>Beer Family</span><span>${row.BeerFamily?.Value ?? row.BeerFamily ?? ''}</span></div>
+        <div class="field"><span>Tank Volume</span><span>${row.TankVolume ?? ''}</span></div>
+        <div class="field"><span>Total Scheduled Volume</span><span>${row.TotalScheduledV
