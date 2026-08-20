@@ -83,4 +83,30 @@
         <div class="field"><span>Deacom Job</span><span>${row.DeacomJob ?? ''}</span></div>
         <div class="field"><span>Beer Family</span><span>${row.BeerFamily?.Value ?? row.BeerFamily ?? ''}</span></div>
         <div class="field"><span>Tank Volume</span><span>${row.TankVolume ?? ''}</span></div>
-        <div class="field"><span>Total Scheduled Volume</span><span>${row.TotalScheduledV
+        <div class="field"><span>Total Scheduled Volume</span><span>${row.TotalScheduledVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer Volume</span><span>${row.ExtraBeerVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer After Split</span><span>${row.ExtraBeerAfterSplit ?? ''}</span></div>
+        <div class="field"><span>Total Beer Volume To Be Packaged</span><span>${row.TotalBeerVolumeToBePackaged ?? ''}</span></div>
+        <div class="details">${row.PackagingDetails ?? ''}</div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  async function fetchSplits() {
+    try {
+      const response = await fetch(FLOW_URL);
+      if (!response.ok) throw new Error('Request failed: ' + response.status);
+      const data = await response.json();
+      renderSplits(data);
+    } catch (err) {
+      document.getElementById('status').textContent = 'Error loading data: ' + err.message;
+    }
+  }
+
+  formatDateHeader();
+  fetchSplits();
+  setInterval(fetchSplits, REFRESH_INTERVAL_MS);
+</script>
+</body>
+</html>
