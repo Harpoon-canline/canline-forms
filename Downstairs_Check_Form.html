@@ -629,11 +629,20 @@ function toggleCond(id, show) {
 // record directly. It's re-saved with every check so a correction made mid-run always sticks.
 function onRunDateChange() {
     var d = document.getElementById('runDate').value;
-    // Keep Wrap/Can Date Code fields defaulted to the run date until the operator overrides them
+    var cfg    = document.getElementById('pkgConfig').value;
+    var isWrap = cfg.indexOf('Wrap') !== -1;
+    var isPT   = cfg.indexOf('PT')   !== -1;
+    // Keep Wrap/Can Date Code fields defaulted to the run date until the operator overrides them —
+    // but ONLY for the section actually in use this run. Without this gate, resetForm() (which
+    // calls this on every check via nextCheck()) would silently repopulate a stray WrapDateCode/
+    // WrapJulian value on every check after the first, even for PT-only/LSE-only configs where
+    // the Wrap section is hidden — since wrapDateCode is type="date" and isn't touched by
+    // resetForm()'s text/number clear loop. Confirmed live in SharePoint data before this fix
+    // (WrapDateCode/WrapJulian populated on PT-only submissions from Check 2 onward).
     var wdc = document.getElementById('wrapDateCode');
     var cdc = document.getElementById('canDateCode');
-    if (wdc && !wdc.dataset.changed) { wdc.value = d; calcJulian('wrapDateCode','wrapJulian'); }
-    if (cdc && !cdc.dataset.changed) { cdc.value = d; calcJulian('canDateCode','canJulian'); }
+    if (wdc && isWrap && !wdc.dataset.changed) { wdc.value = d; calcJulian('wrapDateCode','wrapJulian'); }
+    if (cdc && isPT   && !cdc.dataset.changed) { cdc.value = d; calcJulian('canDateCode','canJulian'); }
 }
 function loadRunInfo() {
     var raw = localStorage.getItem(LS_RUNINFO);
