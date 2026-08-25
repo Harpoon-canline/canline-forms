@@ -31,23 +31,19 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #eef0f4; color: var(--g800); padding-bottom: 56px; }
-
 /* HEADER */
 .hdr { background: var(--navy); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
 .hdr-left h1 { font-size: 18px; font-weight: 700; }
 .hdr-left p  { font-size: 12px; opacity: .8; margin-top: 1px; }
 .hour-badge  { background: var(--gold); color: var(--navy); font-weight: 900; font-size: 13px; padding: 6px 14px; border-radius: 20px; letter-spacing: .5px; }
-
 /* CONTEXT BAR */
 .ctx-bar { background: var(--navy-dk); color: white; padding: 10px 18px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; }
 .ctx-item { display: flex; flex-direction: column; gap: 1px; }
 .ctx-lbl  { font-size: 10px; opacity: .65; text-transform: uppercase; letter-spacing: .4px; }
 .ctx-val  { font-weight: 700; }
-
 /* ALERT BARS */
 .err-bar { background: var(--red); color: white; padding: 12px 18px; font-size: 14px; display: none; word-break: break-all; }
 .err-bar.show { display: block; }
-
 /* LAYOUT */
 .container { max-width: 780px; margin: 0 auto; padding: 16px; }
 .card { background: white; border-radius: var(--r); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
@@ -56,7 +52,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
 .card-title { font-size: 15px; font-weight: 700; flex: 1; }
 .card-page  { font-size: 10px; font-weight: 700; background: rgba(255,255,255,.18); padding: 3px 8px; border-radius: 10px; letter-spacing: .3px; }
 .card-body  { padding: 16px; }
-
 /* FORM GRID */
 .row  { display: grid; gap: 12px; margin-bottom: 12px; }
 .row:last-child { margin-bottom: 0; }
@@ -76,7 +71,6 @@ input.readonly { background: var(--g100); color: var(--g600); }
 .hint { font-size: 11px; color: var(--g600); font-style: italic; }
 .req  { color: var(--red); }
 .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
-
 /* CONDITIONAL SECTIONS (Wrap / Paktech) */
 .cond { display: none; }
 .cond.show { display: block; }
@@ -84,7 +78,6 @@ input.readonly { background: var(--g100); color: var(--g600); }
 .tag-wrap { background: #eaf1fb; color: var(--navy); }
 .tag-pt   { background: #f2eadf; color: #7a5c1e; }
 .tag-tray { background: var(--green-bg); color: var(--green); }
-
 /* PASS/FAIL BUTTONS */
 .pf-row { display: flex; gap: 8px; margin-bottom: 4px; }
 .pf-btn { flex: 1; padding: 12px; border: 2px solid var(--g400); border-radius: 8px; background: white; font-size: 14px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -94,21 +87,17 @@ input.readonly { background: var(--g100); color: var(--g600); }
 .check-block:last-child { margin-bottom: 0; }
 .check-lbl { display: block; font-size: 13px; font-weight: 700; color: var(--g800); margin-bottom: 6px; }
 .check-sub { font-size: 11px; color: var(--g600); font-weight: 400; }
-
 /* DOWNTIME ROWS */
 .dt-event-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 8px; align-items: center; }
 .btn-add-dt   { padding: 10px 16px; background: var(--g100); border: 1.5px dashed var(--g400); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 12px; color: var(--navy); }
 .btn-remove   { padding: 8px 12px; background: var(--red); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
 textarea      { resize: vertical; min-height: 70px; }
 .dt-min-in    { width: 78px; }
-
 /* INITIALS */
 .initials-input { text-transform: uppercase; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 2px; }
-
 /* SUBMIT */
 .btn-submit { display: block; width: 100%; padding: 18px; margin-top: 8px; background: var(--navy); color: white; border: none; border-radius: var(--r); font-size: 18px; font-weight: 700; cursor: pointer; letter-spacing: .5px; -webkit-tap-highlight-color: transparent; }
 .btn-submit:active { background: var(--navy-dk); }
-
 /* HISTORY */
 .history-section { max-width: 780px; margin: 16px auto 0; padding: 0 16px; }
 .history-toggle  { width: 100%; background: white; border: none; padding: 14px 16px; border-radius: var(--r); box-shadow: var(--shadow); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
@@ -120,7 +109,6 @@ textarea      { resize: vertical; min-height: 70px; }
 .hist-time  { font-size: 12px; color: var(--g600); }
 .hist-data  { font-size: 13px; color: var(--g600); }
 .hist-flag  { color: var(--red); font-weight: 700; }
-
 /* CONFIRMATION OVERLAY */
 .overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
 .overlay.show { display: flex; }
@@ -137,12 +125,10 @@ textarea      { resize: vertical; min-height: 70px; }
 .conf-foot { padding: 14px 20px; display: flex; gap: 10px; border-top: 1px solid var(--g200); flex-shrink: 0; }
 .btn-edit      { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .btn-next-hour { flex: 2; padding: 14px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
-
 /* END RUN BUTTON + DIVIDER */
 .or-divider   { text-align: center; color: var(--g400); font-size: 12px; margin: 10px 0 2px; letter-spacing: 1px; }
 .btn-end-run  { display: block; width: 100%; padding: 15px; margin-top: 10px; background: white; color: var(--red); border: 2.5px solid var(--red); border-radius: var(--r); font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: .3px; -webkit-tap-highlight-color: transparent; }
 .btn-end-run:active { background: #fff5f5; }
-
 /* END RUN OVERLAY */
 .eor-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 600; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .eor-overlay.show { display: block; }
@@ -155,14 +141,12 @@ textarea      { resize: vertical; min-height: 70px; }
 .eor-foot { background: white; border-top: 1px solid var(--g200); border-radius: 0 0 var(--r) var(--r); padding: 14px 16px; display: flex; gap: 10px; }
 .btn-eor-cancel { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .btn-eor-submit { flex: 2; padding: 14px; background: var(--red); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
-
 /* SUMMARY TABLE */
 .sum-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
 .sum-table td { padding: 8px 14px; border-bottom: 1px solid var(--g200); font-size: 13px; }
 .sum-table tr:last-child td { border-bottom: none; }
 .sum-table td:first-child { font-weight: 700; color: var(--g600); width: 46%; }
 .sum-table td:last-child  { font-weight: 700; color: var(--g800); }
-
 /* FINAL / RUN COMPLETE OVERLAY */
 .final-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 700; align-items: center; justify-content: center; padding: 20px; }
 .final-overlay.show { display: flex; }
@@ -175,7 +159,6 @@ textarea      { resize: vertical; min-height: 70px; }
 .final-foot { padding: 16px 20px; border-top: 1px solid var(--g200); display: flex; gap: 10px; }
 .btn-final-next { flex: 1; padding: 15px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .btn-final-day  { flex: 1; padding: 15px; background: var(--g100); color: var(--g800); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
-
 @media (max-width: 500px) {
     .c2 { grid-template-columns: 1fr; }
     .c3 { grid-template-columns: 1fr 1fr; }
@@ -183,7 +166,6 @@ textarea      { resize: vertical; min-height: 70px; }
 </style>
 </head>
 <body>
-
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
@@ -192,7 +174,6 @@ textarea      { resize: vertical; min-height: 70px; }
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
 </div>
-
 <!-- CONTEXT BAR (reflects saved Run Info once entered) -->
 <div class="ctx-bar" id="ctxBar">
     <div class="ctx-item"><span class="ctx-lbl">Date</span><span class="ctx-val" id="ctxDate">&mdash;</span></div>
@@ -200,13 +181,10 @@ textarea      { resize: vertical; min-height: 70px; }
     <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">&mdash;</span></div>
     <div class="ctx-item"><span class="ctx-lbl">Configuration</span><span class="ctx-val" id="ctxConfig">&mdash;</span></div>
 </div>
-
 <!-- ERROR BAR -->
 <div class="err-bar" id="errBar"></div>
-
 <div class="container">
 <form id="dsForm" novalidate>
-
     <!-- 1: RUN INFO -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">1</div><div class="card-title">Run Info</div><div class="card-page">PAGE 6</div></div>
@@ -234,12 +212,10 @@ textarea      { resize: vertical; min-height: 70px; }
             </div>
         </div>
     </div>
-
     <!-- 2: FORMAT VERIFICATION -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">2</div><div class="card-title">Format Verification</div><div class="card-page">PAGE 6</div></div>
         <div class="card-body">
-
             <div class="cond" id="wrapFormatBlock">
                 <span class="section-tag tag-wrap">Case Packer / Wrap</span>
                 <div class="row c1">
@@ -250,7 +226,6 @@ textarea      { resize: vertical; min-height: 70px; }
                     </div>
                 </div>
             </div>
-
             <div class="cond" id="ptFormatBlock">
                 <span class="section-tag tag-pt">Paktech</span>
                 <div class="row c2">
@@ -268,23 +243,19 @@ textarea      { resize: vertical; min-height: 70px; }
                     </div>
                 </div>
             </div>
-
             <span class="section-tag tag-tray">Tray Packer &mdash; Always In Use</span>
             <div class="row c1">
                 <div class="fg">
                     <label for="trayPackerFormat">Tray Packer Format <span class="req">*</span></label>
-                    <select id="trayPackerFormat" name="trayPackerFormat" required></select>
+                    <select id="trayPackerFormat" name="trayPackerFormat" required onchange="onTrayPackerFormatChange()"></select>
                 </div>
             </div>
-
         </div>
     </div>
-
     <!-- 3: DATE CODE & LOT TRACEABILITY -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">3</div><div class="card-title">Date Code &amp; Lot Traceability</div><div class="card-page">PAGE 6</div></div>
         <div class="card-body">
-
             <div class="cond" id="wrapLotBlock">
                 <span class="section-tag tag-wrap">Case Packer / Wrap</span>
                 <div class="row c1">
@@ -316,7 +287,6 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <hr class="divider">
             </div>
-
             <div class="cond" id="ptLotBlock">
                 <span class="section-tag tag-pt">Paktech</span>
                 <div class="row c2">
@@ -337,23 +307,21 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <hr class="divider">
             </div>
-
-            <span class="section-tag tag-tray">Tray Packer &mdash; Always In Use</span>
-            <div class="row c1">
-                <div class="fg">
-                    <label for="trayLotNum">Tray Lot Number <span class="req">*</span></label>
-                    <input type="text" id="trayLotNum" name="trayLotNum" placeholder="e.g. TR250714-01" required>
+            <div class="cond show" id="trayLotBlock">
+                <span class="section-tag tag-tray">Tray Packer &mdash; Always In Use</span>
+                <div class="row c1">
+                    <div class="fg">
+                        <label for="trayLotNum">Tray Lot Number <span class="req">*</span></label>
+                        <input type="text" id="trayLotNum" name="trayLotNum" placeholder="e.g. TR250714-01" required>
+                    </div>
                 </div>
             </div>
-
         </div>
     </div>
-
     <!-- 4: QUALITY CHECKS -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">4</div><div class="card-title">Quality Checks</div><div class="card-page">PAGE 7</div></div>
         <div class="card-body">
-
             <div class="cond check-block" id="glueShotBlock">
                 <span class="check-lbl">Glue Shot Size <span class="check-sub">Large = Non-Mix (Regular) &middot; Small = Mix Packs Only</span></span>
                 <div class="pf-row">
@@ -362,8 +330,7 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <input type="hidden" id="glueSizeSetting" name="glueSizeSetting">
             </div>
-
-            <div class="check-block">
+            <div class="cond show check-block" id="trayGlueBlock">
                 <span class="check-lbl">Glue Shot Verification &mdash; Tray Packer</span>
                 <div class="pf-row">
                     <button type="button" class="pf-btn" id="trayGluePass" onclick="setPF('trayGlue','pass')">&#10003; Pass</button>
@@ -371,7 +338,6 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <input type="hidden" id="trayGluePF" name="trayGluePF">
             </div>
-
             <div class="check-block">
                 <span class="check-lbl">Artwork Match &amp; Acceptable</span>
                 <div class="pf-row">
@@ -380,7 +346,6 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <input type="hidden" id="artPF" name="artPF">
             </div>
-
             <div class="cond check-block" id="shakeTestBlock">
                 <span class="check-lbl">Shake Test &mdash; Cartoner Cases</span>
                 <div class="pf-row">
@@ -389,7 +354,6 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <input type="hidden" id="shakePF" name="shakePF">
             </div>
-
             <div class="check-block">
                 <span class="check-lbl">Check Weigher &mdash; Correct Program &amp; Rejects Test Case</span>
                 <div class="pf-row">
@@ -398,15 +362,12 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <input type="hidden" id="cwPF" name="cwPF">
             </div>
-
         </div>
     </div>
-
     <!-- 5: LOSS / DAMAGE COUNTS -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">5</div><div class="card-title">Loss &amp; Damage Counts</div><div class="card-page">PAGE 7</div></div>
         <div class="card-body">
-
             <div class="cond" id="wrapLossBlock">
                 <span class="section-tag tag-wrap">Case Packer / Wrap</span>
                 <div class="row c2">
@@ -421,22 +382,21 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <hr class="divider">
             </div>
-
-            <span class="section-tag tag-tray">Tray Packer &mdash; Always In Use</span>
-            <div class="row c2">
-                <div class="fg">
-                    <label for="trayLossMfg">Trays Lost &mdash; Manufacturer</label>
-                    <input type="number" id="trayLossMfg" name="trayLossMfg" placeholder="0" min="0" value="0">
-                </div>
-                <div class="fg">
-                    <label for="trayLossPacker">Trays Lost &mdash; Tray Packer Damage</label>
-                    <input type="number" id="trayLossPacker" name="trayLossPacker" placeholder="0" min="0" value="0">
+            <div class="cond show" id="trayLossBlock">
+                <span class="section-tag tag-tray">Tray Packer &mdash; Always In Use</span>
+                <div class="row c2">
+                    <div class="fg">
+                        <label for="trayLossMfg">Trays Lost &mdash; Manufacturer</label>
+                        <input type="number" id="trayLossMfg" name="trayLossMfg" placeholder="0" min="0" value="0">
+                    </div>
+                    <div class="fg">
+                        <label for="trayLossPacker">Trays Lost &mdash; Tray Packer Damage</label>
+                        <input type="number" id="trayLossPacker" name="trayLossPacker" placeholder="0" min="0" value="0">
+                    </div>
                 </div>
             </div>
-
         </div>
     </div>
-
     <!-- 6: DOWNTIME -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">6</div><div class="card-title">Downtime &mdash; Downstairs</div><div class="card-page">PAGE 7</div></div>
@@ -450,7 +410,6 @@ textarea      { resize: vertical; min-height: 70px; }
             </div>
         </div>
     </div>
-
     <!-- 7: SIGN-OFF -->
     <div class="card">
         <div class="card-hdr"><div class="card-num">7</div><div class="card-title">Sign-Off</div></div>
@@ -467,15 +426,12 @@ textarea      { resize: vertical; min-height: 70px; }
             </div>
         </div>
     </div>
-
     <button type="submit" class="btn-submit">&#10003; Submit Check</button>
     <p class="or-divider">&#8212; or, if this run is finished &#8212;</p>
     <button type="button" class="btn-end-run" onclick="openEndRun()">&#9675; End Run</button>
     <p class="hint" style="text-align:center;margin-top:6px;">Submit this hour's check first if you haven't yet.</p>
-
 </form>
 </div>
-
 <!-- HISTORY -->
 <div class="history-section">
     <button class="history-toggle" onclick="toggleHistory()">
@@ -484,7 +440,6 @@ textarea      { resize: vertical; min-height: 70px; }
     </button>
     <div class="history-list" id="histList"></div>
 </div>
-
 <!-- END RUN OVERLAY -->
 <div class="eor-overlay" id="endRunOverlay">
   <div class="eor-card">
@@ -494,21 +449,18 @@ textarea      { resize: vertical; min-height: 70px; }
       <p>Review the totals below, then confirm to archive this run.</p>
     </div>
     <div class="eor-body">
-
       <div class="card">
         <div class="card-hdr"><div class="card-title">Run Summary</div></div>
         <div class="card-body" style="padding:0;">
           <table class="sum-table" id="endRunSummaryTable"></table>
         </div>
       </div>
-
       <div class="card">
         <div class="card-hdr"><div class="card-title">Run Totals</div></div>
         <div class="card-body" style="padding:0;">
           <table class="sum-table" id="endRunTotalsTable"></table>
         </div>
       </div>
-
       <div class="card">
         <div class="card-hdr"><div class="card-title">Sign-Off</div></div>
         <div class="card-body">
@@ -521,7 +473,6 @@ textarea      { resize: vertical; min-height: 70px; }
           </div>
         </div>
       </div>
-
     </div>
     <div class="eor-foot">
       <button type="button" class="btn-eor-cancel" onclick="closeEndRun()">&#10005; Cancel</button>
@@ -529,7 +480,6 @@ textarea      { resize: vertical; min-height: 70px; }
     </div>
   </div>
 </div>
-
 <!-- RUN COMPLETE OVERLAY -->
 <div class="final-overlay" id="finalOverlay">
   <div class="final-card">
@@ -545,7 +495,6 @@ textarea      { resize: vertical; min-height: 70px; }
     </div>
   </div>
 </div>
-
 <!-- CONFIRMATION OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="conf-card">
@@ -561,13 +510,11 @@ textarea      { resize: vertical; min-height: 70px; }
         </div>
     </div>
 </div>
-
 <script>
 // ── CONSTANTS ─────────────────────────────────────────────
 var LS_RUNINFO  = 'harpoon_downstairs_run_v1';
 var LS_CHECKS   = 'harpoon_downstairs_v1';
 var LS_COMPLETED = 'harpoon_downstairs_completed_v1';
-
 // Same 17 package configurations used on the Run Start form (Can_Line_Run_Log.xlsx SpeedRef),
 // kept here as plain names only — this form doesn't need rated speed, just the label
 // so Batch/Job/Config records match what upstairs recorded.
@@ -577,18 +524,15 @@ var CONFIGS = [
     '12oz 6/4 PT NS','12oz 6/4 PT SLV',
     '12oz 2/12 Wrap NS','12oz 2/12 Wrap SLV',
     '12oz 15pk Wrap NS','12oz 15pk Wrap SLV',
-    '12oz 24pk Wrap NS','12oz 24pk Wrap SLV',
+    '12oz 24pk LSE NS','12oz 24pk LSE SLV',
     '16oz 6/4 PT NS','16oz 6/4 PT SLV',
-    '19.2oz 12pk NS','19.2oz 12pk SLV',
+    '19.2oz 12pk Wrap NS','19.2oz 12pk Wrap SLV',
     '19.2oz 24pk LSE NS','19.2oz 24pk LSE SLV'
 ];
-
 var DT_MACHINES = ['Cartoner','Paktech','Date Coder','Tray Packer','Check Weigher','Palletizer','Other'];
-
 // ── STATE ─────────────────────────────────────────────────
 var checksData  = [];
 var dtRowCount   = 0;
-
 // ── INIT ──────────────────────────────────────────────────
 window.onload = function() {
     try {
@@ -597,6 +541,7 @@ window.onload = function() {
         loadCheckHistory();
         updateCheckBadge();
         setNowTime();
+        onTrayPackerFormatChange();
         document.getElementById('dsForm').onsubmit = onSubmit;
         var wdc = document.getElementById('wrapDateCode');
         var cdc = document.getElementById('canDateCode');
@@ -606,7 +551,6 @@ window.onload = function() {
         showErr('Init error: ' + e.message);
     }
 };
-
 // ── DROPDOWN POPULATION ───────────────────────────────────
 // Case Packer + Tray Packer only apply to Wrap-format SKUs; Paktech only to PT-format SKUs.
 // Filtering CONFIGS by substring (instead of hand-typing three separate lists) means a
@@ -615,15 +559,13 @@ function populateConfigDropdowns() {
     fillSelect('pkgConfig', CONFIGS, '— Select Configuration —');
     fillSelect('casePackerFormat', CONFIGS.filter(function(c){ return c.indexOf('Wrap') !== -1; }), '— Select Format —');
     fillSelect('paktechFormat', CONFIGS.filter(function(c){ return c.indexOf('PT') !== -1; }), '— Select Format —');
-    fillSelect('trayPackerFormat', CONFIGS, '— Select Format —');
+    fillSelect('trayPackerFormat', CONFIGS.concat(['Bypass']), '— Select Format —');
 }
-
 function fillSelect(id, options, placeholder) {
     var el = document.getElementById(id);
     el.innerHTML = '<option value="">' + placeholder + '</option>' +
         options.map(function(o){ return '<option>' + o + '</option>'; }).join('');
 }
-
 // ── CONFIGURATION → SHOW/HIDE WRAP vs. PAKTECH SECTIONS ──
 // Mirrors the same string-match pattern used on the Run Start form (checking for
 // "SLV" / "PT" in the config name) so the same convention runs through every form.
@@ -631,16 +573,13 @@ function onConfigChange() {
     var cfg    = document.getElementById('pkgConfig').value;
     var isWrap = cfg.indexOf('Wrap') !== -1;
     var isPT   = cfg.indexOf('PT')   !== -1;
-
     toggleCond('wrapFormatBlock', isWrap);
     toggleCond('wrapLotBlock',    isWrap);
     toggleCond('wrapLossBlock',   isWrap);
     toggleCond('glueShotBlock',   isWrap);
     toggleCond('shakeTestBlock',  isWrap);
-
     toggleCond('ptFormatBlock', isPT);
     toggleCond('ptLotBlock',    isPT);
-
     document.getElementById('casePackerFormat').required   = isWrap;
     document.getElementById('wrapLotNum').required          = isWrap;
     document.getElementById('wrapDateCode').required        = isWrap;
@@ -649,10 +588,30 @@ function onConfigChange() {
     document.getElementById('paktechColor').required        = isPT;
     document.getElementById('paktechLotNum').required       = isPT;
     document.getElementById('canDateCode').required         = isPT;
-
     updateCtxBar();
 }
-
+// ── TRAY PACKER FORMAT → BYPASS ──────────────────────────
+// Tray Packer Format is a Card 2 "what the operator physically sees on the
+// machine" field, separate from Configuration (Card 1's "what the run is
+// supposed to be") by design — see onConfigChange(). Selecting "Bypass" here
+// records that the tray packer is physically bypassed for this hour's format
+// (19.2oz 12pk / 12oz 15pk Wrap configs) and hides the Tray Packer glue check,
+// since there's no glue shot to verify when the tray packer isn't running.
+function onTrayPackerFormatChange() {
+    var el = document.getElementById('trayPackerFormat');
+    var bypass = el.value === 'Bypass';
+    toggleCond('trayGlueBlock', !bypass);
+    toggleCond('trayLotBlock',  !bypass);
+    toggleCond('trayLossBlock', !bypass);
+    document.getElementById('trayLotNum').required = !bypass;
+    if (bypass) {
+        // toggleCond skips input[type=hidden] when clearing a hidden section,
+        // so explicitly clear the pass/fail value and button styling here.
+        document.getElementById('trayGluePF').value = '';
+        document.getElementById('trayGluePass').className = 'pf-btn';
+        document.getElementById('trayGlueFail').className = 'pf-btn';
+    }
+}
 function toggleCond(id, show) {
     var el = document.getElementById(id);
     if (show) el.classList.add('show'); else el.classList.remove('show');
@@ -664,7 +623,6 @@ function toggleCond(id, show) {
         });
     }
 }
-
 // ── RUN INFO (Date / Batch # / Job # / Configuration) ────
 // This tablet is physically separate from the upstairs Run Start Form tablet, so there is
 // no shared localStorage to read a run from — the downstairs operator enters and owns this
@@ -677,7 +635,6 @@ function onRunDateChange() {
     if (wdc && !wdc.dataset.changed) { wdc.value = d; calcJulian('wrapDateCode','wrapJulian'); }
     if (cdc && !cdc.dataset.changed) { cdc.value = d; calcJulian('canDateCode','canJulian'); }
 }
-
 function loadRunInfo() {
     var raw = localStorage.getItem(LS_RUNINFO);
     var today = isoToday();
@@ -695,7 +652,6 @@ function loadRunInfo() {
     onRunDateChange();
     updateCtxBar();
 }
-
 function saveRunInfo() {
     var d = {
         runDate:   document.getElementById('runDate').value,
@@ -706,25 +662,21 @@ function saveRunInfo() {
     localStorage.setItem(LS_RUNINFO, JSON.stringify(d));
     updateCtxBar();
 }
-
 function updateCtxBar() {
     document.getElementById('ctxDate').textContent   = document.getElementById('runDate').value || '-';
     document.getElementById('ctxBatch').textContent  = document.getElementById('batchNum').value || '-';
     document.getElementById('ctxJob').textContent     = document.getElementById('jobNum').value    || '-';
     document.getElementById('ctxConfig').textContent  = document.getElementById('pkgConfig').value || '-';
 }
-
 function isoToday() {
     var d = new Date();
     return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
 }
 function pad(n) { return String(n).padStart(2,'0'); }
-
 function setNowTime() {
     var d = new Date();
     document.getElementById('checkTime').value = pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
-
 // ── JULIAN DATE (day-of-year, zero-padded to 3 digits) ───
 // ALWAYS the true physical packaging day (today) — never the Wrap/Can Date Code field.
 // The date code can legitimately be backdated (e.g. a mix pack physically made today but
@@ -742,14 +694,12 @@ function calcJulian(srcId, outId) {
     var julian = Math.floor((d - start) / 86400000);
     out.value = String(julian).padStart(3, '0');
 }
-
 // ── PASS/FAIL BUTTONS ─────────────────────────────────────
 function setPF(which, result) {
     document.getElementById(which + 'Pass').className = 'pf-btn' + (result === 'pass' ? ' pass' : '');
     document.getElementById(which + 'Fail').className = 'pf-btn' + (result === 'fail' ? ' fail' : '');
     document.getElementById(which + 'PF').value       = result;
 }
-
 // Two-option informational selector (not pass/fail — neither Large nor Small is
 // "wrong," this just records which glue shot size was actually set for this check).
 function setGlueSize(value) {
@@ -757,7 +707,6 @@ function setGlueSize(value) {
     document.getElementById('glueSizeSmallBtn').className = 'pf-btn' + (value === 'small' ? ' pass' : '');
     document.getElementById('glueSizeSetting').value      = value;
 }
-
 // ── DOWNTIME ROWS ─────────────────────────────────────────
 function addDTRow() {
     dtRowCount++;
@@ -774,12 +723,10 @@ function addDTRow() {
         '<button type="button" class="btn-remove" onclick="removeDTRow(\'' + id + '\')">&#10005;</button>';
     document.getElementById('dtRows').appendChild(row);
 }
-
 function removeDTRow(id) {
     var el = document.getElementById(id);
     if (el) el.remove();
 }
-
 function collectDT() {
     var rows = [];
     document.querySelectorAll('#dtRows .dt-event-row').forEach(function(r) {
@@ -789,14 +736,11 @@ function collectDT() {
     });
     return rows;
 }
-
 // ── HISTORY ───────────────────────────────────────────────
 function currentCheckNum() { return checksData.length + 1; }
-
 function updateCheckBadge() {
     document.getElementById('checkBadge').textContent = 'CHECK ' + currentCheckNum();
 }
-
 function loadCheckHistory() {
     var raw = localStorage.getItem(LS_CHECKS);
     if (raw) {
@@ -804,13 +748,11 @@ function loadCheckHistory() {
     }
     renderHistory();
 }
-
 function toggleHistory() {
     document.getElementById('histList').classList.toggle('show');
     var arrow = document.getElementById('histArrow');
     arrow.innerHTML = document.getElementById('histList').classList.contains('show') ? '&#9650;' : '&#9660;';
 }
-
 function renderHistory() {
     document.getElementById('histLbl').textContent = 'Previous Checks (' + checksData.length + ')';
     var html = checksData.slice().reverse().map(function(c) {
@@ -830,7 +772,6 @@ function renderHistory() {
     }).join('');
     document.getElementById('histList').innerHTML = html || '<p class="hint" style="padding:8px 0;">No checks logged yet this run.</p>';
 }
-
 // ── VALIDATION ────────────────────────────────────────────
 function validate() {
     var ok = true;
@@ -847,35 +788,29 @@ function validate() {
     }
     return ok;
 }
-
 // ── SUBMIT ────────────────────────────────────────────────
 function onSubmit(e) {
     e.preventDefault();
     try {
         if (!validate()) return;
         saveRunInfo();
-
         // Recompute Julian dates fresh at submit time. A hidden/shown section
         // toggle earlier in the session (see toggleCond) clears these readonly
         // fields, so never trust whatever is currently sitting in the DOM.
         calcJulian('wrapDateCode', 'wrapJulian');
         calcJulian('canDateCode', 'canJulian');
-
         var entry = {
             checkNum: currentCheckNum(),
             checkTime: document.getElementById('checkTime').value,
             opInit: document.getElementById('opInit').value,
-
             runDate: document.getElementById('runDate').value,
             batchNum: document.getElementById('batchNum').value,
             jobNum: document.getElementById('jobNum').value,
             pkgConfig: document.getElementById('pkgConfig').value,
-
             casePackerFormat: document.getElementById('casePackerFormat').value,
             paktechFormat: document.getElementById('paktechFormat').value,
             paktechColor: document.getElementById('paktechColor').value,
             trayPackerFormat: document.getElementById('trayPackerFormat').value,
-
             wrapDateCodeType: document.getElementById('wrapDateCodeType').value,
             wrapDateCode: document.getElementById('wrapDateCode').value,
             wrapJulian: document.getElementById('wrapJulian').value,
@@ -884,24 +819,19 @@ function onSubmit(e) {
             canJulian: document.getElementById('canJulian').value,
             paktechLotNum: document.getElementById('paktechLotNum').value,
             trayLotNum: document.getElementById('trayLotNum').value,
-
             glueSizeSetting: document.getElementById('glueSizeSetting').value,
             trayGluePF: document.getElementById('trayGluePF').value,
             artPF: document.getElementById('artPF').value,
             shakePF: document.getElementById('shakePF').value,
             cwPF: document.getElementById('cwPF').value,
-
             wrapLossMfg: parseFloat(document.getElementById('wrapLossMfg').value) || 0,
             wrapLossCartoner: parseFloat(document.getElementById('wrapLossCartoner').value) || 0,
             trayLossMfg: parseFloat(document.getElementById('trayLossMfg').value) || 0,
             trayLossPacker: parseFloat(document.getElementById('trayLossPacker').value) || 0,
-
             dtEvents: collectDT(),
             dtNotes: document.getElementById('dtNotes').value,
-
             _ts: new Date().toISOString()
         };
-
         checksData.push(entry);
         localStorage.setItem(LS_CHECKS, JSON.stringify(checksData));
         submitToFlowDownstairs(entry);
@@ -910,10 +840,8 @@ function onSubmit(e) {
         showErr('Submit error: ' + err.message);
     }
 }
-
     // — POWER AUTOMATE SUBMIT
     const FLOW_URL_DOWNSTAIRS = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/8c09070b54a84c65b89f54ccba6eb157/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6NUNJVrEHAMRBWlJSrBoH6MWU_rFa93Qyf7nyoE1U7E';
-
   function submitToFlowDownstairs(data) {
                   fetch(FLOW_URL_DOWNSTAIRS, {
                                       method: 'POST',
@@ -926,12 +854,10 @@ function onSubmit(e) {
                                       showErr('Check ' + data.checkNum + ' did not sync to SharePoint (' + err.message + '). Saved on this tablet -- let Kyle know.');
                   });
   }
-
 // ── CONFIRMATION ──────────────────────────────────────────
 function showConf(c) {
     var totalDT = (c.dtEvents || []).reduce(function(s,e){ return s + e.mins; }, 0);
     document.getElementById('confSub').textContent = 'Check ' + c.checkNum + ' at ' + c.checkTime;
-
     var rows = [
         ['Batch #', c.batchNum], ['Job #', c.jobNum], ['Configuration', c.pkgConfig]
     ];
@@ -950,18 +876,14 @@ function showConf(c) {
     rows.push(['Check Weigher', c.cwPF || '—']);
     rows.push(['Downtime This Hour', totalDT + ' min']);
     rows.push(['Operator', c.opInit]);
-
     document.getElementById('confBody').innerHTML = rows.map(function(r) {
         return '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + (r[1] || '—') + '</span></div>';
     }).join('');
-
     document.getElementById('overlay').classList.add('show');
 }
-
 function closeConf() {
     document.getElementById('overlay').classList.remove('show');
 }
-
 function nextCheck() {
     closeConf();
     resetForm();
@@ -970,7 +892,6 @@ function nextCheck() {
     setNowTime();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
 function resetForm() {
     // Keep Run Info (Date/Batch/Job/Config) — it doesn't change hour to hour.
     // Clear only the per-check fields.
@@ -988,7 +909,6 @@ function resetForm() {
     document.getElementById('canDateCode').dataset.changed = '';
     onRunDateChange();
 }
-
 // ── END RUN ───────────────────────────────────────────────
 // Aggregates everything logged this run (checksData) into a summary, lets the
 // operator confirm with their initials, then archives the run and clears the
@@ -1014,11 +934,9 @@ function aggregateRunTotals() {
         fails: fails
     };
 }
-
 function openEndRun() {
     var runInfo = {};
     try { runInfo = JSON.parse(localStorage.getItem(LS_RUNINFO)) || {}; } catch(e) {}
-
     var summaryRows = [
         ['Date', runInfo.runDate || document.getElementById('runDate').value || '—'],
         ['Batch #', runInfo.batchNum || document.getElementById('batchNum').value || '—'],
@@ -1029,7 +947,6 @@ function openEndRun() {
     document.getElementById('endRunSummaryTable').innerHTML = summaryRows.map(function(r) {
         return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
     }).join('');
-
     var t = aggregateRunTotals();
     var dtBreakdown = Object.keys(t.dtByMachine).length
         ? Object.keys(t.dtByMachine).map(function(m) { return m + ': ' + t.dtByMachine[m] + 'm'; }).join(', ')
@@ -1044,16 +961,13 @@ function openEndRun() {
     document.getElementById('endRunTotalsTable').innerHTML = totalRows.map(function(r) {
         return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
     }).join('');
-
     document.getElementById('endRunOpInit').value = '';
     document.getElementById('endRunOpInit').classList.remove('err');
     document.getElementById('endRunOverlay').classList.add('show');
 }
-
 function closeEndRun() {
     document.getElementById('endRunOverlay').classList.remove('show');
 }
-
 function submitEndRun() {
     var initEl = document.getElementById('endRunOpInit');
     var init = initEl.value.trim();
@@ -1062,10 +976,8 @@ function submitEndRun() {
         initEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
-
     var runInfo = {};
     try { runInfo = JSON.parse(localStorage.getItem(LS_RUNINFO)) || {}; } catch(e) {}
-
     var completedRun = {
         runInfo: runInfo,
         checks: checksData,
@@ -1073,29 +985,23 @@ function submitEndRun() {
         endedBy: init,
         endedAt: new Date().toISOString()
     };
-
     var completed = [];
     try { completed = JSON.parse(localStorage.getItem(LS_COMPLETED)) || []; } catch(e) { completed = []; }
     completed.push(completedRun);
     localStorage.setItem(LS_COMPLETED, JSON.stringify(completed));
-
     showFinalRecap(completedRun);
-
     // Clear this run's two keys — next page load (or Start Next Run) begins fresh
     localStorage.removeItem(LS_RUNINFO);
     localStorage.removeItem(LS_CHECKS);
-
     closeEndRun();
     document.getElementById('finalOverlay').classList.add('show');
 }
-
 function showFinalRecap(run) {
     var d = run.runInfo || {};
     var t = run.totals;
     document.getElementById('finalSub').textContent =
         'Batch ' + (d.batchNum || '—') + ' archived at ' +
         new Date(run.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
     var rows = [
         ['Configuration', d.pkgConfig || '—'],
         ['Checks Logged', run.checks.length],
@@ -1109,10 +1015,8 @@ function showFinalRecap(run) {
         return '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + r[1] + '</span></div>';
     }).join('');
 }
-
 function startNextRun() {
     document.getElementById('finalOverlay').classList.remove('show');
-
     // Full reset — new run means new Batch/Job/Config, not just a cleared hourly form
     checksData  = [];
     dtRowCount  = 0;
@@ -1122,19 +1026,16 @@ function startNextRun() {
     document.getElementById('runDate').value   = isoToday();
     onConfigChange();
     resetForm();
-
     updateCheckBadge();
     renderHistory();
     setNowTime();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
 function endDay() {
     document.getElementById('finalFoot').innerHTML =
         '<p style="text-align:center;color:var(--g600);font-size:14px;padding:6px 0;width:100%;">' +
         'Day complete &mdash; thanks! This tablet is ready for the next run whenever you are.</p>';
 }
-
 // ── ERROR DISPLAY ─────────────────────────────────────────
 function showErr(msg) {
     var el = document.getElementById('errBar');
@@ -1142,6 +1043,5 @@ function showErr(msg) {
     el.classList.add('show');
 }
 </script>
-
 </body>
 </html>
