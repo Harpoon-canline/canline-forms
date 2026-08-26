@@ -500,12 +500,12 @@ textarea      { resize: vertical; min-height: 70px; }
     <div class="conf-card">
         <div class="conf-hdr">
             <div class="icon">&#10003;</div>
-            <h2>Check Recorded</h2>
+            <h2 id="confHdr">Check Recorded</h2>
             <p id="confSub"></p>
         </div>
         <div class="conf-body" id="confBody"></div>
         <div class="conf-foot">
-            <button class="btn-edit"      onclick="closeConf()">&#9998; Edit</button>
+            <button class="btn-edit"      onclick="editLastCheck()">&#9998; Edit</button>
             <button class="btn-next-hour" onclick="nextCheck()">Next Hour &#8594;</button>
         </div>
     </div>
@@ -533,6 +533,9 @@ var DT_MACHINES = ['Cartoner','Paktech','Date Coder','Tray Packer','Check Weighe
 // ── STATE ─────────────────────────────────────────────────
 var checksData  = [];
 var dtRowCount   = 0;
+// Index into checksData currently being corrected via the Edit button, or null
+// when the next Submit should create a brand-new check. See editLastCheck().
+var editingIndex = null;
 // ── INIT ──────────────────────────────────────────────────
 window.onload = function() {
     try {
@@ -798,6 +801,21 @@ function validate() {
     return ok;
 }
 // ── SUBMIT ────────────────────────────────────────────────
+// Puts the form into "correcting Check N" mode instead of letting the next
+// Submit silently create a new check with whatever stale values are still
+// sitting in the fields. Root cause of the old bug: closeConf() alone just
+// hid the popup — nothing tracked that the *next* submit was a correction,
+// so it fell through to the normal "create a new check" path and duplicated
+// every field, loss counts included. Now Submit checks editingIndex and
+// either updates the existing check (same checkNum, same SharePoint item,
+// via itemId) or creates a new one, never both.
+function editLastCheck() {
+    if (checksData.length === 0) { closeConf(); return; }
+    editingIndex = checksData.length - 1;
+    closeConf();
+    var badge = document.getElementById('checkBadge');
+    if (badge) badge.textContent = 'EDITING CHECK ' + checksData[editingIndex].checkNum;
+}
 function onSubmit(e) {
     e.preventDefault();
     try {
@@ -808,8 +826,13 @@ function onSubmit(e) {
         // fields, so never trust whatever is currently sitting in the DOM.
         calcJulian('wrapDateCode', 'wrapJulian');
         calcJulian('canDateCode', 'canJulian');
+        var isEdit = editingIndex !== null;
         var entry = {
-            checkNum: currentCheckNum(),
+            // Correcting an existing check keeps its original number and
+            // SharePoint item ID so the flow updates that row in place
+            // instead of creating Check N+1 alongside it.
+            checkNum: isEdit ? checksData[editingIndex].checkNum : currentCheckNum(),
+            itemId:   isEdit ? checksData[editingIndex].itemId   : null,
             checkTime: document.getElementById('checkTime').value,
             opInit: document.getElementById('opInit').value,
             runDate: document.getElementById('runDate').value,
@@ -841,17 +864,27 @@ function onSubmit(e) {
             dtNotes: document.getElementById('dtNotes').value,
             _ts: new Date().toISOString()
         };
-        checksData.push(entry);
+        if (isEdit) {
+            checksData[editingIndex] = entry;
+            editingIndex = null;
+        } else {
+            checksData.push(entry);
+        }
         localStorage.setItem(LS_CHECKS, JSON.stringify(checksData));
-        submitToFlowDownstairs(entry);
-        showConf(entry);
+        submitToFlowDownstairs(entry, isEdit);
+        showConf(entry, isEdit);
     } catch(err) {
         showErr('Submit error: ' + err.message);
     }
 }
     // — POWER AUTOMATE SUBMIT
     const FLOW_URL_DOWNSTAIRS = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/8c09070b54a84c65b89f54ccba6eb157/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6NUNJVrEHAMRBWlJSrBoH6MWU_rFa93Qyf7nyoE1U7E';
-  function submitToFlowDownstairs(data) {
+  // `data.itemId` tells the flow whether to Create (itemId null/absent) or
+  // Update (itemId set) the SharePoint row. The flow responds with the row's
+  // item ID either way — captured back onto checksData so a *later* Edit on
+  // this same check (or a browser refresh reloading from localStorage) still
+  // knows which SharePoint row to update instead of minting a new one.
+  function submitToFlowDownstairs(data, isEdit) {
                   fetch(FLOW_URL_DOWNSTAIRS, {
                                       method: 'POST',
                                       headers: {'Content-Type': 'application/json'},
@@ -859,13 +892,29 @@ function onSubmit(e) {
                   }).then(function(r) {
                                       if (!r.ok) { throw new Error('HTTP ' + r.status); }
                                       document.getElementById('errBar').classList.remove('show');
+                                      // Best-effort: capture the SharePoint item ID from the flow's
+                                      // response so a later Edit on this check updates the same row.
+                                      // Deliberately NOT chained into the outer .catch() below — if the
+                                      // response isn't JSON (e.g. the flow hasn't been updated yet to
+                                      // return one), that's a reason to skip capturing the ID, not a
+                                      // reason to tell the operator their submission failed.
+                                      r.json().then(function(body) {
+                                          if (body && body.itemId) {
+                                              var idx = checksData.findIndex(function(c) { return c.checkNum === data.checkNum; });
+                                              if (idx !== -1) {
+                                                  checksData[idx].itemId = body.itemId;
+                                                  localStorage.setItem(LS_CHECKS, JSON.stringify(checksData));
+                                              }
+                                          }
+                                      }).catch(function() { /* no JSON body yet — fine, ignore */ });
                   }).catch(function(err) {
                                       showErr('Check ' + data.checkNum + ' did not sync to SharePoint (' + err.message + '). Saved on this tablet -- let Kyle know.');
                   });
   }
 // ── CONFIRMATION ──────────────────────────────────────────
-function showConf(c) {
+function showConf(c, isEdit) {
     var totalDT = (c.dtEvents || []).reduce(function(s,e){ return s + e.mins; }, 0);
+    document.getElementById('confHdr').textContent = isEdit ? 'Check Updated' : 'Check Recorded';
     document.getElementById('confSub').textContent = 'Check ' + c.checkNum + ' at ' + c.checkTime;
     var rows = [
         ['Batch #', c.batchNum], ['Job #', c.jobNum], ['Configuration', c.pkgConfig]
