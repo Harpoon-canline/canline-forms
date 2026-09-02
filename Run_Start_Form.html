@@ -392,7 +392,7 @@
                 </div>
                 <div class="fg">
                     <label for="batchNum">Batch # <span class="req">*</span></label>
-                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. LTALE13" required>
+                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. LTALE13" required oninput="this.value=this.value.toUpperCase()">
                     <span class="hint">Same batch code Downstairs records &mdash; the join key across both tablets</span>
                 </div>
             </div>
@@ -411,11 +411,11 @@
             <div class="row col-2">
                 <div class="fg">
                     <label for="tankNum">Tank / BBT Number <span class="req">*</span></label>
-                    <input type="text" id="tankNum" name="tankNum" placeholder="e.g. F16" required>
+                    <input type="text" id="tankNum" name="tankNum" placeholder="e.g. F16" required oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <div class="fg">
                     <label for="beerCode">Beer / Product Code <span class="req">*</span></label>
-                    <input type="text" id="beerCode" name="beerCode" placeholder="e.g. LTVTIPA" required>
+                    <input type="text" id="beerCode" name="beerCode" placeholder="e.g. LTVTIPA" required oninput="this.value=this.value.toUpperCase()">
                 </div>
             </div>
 
@@ -490,8 +490,8 @@
 
             <div class="row col-3">
                 <div class="fg">
-                    <label for="beerTemp">Beer Temp <span class="req">*</span></label>
-                    <input type="number" id="beerTemp" name="beerTemp" placeholder="0.0" step="0.1" required>
+                    <label for="beerTemp">Beer Temp <span class="hint" style="font-style:italic;font-weight:400;text-transform:none;">&#8212; optional</span></label>
+                    <input type="number" id="beerTemp" name="beerTemp" placeholder="0.0" step="0.1">
                 </div>
                 <div class="fg">
                     <label for="co2BBT">CO2 BBT <span class="req">*</span></label>
@@ -514,7 +514,13 @@
                 </div>
                 <div class="fg">
                     <label for="preFilters">Pre-Filters <span class="req">*</span></label>
-                    <input type="number" id="preFilters" name="preFilters" placeholder="0.00" step="0.01" required>
+                    <select id="preFilters" name="preFilters" required>
+                        <option value="">&mdash; Select &mdash;</option>
+                        <option>Bypass</option>
+                        <option>1.0m</option>
+                        <option>20m</option>
+                        <option>1.0m/.45m</option>
+                    </select>
                 </div>
             </div>
 
@@ -965,7 +971,7 @@ function submitToFlow(data) {
             const payload = Object.assign({}, data);
             // Cast fields to match the flow's trigger schema types (Integer / Number)
             const intFields = ['julianDate', 'ratedCPM', 'ratedUPH', 'schedCases', 'fillerHours'];
-            const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'preFilters', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure'];
+            const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure'];
             intFields.forEach(f => {
                             if (payload[f] !== undefined && payload[f] !== '') payload[f] = parseInt(payload[f], 10);
             });
