@@ -80,7 +80,8 @@
     .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
 
     /* EFFICIENCY PANEL */
-    .eff-panel { border: 2px solid var(--g200); border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-around; margin-bottom: 12px; text-align: center; }
+    .eff-panel { border: 2px solid var(--g200); border-radius: 8px; padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: space-around; row-gap: 10px; margin-bottom: 12px; text-align: center; }
+    .eff-panel > div { min-width: 78px; }
     .eff-panel.green { border-color: var(--green); background: var(--green-bg); }
     .eff-panel.amber { border-color: var(--amber); background: var(--amber-bg); }
     .eff-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--g600); letter-spacing: .5px; }
@@ -293,6 +294,11 @@
                     <div class="eff-lbl">Accumulative</div>
                     <div class="eff-val" id="effAccum">&mdash;</div>
                     <div class="eff-sub">total cans</div>
+                </div>
+                <div>
+                    <div class="eff-lbl">Cans Remaining</div>
+                    <div class="eff-val" id="effRemaining">&mdash;</div>
+                    <div class="eff-sub" id="effRemainingSub">Enter filler counter below</div>
                 </div>
             </div>
 
@@ -950,6 +956,8 @@ function loadRunContext() {
         }
         // Set weight range tolerance now that we know the config
         onTargetWeight('');
+        // Show the full scheduled can target before any counter reading is entered
+        showRemainingTarget(0);
     } catch(err) {
         showErr('Error loading run data: ' + err.message);
     }
@@ -1004,6 +1012,37 @@ function onTargetWeight(val) {
     }
 }
 
+// ── CANS REMAINING vs. SCHEDULED TARGET ──────────────────
+// Informational only — going over the scheduled qty is expected sometimes
+// (better efficiency / using out a tank), so this never blocks anything.
+function schedCanTarget() {
+    if (!runData || !runData.schedCases || !runData.pkgConfig) return 0;
+    var cpc = CANS_PER_CASE[runData.pkgConfig] || 24;
+    return (parseFloat(runData.schedCases) || 0) * cpc;
+}
+
+function showRemainingTarget(counter) {
+    var valEl = document.getElementById('effRemaining');
+    var subEl = document.getElementById('effRemainingSub');
+    if (!valEl || !subEl) return;
+
+    var target = schedCanTarget();
+    if (target <= 0) {
+        valEl.textContent = '—';
+        subEl.textContent = 'No scheduled qty';
+        return;
+    }
+
+    var remaining = target - (parseFloat(counter) || 0);
+    if (remaining >= 0) {
+        valEl.textContent = Math.round(remaining).toLocaleString();
+        subEl.textContent = 'of ' + Math.round(target).toLocaleString() + ' scheduled';
+    } else {
+        valEl.textContent = '0';
+        subEl.textContent = Math.round(Math.abs(remaining)).toLocaleString() + ' over ' + Math.round(target).toLocaleString() + ' scheduled';
+    }
+}
+
 // ── FILLER COUNTER → EFFICIENCY + AUTO DT ────────────────
 function onCounter(val) {
     var counter = parseFloat(val);
@@ -1021,6 +1060,7 @@ function onCounter(val) {
     document.getElementById('effAccum').textContent = counter.toLocaleString();
     document.getElementById('effPct').textContent   = eff.toFixed(1) + '%';
     document.getElementById('effSub').textContent   = units.toLocaleString() + ' of ' + ratedUPH.toLocaleString() + ' rated';
+    showRemainingTarget(counter);
 
     var panel = document.getElementById('effPanel');
     panel.className = 'eff-panel ' + (eff >= 80 ? 'green' : 'amber');
@@ -1363,6 +1403,8 @@ function resetForm() {
     document.getElementById('effUnits').textContent  = '-';
     document.getElementById('effAccum').textContent  = '-';
     document.getElementById('effSub').textContent    = 'Enter filler counter below';
+    document.getElementById('effRemaining').textContent    = '-';
+    document.getElementById('effRemainingSub').textContent = 'Enter filler counter below';
     document.getElementById('avgDisplay').textContent= '- g';
     onTargetWeight(''); // reset range display to just ± tolerance
 
