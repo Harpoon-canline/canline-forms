@@ -1953,6 +1953,47 @@ function showDebug() {
     } else {
         lines.push('(not found)');
     }
+
+    // Completed-run archive — written just before an End of Run submit is even
+    // attempted, and never cleared automatically. If a run's EOR "succeeded" on
+    // the tablet but the row is missing from SharePoint, the full record —
+    // every hourly entry plus the EOR numbers — is still sitting here.
+    lines.push('');
+    lines.push('=== harpoon_completed_runs_v1 (archived closed runs) ===');
+    var archiveRaw = localStorage.getItem('harpoon_completed_runs_v1');
+    if (archiveRaw) {
+        try {
+            var archive = JSON.parse(archiveRaw);
+            lines.push('Archived runs: ' + archive.length);
+            for (var ai = 0; ai < archive.length; ai++) {
+                var run = archive[ai];
+                var rs  = run.runStart || {};
+                var eor = run.endOfRun || {};
+                var hrs = run.hourlyEntries || [];
+                lines.push('');
+                lines.push('--- Run ' + (ai + 1) + ' of ' + archive.length + ' ---');
+                lines.push('archivedAt: ' + run.archivedAt);
+                lines.push('jobNumKey/beerCode: ' + (eor.jobNumKey || rs.deacomJobNum) + ' / ' + rs.beerCode);
+                lines.push('Hourly entries: ' + hrs.length);
+                for (var hi = 0; hi < hrs.length; hi++) {
+                    lines.push('  HR' + hrs[hi].hourNum + ': counter=' + hrs[hi].fillerCounter
+                        + ' units=' + hrs[hi].unitsThisHour + ' eff=' + hrs[hi].effPct + '%'
+                        + ' dtMins=' + hrs[hi].dtMins);
+                }
+                lines.push('EOR endTime: ' + eor.endTime);
+                lines.push('EOR finalCounter: ' + eor.finalCounter);
+                lines.push('EOR totalCases: ' + eor.totalCases + '  netCases: ' + eor.netCases + '  casesOnHold: ' + eor.casesOnHold);
+                lines.push('EOR overallEff: ' + eor.overallEff + '  overallFillerEff: ' + eor.overallFillerEff + '  overallPkgLineEff: ' + eor.overallPkgLineEff);
+                lines.push('EOR opInit/vrInit: ' + eor.opInit + ' / ' + eor.vrInit);
+            }
+            lines.push('');
+            lines.push('(Full raw JSON below for copy/paste if you need every field)');
+            lines.push(JSON.stringify(archive, null, 2));
+        } catch(e) { lines.push('PARSE ERROR: ' + e.message); }
+    } else {
+        lines.push('(not found)');
+    }
+
     out.textContent = lines.join('\n');
     out.style.display = 'block';
 }
