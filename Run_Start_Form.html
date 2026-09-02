@@ -467,7 +467,12 @@
             <div class="row col-2">
                 <div class="fg">
                     <label for="schedCases">Scheduled Case QTY <span class="req">*</span></label>
-                    <input type="number" id="schedCases" name="schedCases" placeholder="0" min="0" required>
+                    <input type="number" id="schedCases" name="schedCases" placeholder="0" min="0" required oninput="onSchedCases()">
+                </div>
+                <div class="fg">
+                    <label for="schedCans">Scheduled Can QTY</label>
+                    <input type="text" id="schedCans" class="readonly" readonly placeholder="&mdash;">
+                    <span class="hint" id="schedCansHint">Select a package format first</span>
                 </div>
             </div>
             <p class="hint" style="margin-top:4px;">Sleeve count is recorded at End of Run on the Hourly Check-In form.</p>
@@ -754,6 +759,29 @@ const SPEED = {
     '19.2oz 24pk LSE SLV':   125
 };
 
+// Physical cans per outer shipping case by package config — mirrors the table
+// on the Hourly Check-In form (keep the two in sync if configs change).
+const CANS_PER_CASE = {
+    '12oz 4/6 Wrap NS':      24,
+    '12oz 4/6 Wrap SLV':     24,
+    '12oz 4/6 PT NS':        24,
+    '12oz 4/6 PT SLV':       24,
+    '12oz 6/4 PT NS':        24,
+    '12oz 6/4 PT SLV':       24,
+    '12oz 2/12 Wrap NS':     24,
+    '12oz 2/12 Wrap SLV':    24,
+    '12oz 15pk Wrap NS':     15,
+    '12oz 15pk Wrap SLV':    15,
+    '12oz 24pk Wrap NS':     24,
+    '12oz 24pk Wrap SLV':    24,
+    '16oz 6/4 PT NS':        24,
+    '16oz 6/4 PT SLV':       24,
+    '19.2oz 12pk NS':        12,
+    '19.2oz 12pk SLV':       12,
+    '19.2oz 24pk LSE NS':    24,
+    '19.2oz 24pk LSE SLV':   24
+};
+
 const LS_KEY = 'harpoon_run_start_v1';
 
 // ─────────────────────────────────────────────
@@ -850,6 +878,33 @@ function onConfig() {
 
     // Paktech lot number is recorded by downstairs ops (Pages 6-7) — not on this form
     // Sleeve count is recorded at End of Run on the Hourly Check-In form
+
+    // Case qty → can qty conversion depends on the config, so refresh it too
+    onSchedCases();
+}
+
+// ─────────────────────────────────────────────
+// SCHEDULED CASE QTY → SCHEDULED CAN QTY (display only, not submitted)
+// ─────────────────────────────────────────────
+function onSchedCases() {
+    const cfg   = document.getElementById('pkgConfig').value;
+    const cases = parseFloat(document.getElementById('schedCases').value);
+    const out   = document.getElementById('schedCans');
+    const hint  = document.getElementById('schedCansHint');
+    const cpc   = CANS_PER_CASE[cfg];
+
+    if (!cfg) {
+        out.value = '';
+        hint.textContent = 'Select a package format first';
+        return;
+    }
+    if (isNaN(cases) || cases <= 0) {
+        out.value = '';
+        hint.textContent = cpc + ' cans / case for this format';
+        return;
+    }
+    out.value = Math.round(cases * cpc).toLocaleString() + ' cans';
+    hint.textContent = cpc + ' cans / case';
 }
 
 // ─────────────────────────────────────────────
