@@ -219,15 +219,20 @@
     .total-sub  { font-size: 10px; color: var(--g600); }
 
     /* FINAL CONFIRMATION OVERLAY */
-    .final-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 700; align-items: center; justify-content: center; padding: 20px; }
+    /* Card is capped to the viewport and split into header/body/footer so the
+       action buttons in .final-foot are always on-screen and clickable, even
+       in landscape where the recap body is taller than the viewport — only
+       the body scrolls internally. (Kyle, 2026-09-02: buttons were unreachable
+       in landscape without rotating to portrait.) */
+    .final-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 700; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
     .final-overlay.show { display: flex; }
-    .final-card { background: white; border-radius: var(--r); width: 100%; max-width: 460px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
-    .final-hdr  { background: var(--green); color: white; padding: 24px; text-align: center; border-radius: var(--r) var(--r) 0 0; }
+    .final-card { background: white; border-radius: var(--r); width: 100%; max-width: 460px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); box-shadow: 0 10px 40px rgba(0,0,0,.4); display: flex; flex-direction: column; overflow: hidden; }
+    .final-hdr  { background: var(--green); color: white; padding: 24px; text-align: center; border-radius: var(--r) var(--r) 0 0; flex-shrink: 0; }
     .final-hdr .icon { font-size: 42px; margin-bottom: 6px; }
     .final-hdr h2 { font-size: 24px; font-weight: 900; }
     .final-hdr p  { font-size: 13px; opacity: .85; margin-top: 4px; }
-    .final-body { padding: 16px 20px; }
-    .final-foot { padding: 16px 20px; border-top: 1px solid var(--g200); }
+    .final-body { padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0; }
+    .final-foot { padding: 16px 20px; border-top: 1px solid var(--g200); flex-shrink: 0; }
 
     @media (max-width: 500px) {
         .c2 { grid-template-columns: 1fr; }
@@ -690,11 +695,7 @@
                 <input type="text" id="eorFcLidLot" name="eorFcLidLot" maxlength="20" placeholder="e.g. N531140052">
               </div>
             </div>
-            <div class="row c2" style="margin-bottom:14px;">
-              <div class="fg">
-                <label for="eorFcLidColor">Lid Color</label>
-                <input type="text" id="eorFcLidColor" name="eorFcLidColor" maxlength="20" placeholder="e.g. Silver">
-              </div>
+            <div class="row c1" style="margin-bottom:14px;">
               <div class="fg">
                 <label for="eorFcCanLot">Can Lot #</label>
                 <input type="text" id="eorFcCanLot" name="eorFcCanLot" maxlength="20" placeholder="e.g. L25072501">
@@ -1791,7 +1792,6 @@ function submitEOR() {
             // Final Checks — lid & can info
             fcLidPlant:    document.getElementById('eorFcLidPlant').value,
             fcLidLot:      document.getElementById('eorFcLidLot').value,
-            fcLidColor:    document.getElementById('eorFcLidColor').value,
             fcCanLot:      document.getElementById('eorFcCanLot').value,
             // Final Checks — P/F
             fcPkgMatchPF:  document.getElementById('eorFcPkgPF').value,
