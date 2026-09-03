@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can Line Packaging Information</title>
+<style>
+  :root {
+    --bg: #000000;
+    --card: #204667;
+    --accent: #9e1a41;
+    --text: #ffffff;
+    --muted: #9aabba;
+    --warn: #ffcf5c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    overscroll-behavior: none;
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: none;
+  }
+  header { text-align: center; margin-bottom: 20px; }
+  .brand {
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(158, 26, 65, 0.18);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 4px 16px;
+    margin-bottom: 10px;
+  }
+  header h1 { font-size: 2.5rem; margin: 0; color: var(--text); }
+  header p { font-size: 1.2rem; color: var(--text); margin: 8px 0 0; }
+  #status { text-align: center; font-size: 1rem; color: var(--text); margin-bottom: 16px; }
+  #status.stale { color: var(--warn); font-weight: 700; }
+  #errorBanner {
+    display: none;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    background: var(--accent);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+  }
+  #errorBanner.show { display: block; }
+
+  main { max-width: 1600px; margin: 0 auto; }
+
+  .info-section { margin-bottom: 40px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .section-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background: var(--accent);
+    color: var(--text);
+    font-size: 1.3rem;
+    font-weight: 800;
+    border-radius: 50%;
+  }
+  .section-title {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .split-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+  }
+  .split-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    border-left: 8px solid var(--accent);
+  }
+  .card-heading {
+    display: inline-block;
+    background: var(--text);
+    color: var(--card);
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 6px;
+    margin: 0 0 12px;
+  }
+  .split-card h2.card-heading { font-size: 1.8rem; }
+  .field {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.15rem;
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text);
+  }
+  .field span:first-child { color: var(--muted); }
+  .field span:last-child { font-weight: 600; text-align: right; margin-left: 16px; color: var(--text); }
+  .field.category {
+    background: rgba(158, 26, 65, 0.28);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+  }
+  .field.category span:first-child,
+  .field.category span:last-child {
+    color: var(--text);
+    font-weight: 800;
+  }
+  .details-heading.card-heading {
+    display: block;
+    width: fit-content;
+    margin-top: 16px;
+    font-size: 1.3rem;
+  }
+  .notes-heading.card-heading {
+    display: block;
+    width: fit-content;
+    margin-top: 16px;
+    font-size: 1.3rem;
+    background: var(--accent);
+    color: var(--text);
+  }
+  .notes-box {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    background: rgba(158, 26, 65, 0.28);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+  }
+  .empty-state { text-align: center; font-size: 1.5rem; color: var(--text); margin-top: 60px; }
+
+  .section-placeholder {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.2rem;
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Harpoon Can Line</div>
+    <h1>Can Line Packaging Information</h1>
+    <p id="today-date"></p>
+  </header>
+  <div id="status">Loading...</div>
+  <div id="errorBanner"></div>
+
+  <main>
+    <section class="info-section" id="section-splits">
+      <div class="section-header">
+        <span class="section-num">1</span>
+        <span class="section-title">Today's Packaging Splits</span>
+      </div>
+      <div id="split-container" class="split-grid"></div>
+    </section>
+
+    <section class="info-section" id="section-efficiency">
+      <div class="section-header">
+        <span class="section-num">2</span>
+        <span class="section-title">Efficiency</span>
+      </div>
+      <div class="section-placeholder">Efficiency data coming soon &mdash; this section will go live once the efficiency files are built.</div>
+    </section>
+  </main>
+
+<script>
+  const FLOW_URL = "https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/77de2ad55a5447168524f93111297b0d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bfm67jPfzS6IOBUOC8dNzgisGqKCo4OYl2I_Nzk-QP0";
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000;  // normal poll cadence once things are healthy
+  const RETRY_BACKOFF_MS   = [30, 60, 120].map(s => s * 1000); // fast retries after a failure
+  const STALE_AFTER_MS     = 15 * 60 * 1000;  // warn if the board hasn't refreshed successfully in this long
+  const RELOAD_AFTER_MS    = 6 * 60 * 60 * 1000; // full page reload every 6h -- keeps a 24/7 kiosk tab from drifting
+
+  let lastSuccess = null;
+  let consecutiveFailures = 0;
+  let pollTimer = null;
+
+  function formatDateHeader() {
+    const today = new Date();
+    document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function parseDetails(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html || '';
+    const text = temp.textContent || temp.innerText || '';
+    return text.split(/\||\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(item => {
+        const idx = item.indexOf(':');
+        if (idx === -1) return { label: '', value: item, isCategory: false };
+        const label = item.slice(0, idx).trim();
+        const value = item.slice(idx + 1).trim();
+        const isCategory = /total qty/i.test(value);
+        return { label, value, isCategory };
+      });
+  }
+
+  function fieldHtml(label, value, highlight) {
+    return `<div class="field${highlight ? ' category' : ''}"><span>${label}</span><span>${value}</span></div>`;
+  }
+
+  // ── Section 1: Today's Packaging Splits ──────────────────────────
+  function renderSplitsSection(rows) {
+    const container = document.getElementById('split-container');
+    container.innerHTML = '';
+
+    if (!rows || rows.length === 0) {
+      container.innerHTML = '<div class="empty-state">No packaging splits scheduled for today.</div>';
+      return;
+    }
+
+    rows.forEach(row => {
+      const detailRows = parseDetails(row.PackagingDetails)
+        .map(d => `<div class="field${d.isCategory ? ' category' : ''}"><span>${d.label}</span><span>${d.value}</span></div>`)
+        .join('');
+
+      const rackingVal = row.RackingOrder?.Value ?? row.RackingOrder ?? '';
+      const canningVal = row.CanningOrder?.Value ?? row.CanningOrder ?? '';
+      const orderFields = [
+        rackingVal ? fieldHtml('Racking Order', rackingVal, true) : '',
+        canningVal ? fieldHtml('Canning Order', canningVal, true) : ''
+      ].join('');
+
+      const notesVal = (row.Notes ?? '').replace(/^\s*notes\s*[:\-]\s*/i, '').trim();
+      const notesBlock = notesVal ? `
+        <div class="notes-heading card-heading">Notes</div>
+        <div class="notes-box">${notesVal}</div>
+      ` : '';
+
+      const card = document.createElement('div');
+      card.className = 'split-card';
+      card.innerHTML = `
+        <h2 class="card-heading">${row.BeerBatch ?? ''}</h2>
+        <div class="field"><span>BBT</span><span>${row.BBT ?? ''}</span></div>
+        <div class="field"><span>Deacom Job</span><span>${row.DeacomJob ?? ''}</span></div>
+        <div class="field"><span>Beer Family</span><span>${row.BeerFamily?.Value ?? row.BeerFamily ?? ''}</span></div>
+        <div class="field"><span>Tank Volume</span><span>${row.TankVolume ?? ''}</span></div>
+        <div class="field"><span>Total Scheduled Volume</span><span>${row.TotalScheduledVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer Volume</span><span>${row.ExtraBeerVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer After Split</span><span>${row.ExtraBeerAfterSplit ?? ''}</span></div>
+        <div class="field"><span>Total Beer Volume To Be Packaged</span><span>${row.TotalBeerVolumeToBePackaged ?? ''}</span></div>
+        ${orderFields}
+        <div class="details-heading card-heading">Packaging Details</div>
+        ${detailRows}
+        ${notesBlock}
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  // ── Section 2: Efficiency (placeholder until efficiency files are built) ──
+  // When ready, add a fetch + render function here following the same
+  // pattern as Section 1, and wire it into fetchAll() below.
+
+  function minutesAgo(ms) {
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return mins + ' min ago';
+  }
+
+  function updateStatusText() {
+    const status = document.getElementById('status');
+    if (!lastSuccess) return; // still on "Loading..." until the first successful fetch
+    const age = Date.now() - lastSuccess;
+    const stale = age > STALE_AFTER_MS;
+    status.textContent = `Last updated: ${new Date(lastSuccess).toLocaleTimeString()} (${minutesAgo(age)})`
+      + (stale ? ' -- board may be stuck, check the flow' : '');
+    status.classList.toggle('stale', stale);
+  }
+
+  function showError(message) {
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = 'Not syncing: ' + message + ' -- showing last known data.';
+    banner.classList.add('show');
+  }
+
+  function clearError() {
+    document.getElementById('errorBanner').classList.remove('show');
+  }
+
+  async function fetchAll() {
+    try {
+      const response = await fetch(FLOW_URL);
+      if (!response.ok) throw new Error('Request failed: ' + response.status);
+      const data = await response.json();
+      renderSplitsSection(data);
+      lastSuccess = Date.now();
+      consecutiveFailures = 0;
+      clearError();
+      updateStatusText();
+    } catch (err) {
+      consecutiveFailures++;
+      showError(err.message);
+    } finally {
+      scheduleNextFetch();
+    }
+  }
+
+  function scheduleNextFetch() {
+    if (pollTimer) clearTimeout(pollTimer);
+    // Fast retries right after a failure so a blip clears itself in under a minute;
+    // settle back to the normal cadence once it's healthy or retries are exhausted.
+    const delay = consecutiveFailures > 0 && consecutiveFailures <= RETRY_BACKOFF_MS.length
+      ? RETRY_BACKOFF_MS[consecutiveFailures - 1]
+      : REFRESH_INTERVAL_MS;
+    pollTimer = setTimeout(fetchAll, delay);
+  }
+
+  formatDateHeader();
+  fetchAll();
+  setInterval(updateStatusText, 30 * 1000);
+  // 24/7 kiosk tab: force a clean reload periodically rather than trusting long-running JS state.
+  setTimeout(() => location.reload(), RELOAD_AFTER_MS);
+</script>
+</body>
+</html>
