@@ -955,7 +955,7 @@ function onSubmit(e) {
 function collect() {
     const data = {};
     document.querySelectorAll('#form input, #form select').forEach(el => {
-        if (el.name) data[el.name] = el.value;
+        if (el.name) data[el.name] = typeof el.value === 'string' ? el.value.trim() : el.value;
     });
     return data;
 }
