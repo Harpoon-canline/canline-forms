@@ -64,6 +64,23 @@
     margin-top: 16px;
     font-size: 1.3rem;
   }
+  .notes-heading.card-heading {
+    display: block;
+    width: fit-content;
+    margin-top: 16px;
+    font-size: 1.3rem;
+    background: #9e1a41;
+    color: #ffffff;
+  }
+  .notes-box {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    background: rgba(158, 26, 65, 0.28);
+    border-left: 4px solid #9e1a41;
+    border-radius: 4px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+  }
   .empty-state { text-align: center; font-size: 1.5rem; color: #ffffff; margin-top: 60px; }
 </style>
 </head>
@@ -103,6 +120,10 @@
       });
   }
 
+  function fieldHtml(label, value, highlight) {
+    return `<div class="field${highlight ? ' category' : ''}"><span>${label}</span><span>${value}</span></div>`;
+  }
+
   function renderSplits(rows) {
     const container = document.getElementById('split-container');
     const status = document.getElementById('status');
@@ -121,6 +142,19 @@
         .map(d => `<div class="field${d.isCategory ? ' category' : ''}"><span>${d.label}</span><span>${d.value}</span></div>`)
         .join('');
 
+      const rackingVal = row.RackingOrder?.Value ?? row.RackingOrder ?? '';
+      const canningVal = row.CanningOrder?.Value ?? row.CanningOrder ?? '';
+      const orderFields = [
+        rackingVal ? fieldHtml('Racking Order', rackingVal, true) : '',
+        canningVal ? fieldHtml('Canning Order', canningVal, true) : ''
+      ].join('');
+
+      const notesVal = (row.Notes ?? '').replace(/^\s*notes\s*[:\-]\s*/i, '').trim();
+      const notesBlock = notesVal ? `
+        <div class="notes-heading card-heading">Notes</div>
+        <div class="notes-box">${notesVal}</div>
+      ` : '';
+
       const card = document.createElement('div');
       card.className = 'split-card';
       card.innerHTML = `
@@ -133,8 +167,10 @@
         <div class="field"><span>Extra Beer Volume</span><span>${row.ExtraBeerVolume ?? ''}</span></div>
         <div class="field"><span>Extra Beer After Split</span><span>${row.ExtraBeerAfterSplit ?? ''}</span></div>
         <div class="field"><span>Total Beer Volume To Be Packaged</span><span>${row.TotalBeerVolumeToBePackaged ?? ''}</span></div>
+        ${orderFields}
         <div class="details-heading card-heading">Packaging Details</div>
         ${detailRows}
+        ${notesBlock}
       `;
       container.appendChild(card);
     });
