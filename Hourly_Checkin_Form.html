@@ -1755,12 +1755,11 @@ function submitEOR() {
         }
         var eorFcAvgWt = eorWtVals.length > 0 ? (eorWtSum / eorWtVals.length).toFixed(1) : '';
         // Overall efficiency -- two distinct metrics (Kyle's call 2026-08-05): filler vs. package-line yield
-        var effSum = 0, effCount = 0;
-        for (var ei = 0; ei < hourlyData.length; ei++) {
-    var ep = parseFloat(hourlyData[ei].effPct);
-            if (!isNaN(ep)) { effSum += ep; effCount++; }
-    }
-        var overallFillerEff = effCount > 0 ? (effSum / effCount).toFixed(1) : '';
+        // 2026-09-10 fix (Kyle): overallFillerEff now matches the on-screen eorOverallEff (time-weighted total,
+        // actual cans / rated cans across the FULL run including the final partial hour) instead of averaging
+        // only the complete hours -- the old method silently dropped real partial-hour production.
+        var eorOverallEffNum = parseFloat(document.getElementById('eorOverallEff').textContent);
+        var overallFillerEff = !isNaN(eorOverallEffNum) ? eorOverallEffNum.toFixed(1) : '';
 
     var eorNetCasesForEff = parseInt(document.getElementById('eorNetCasesHid').value) || 0;
     var schedCasesForEff = (runData && runData.schedCases) ? parseFloat(runData.schedCases) : 0;
