@@ -895,7 +895,7 @@
         </div>
         <div class="conf-body" id="confBody"></div>
         <div class="conf-foot">
-            <button class="btn-edit"      onclick="closeConf()">&#9998; Edit</button>        
+           <button class="btn-edit" onclick="editLastHour()">&#9998; Edit</button>     
             <button class="btn-next-hour" onclick="nextHour()">Next Hour &#8594;</button>
         </div>
     </div>
@@ -1381,6 +1381,16 @@ function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 function closeConf() {
     document.getElementById('overlay').className = 'overlay';
+}
+
+function editLastHour() {
+    if (hourlyData.length > 0) {
+        hourlyData.pop();
+        localStorage.setItem(LS_HOURLY, JSON.stringify(hourlyData));
+    }
+    document.getElementById('overlay').className = 'overlay';
+    updateHourBadge();
+    updateWindowDisplay();
 }
 
 function nextHour() {
