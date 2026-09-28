@@ -923,6 +923,7 @@ var hourlyData   = [];
 var dtRowCount   = 0;
 var eorDtRowCount = 0;
 var eorLoggedDT  = 0;  // DT from completed logged hours — set in openEOR()
+var eorTotalRunMinutes = 0;  // total elapsed run minutes (logged hours + final partial) — set in calcEorEfficiency()
 
 // ── INIT ──────────────────────────────────────────────────
 window.onload = function() {
@@ -1706,7 +1707,7 @@ function calcEorEfficiency() {
     document.getElementById('eorEffRows').innerHTML = html;
 
     // Overall efficiency = total cans produced / total rated cans over full run time
-    var totalRated  = ratedCPM * totalMinutes;
+   var totalRated  = ratedCPM * totalMinutes;
     var overallEff  = totalRated > 0 ? (totalActual / totalRated) * 100 : 0;
     var overallCls  = overallEff >= 80 ? 'var(--green)' : 'var(--amber)';
     var overallEl   = document.getElementById('eorOverallEff');
@@ -1775,9 +1776,12 @@ function submitEOR() {
         var overallFillerEff = !isNaN(eorOverallEffNum) ? eorOverallEffNum.toFixed(1) : '';
 
     var eorNetCasesForEff = parseInt(document.getElementById('eorNetCasesHid').value) || 0;
-    var schedCasesForEff = (runData && runData.schedCases) ? parseFloat(runData.schedCases) : 0;
-    var overallPkgLineEff = schedCasesForEff > 0 ? (eorNetCasesForEff / schedCasesForEff * 100).toFixed(1) : '';
-
+    var pkgConfigForEff = runData ? (runData.pkgConfig || '') : '';
+    var cpcForEff = CANS_PER_CASE[pkgConfigForEff] || 24;
+    var ratedCPMForEff = parseFloat(runData ? runData.ratedCPM : 0) || 1;
+    var ratedCasesForEff = eorTotalRunMinutes > 0 ? (ratedCPMForEff * eorTotalRunMinutes) / cpcForEff : 0;
+    var overallPkgLineEff = ratedCasesForEff > 0 ? (eorNetCasesForEff / ratedCasesForEff * 100).toFixed(1) : '';
+        
         var eorEntry = {
             jobNumKey: (runData ? runData.deacomJobNum : ''),
             // Timing
