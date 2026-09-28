@@ -1525,6 +1525,8 @@ var CANS_PER_CASE = {
     '12oz 4/6 Wrap SLV':  24,
     '12oz 4/6 PT NS':     24,
     '12oz 4/6 PT SLV':    24,
+    '12oz 6/4 Wrap NS':   24,
+    '12oz 6/4 Wrap SLV':  24,
     '12oz 6/4 PT NS':     24,
     '12oz 6/4 PT SLV':    24,
     '12oz 2/12 Wrap NS':  24,
@@ -1538,7 +1540,10 @@ var CANS_PER_CASE = {
     '16oz 24pk LSE NS':   24,
     '16oz 24pk LSE SLV':  24,
     '19.2oz 12pk NS':     12,
-    '19.2oz 12pk SLV':    12
+    '19.2oz 12pk SLV':    12,
+    '19.2oz 6/4 PT NS':   24,
+    '19.2oz 6/4 PT SLV':  24,
+    
     
 };
 
@@ -1707,7 +1712,8 @@ function calcEorEfficiency() {
     document.getElementById('eorEffRows').innerHTML = html;
 
     // Overall efficiency = total cans produced / total rated cans over full run time
-   var totalRated  = ratedCPM * totalMinutes;
+    eorTotalRunMinutes = totalMinutes;
+    var totalRated  = ratedCPM * totalMinutes;
     var overallEff  = totalRated > 0 ? (totalActual / totalRated) * 100 : 0;
     var overallCls  = overallEff >= 80 ? 'var(--green)' : 'var(--amber)';
     var overallEl   = document.getElementById('eorOverallEff');
