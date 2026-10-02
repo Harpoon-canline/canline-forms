@@ -20,6 +20,8 @@
   * { box-sizing: border-box; }
   html, body {
     overscroll-behavior: none;
+    height: 100%;
+    overflow: hidden;
   }
   body {
     margin: 0;
@@ -31,6 +33,15 @@
     -webkit-user-select: none;
     user-select: none;
     cursor: none;
+  }
+  /* The TV has no one to scroll it -- #scale-wrapper holds everything that would
+     normally scroll, and fitToScreen() (below) shrinks it down with a CSS
+     transform whenever the rendered content is taller than the screen, so the
+     whole board always fits in view with no scrollbar. Re-run after every
+     data refresh so it keeps adjusting as cards are added/removed through the day. */
+  #scale-wrapper {
+    transform-origin: top center;
+    transition: transform 0.3s ease;
   }
   header { text-align: center; margin-bottom: 20px; }
   .brand {
@@ -229,6 +240,7 @@
 </style>
 </head>
 <body>
+  <div id="scale-wrapper">
   <header>
     <div class="brand">Harpoon Can Line</div>
     <h1>Can Line Packaging Information</h1>
@@ -255,6 +267,7 @@
       <div id="efficiency-container" class="split-grid"></div>
     </section>
   </main>
+  </div>
 
 <script>
   // Section 1 (Today's Packaging Splits) -- "Packaging Split - Read for Tablet" flow.
@@ -276,6 +289,24 @@
   let lastSuccessEfficiency = null;
   let consecutiveFailures = 0;
   let pollTimer = null;
+  let fitResizeTimer = null;
+
+  // ── TV fit-to-screen (no one is there to scroll it) ──────────────────────
+  // Shrinks #scale-wrapper with a CSS transform whenever its natural rendered
+  // height is taller than the available screen height, so the whole board is
+  // always visible with no scrollbar. transform doesn't affect layout/scroll-
+  // Height measurements, so no reset-before-measure dance is needed -- just
+  // read the wrapper's natural height and set the transform from that.
+  function fitToScreen() {
+    const wrapper = document.getElementById('scale-wrapper');
+    if (!wrapper) return;
+    const bodyStyle = getComputedStyle(document.body);
+    const paddingY = parseFloat(bodyStyle.paddingTop) + parseFloat(bodyStyle.paddingBottom);
+    const available = window.innerHeight - paddingY;
+    const contentHeight = wrapper.scrollHeight;
+    const scale = contentHeight > 0 ? Math.min(1, available / contentHeight) : 1;
+    wrapper.style.transform = `scale(${scale})`;
+  }
 
   function formatDateHeader() {
     const today = new Date();
@@ -562,6 +593,7 @@
       clearError();
     }
     updateStatusText();
+    fitToScreen();
     scheduleNextFetch();
   }
 
@@ -576,12 +608,17 @@
   }
 
   formatDateHeader();
+  fitToScreen();
   fetchAll();
   setInterval(updateStatusText, 30 * 1000);
+  // Screen/window size can't change on a dedicated TV, but re-check on resize
+  // anyway (covers testing on a desktop browser, or a different TV later).
+  window.addEventListener('resize', () => {
+    if (fitResizeTimer) clearTimeout(fitResizeTimer);
+    fitResizeTimer = setTimeout(fitToScreen, 150);
+  });
   // 24/7 kiosk tab: force a clean reload periodically rather than trusting long-running JS state.
   setTimeout(() => location.reload(), RELOAD_AFTER_MS);
 </script>
 </body>
 </html>
-
-
