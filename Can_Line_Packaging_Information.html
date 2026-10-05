@@ -33,17 +33,46 @@
     -webkit-user-select: none;
     user-select: none;
     cursor: none;
+    display: flex;
+    flex-direction: column;
   }
-  /* The TV has no one to scroll it -- #scale-wrapper holds everything that would
-     normally scroll, and fitToScreen() (below) shrinks it down with a CSS
-     transform whenever the rendered content is taller than the screen, so the
-     whole board always fits in view with no scrollbar. Re-run after every
-     data refresh so it keeps adjusting as cards are added/removed through the day. */
-  #scale-wrapper {
+  /* The TV has no one to scroll it, so the board is split into PAGES that rotate
+     on a timer. #stage fills whatever height is left under the header; every page
+     sits stacked in it and only the active one is visible (cross-fade). buildPages()
+     (below) packs cards onto pages by measuring real rendered height, so it adapts
+     to any screen size and to cards being added/removed through the day. */
+  header { text-align: center; margin-bottom: 12px; flex-shrink: 0; }
+  #status, #errorBanner { flex-shrink: 0; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .page {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    max-width: 1700px;
+    margin: 0 auto;
     transform-origin: top center;
-    transition: transform 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.6s ease, visibility 0s linear 0.6s;
   }
-  header { text-align: center; margin-bottom: 20px; }
+  .page.active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.6s ease;
+  }
+  .section-title .page-count { font-weight: 600; color: var(--muted); font-size: 1.3rem; margin-left: 10px; }
+  #pager {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    height: 30px;
+    margin-top: 10px;
+  }
+  #pager .dots { display: flex; gap: 10px; }
+  #pager .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.22); transition: background 0.3s ease, transform 0.3s ease; }
+  #pager .dot.active { background: var(--text); transform: scale(1.25); }
+  #pager .page-label { font-size: 1rem; color: var(--muted); }
   .brand {
     display: inline-block;
     font-size: 1rem;
@@ -57,9 +86,9 @@
     padding: 4px 16px;
     margin-bottom: 10px;
   }
-  header h1 { font-size: 2.8rem; margin: 0; color: var(--text); }
-  header p { font-size: 1.3rem; color: var(--text); margin: 8px 0 0; }
-  #status { text-align: center; font-size: 1rem; color: var(--text); margin-bottom: 16px; }
+  header h1 { font-size: 2.4rem; margin: 0; color: var(--text); }
+  header p { font-size: 1.2rem; color: var(--text); margin: 4px 0 0; }
+  #status { text-align: center; font-size: 1rem; color: var(--text); margin-bottom: 10px; }
   #status.stale { color: var(--warn); font-weight: 700; }
   #errorBanner {
     display: none;
@@ -74,9 +103,6 @@
   }
   #errorBanner.show { display: block; }
 
-  main { max-width: 1700px; margin: 0 auto; }
-
-  .info-section { margin-bottom: 44px; }
   .section-header {
     display: flex;
     align-items: center;
@@ -221,8 +247,9 @@
     border: 2px solid var(--accent);
     border-radius: 14px;
     padding: 28px 32px;
-    margin-bottom: 24px;
+    grid-column: 1 / -1;  /* recap spans the full row above the run cards */
   }
+  .empty-state { grid-column: 1 / -1; }
   .recap-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 18px; }
   .recap-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
   .recap-stat-label { font-size: 1.05rem; color: var(--muted); margin-bottom: 4px; }
@@ -240,7 +267,6 @@
 </style>
 </head>
 <body>
-  <div id="scale-wrapper">
   <header>
     <div class="brand">Harpoon Can Line</div>
     <h1>Can Line Packaging Information</h1>
@@ -249,25 +275,9 @@
   <div id="status">Loading...</div>
   <div id="errorBanner"></div>
 
-  <main>
-    <section class="info-section" id="section-splits">
-      <div class="section-header">
-        <span class="section-num">1</span>
-        <span class="section-title">Today's Packaging Splits</span>
-      </div>
-      <div id="split-container" class="split-grid"></div>
-    </section>
-
-    <section class="info-section" id="section-efficiency">
-      <div class="section-header">
-        <span class="section-num">2</span>
-        <span class="section-title">Efficiency</span>
-      </div>
-      <div id="recap-container"></div>
-      <div id="efficiency-container" class="split-grid"></div>
-    </section>
-  </main>
-  </div>
+  <!-- Pages are built by buildPages() and injected here, one visible at a time. -->
+  <div id="stage"></div>
+  <div id="pager"><div class="dots" id="pager-dots"></div><span class="page-label" id="pager-label"></span></div>
 
 <script>
   // Section 1 (Today's Packaging Splits) -- "Packaging Split - Read for Tablet" flow.
@@ -285,27 +295,125 @@
   const STALE_AFTER_MS     = 15 * 60 * 1000;  // warn if the board hasn't refreshed successfully in this long
   const RELOAD_AFTER_MS    = 6 * 60 * 60 * 1000; // full page reload every 6h -- keeps a 24/7 kiosk tab from drifting
 
+  // ── TV page rotation (no one is there to scroll it) ──────────────────────
+  // The board is split into pages that rotate on a timer instead of scrolling.
+  // Tune these three numbers to taste:
+  const PAGE_DWELL_MS        = 15 * 1000; // how long each page stays up
+  const MAX_SPLITS_PER_PAGE  = 2;         // split cards shown side by side per page
+  const MAX_RUNS_PER_PAGE    = 3;         // cards per Efficiency page (the day recap counts as one)
+
   let lastSuccessSplits = null;
   let lastSuccessEfficiency = null;
   let consecutiveFailures = 0;
   let pollTimer = null;
-  let fitResizeTimer = null;
+  let resizeTimer = null;
+  let rotateTimer = null;
 
-  // ── TV fit-to-screen (no one is there to scroll it) ──────────────────────
-  // Shrinks #scale-wrapper with a CSS transform whenever its natural rendered
-  // height is taller than the available screen height, so the whole board is
-  // always visible with no scrollbar. transform doesn't affect layout/scroll-
-  // Height measurements, so no reset-before-measure dance is needed -- just
-  // read the wrapper's natural height and set the transform from that.
-  function fitToScreen() {
-    const wrapper = document.getElementById('scale-wrapper');
-    if (!wrapper) return;
-    const bodyStyle = getComputedStyle(document.body);
-    const paddingY = parseFloat(bodyStyle.paddingTop) + parseFloat(bodyStyle.paddingBottom);
-    const available = window.innerHeight - paddingY;
-    const contentHeight = wrapper.scrollHeight;
-    const scale = contentHeight > 0 ? Math.min(1, available / contentHeight) : 1;
-    wrapper.style.transform = `scale(${scale})`;
+  // The latest good card elements from each feed. Kept separately so that if one
+  // feed fails, the other still refreshes and the failed one keeps its last cards.
+  let splitItems = [];       // [HTMLElement]
+  let efficiencyItems = [];  // [HTMLElement] -- recap card (if any) first, then run cards
+  let pages = [];            // [HTMLElement] built by buildPages()
+  let currentPage = 0;
+
+  const SECTIONS = {
+    splits:     { num: 1, title: "Today's Packaging Splits", maxCards: MAX_SPLITS_PER_PAGE },
+    efficiency: { num: 2, title: 'Efficiency',               maxCards: MAX_RUNS_PER_PAGE }
+  };
+
+  function makePage(sectionKey) {
+    const sec = SECTIONS[sectionKey];
+    const page = document.createElement('div');
+    page.className = 'page';
+    page.dataset.section = sectionKey;
+    page.innerHTML = `
+      <div class="section-header">
+        <span class="section-num">${sec.num}</span>
+        <span class="section-title">${sec.title}<span class="page-count"></span></span>
+      </div>
+      <div class="split-grid"></div>
+    `;
+    return page;
+  }
+
+  // Greedy packing: add cards to a page until it hits the per-page cap or its real
+  // rendered height no longer fits in the stage, then start a new page. A single
+  // card taller than the stage is shrunk to fit as a last resort (so nothing is
+  // ever cut off), but that should be rare.
+  function packSection(sectionKey, items, stage) {
+    const sectionPages = [];
+    const maxCards = SECTIONS[sectionKey].maxCards;
+    const stageH = stage.clientHeight;
+    let page = null, grid = null, count = 0;
+
+    const startPage = () => {
+      page = makePage(sectionKey);
+      stage.appendChild(page);
+      grid = page.querySelector('.split-grid');
+      count = 0;
+      sectionPages.push(page);
+    };
+
+    items.forEach(item => {
+      if (!page) startPage();
+      const heightBefore = page.offsetHeight;
+      grid.appendChild(item);
+      count++;
+      const tooMany = count > maxCards;
+      // Only a problem if adding this card made the page grow past the screen
+      // (a card that just sits beside another one doesn't add any height).
+      const tooTall = count > 1 && page.offsetHeight > Math.max(stageH, heightBefore);
+      if (tooMany || tooTall) {
+        grid.removeChild(item);
+        startPage();
+        grid.appendChild(item);
+        count = 1;
+      }
+    });
+
+    sectionPages.forEach((p, i) => {
+      if (sectionPages.length > 1) p.querySelector('.page-count').textContent = `${i + 1} of ${sectionPages.length}`;
+      const h = p.offsetHeight;
+      p.style.transform = h > stageH && h > 0 ? `scale(${stageH / h})` : '';
+    });
+    return sectionPages;
+  }
+
+  function buildPages() {
+    const stage = document.getElementById('stage');
+    stage.innerHTML = '';
+    pages = [];
+
+    const hasSplits = splitItems.length > 0;
+    const hasEff = efficiencyItems.length > 0;
+    if (!hasSplits && !hasEff) { renderPager(); return; }
+
+    if (hasSplits) pages.push(...packSection('splits', splitItems, stage));
+    if (hasEff)    pages.push(...packSection('efficiency', efficiencyItems, stage));
+
+    if (currentPage >= pages.length) currentPage = 0;
+    showPage(currentPage);
+  }
+
+  function showPage(index) {
+    currentPage = index;
+    pages.forEach((p, i) => p.classList.toggle('active', i === index));
+    renderPager();
+  }
+
+  function renderPager() {
+    const dots = document.getElementById('pager-dots');
+    const label = document.getElementById('pager-label');
+    if (pages.length <= 1) { dots.innerHTML = ''; label.textContent = ''; return; }
+    dots.innerHTML = pages.map((_, i) => `<span class="dot${i === currentPage ? ' active' : ''}"></span>`).join('');
+    label.textContent = `Page ${currentPage + 1} of ${pages.length}`;
+  }
+
+  function startRotation() {
+    if (rotateTimer) clearInterval(rotateTimer);
+    rotateTimer = setInterval(() => {
+      if (pages.length > 1) showPage((currentPage + 1) % pages.length);
+    }, PAGE_DWELL_MS);
   }
 
   function formatDateHeader() {
@@ -338,11 +446,13 @@
 
   // ── Section 1: Today's Packaging Splits ──────────────────────────
   function renderSplitsSection(rows) {
-    const container = document.getElementById('split-container');
-    container.innerHTML = '';
+    const items = [];
 
     if (!rows || rows.length === 0) {
-      container.innerHTML = '<div class="empty-state">No packaging splits scheduled for today.</div>';
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No packaging splits scheduled for today.';
+      splitItems = [empty];
       return;
     }
 
@@ -381,8 +491,9 @@
         ${detailRows}
         ${notesBlock}
       `;
-      container.appendChild(card);
+      items.push(card);
     });
+    splitItems = items;
   }
 
   // ── Section 2: Efficiency ─────────────────────────────────────────
@@ -423,20 +534,17 @@
     return `${hour}:${minute} ${suffix}`;
   }
 
-  function renderDayRecap(runs) {
-    const container = document.getElementById('recap-container');
+  function buildDayRecap(runs) {
     const allClosed = runs.length > 0 && runs.every(r => r.RunStatus === 'Closed');
-    if (!allClosed) {
-      container.innerHTML = '';
-      return;
-    }
+    if (!allClosed) return null;
     const totalCases = runs.reduce((sum, r) => sum + (r.NetCases || 0), 0);
     const weightedEff = runs.reduce((sum, r) => sum + (r.OverallPkgLineEff || 0) * (r.NetCases || 0), 0) / (totalCases || 1);
     const totalDT = runs.reduce((sum, r) => sum + (r.GrandTotalDT || 0), 0);
     const tier = effTier(weightedEff) || 'good';
 
-    container.innerHTML = `
-      <div class="recap-card">
+    const recap = document.createElement('div');
+    recap.className = 'recap-card';
+    recap.innerHTML = `
         <div class="recap-title">Day Recap — ${runs.length} Run${runs.length === 1 ? '' : 's'} Complete</div>
         <div class="recap-stats">
           <div>
@@ -452,19 +560,19 @@
             <div class="recap-stat-value">${totalCases.toLocaleString()}</div>
           </div>
         </div>
-      </div>
     `;
+    return recap;
   }
 
   function renderEfficiencySection(runs) {
-    const container = document.getElementById('efficiency-container');
-    container.innerHTML = '';
-
     if (!runs || runs.length === 0) {
-      container.innerHTML = '<div class="empty-state">No runs today yet.</div>';
-      document.getElementById('recap-container').innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No runs today yet.';
+      efficiencyItems = [empty];
       return;
     }
+    const items = [];
 
     // Day-sequence order -- same order as the splits in Section 1, not resorted by status.
     const sorted = [...runs].sort((a, b) => a.RunOrder - b.RunOrder);
@@ -526,10 +634,12 @@
       }
 
       card.innerHTML = body;
-      container.appendChild(card);
+      items.push(card);
     });
 
-    renderDayRecap(sorted);
+    // Day recap (only once every run is closed) goes first, above the run cards.
+    const recap = buildDayRecap(sorted);
+    efficiencyItems = recap ? [recap, ...items] : items;
   }
 
   function minutesAgo(ms) {
@@ -593,7 +703,7 @@
       clearError();
     }
     updateStatusText();
-    fitToScreen();
+    buildPages();
     scheduleNextFetch();
   }
 
@@ -608,14 +718,14 @@
   }
 
   formatDateHeader();
-  fitToScreen();
   fetchAll();
+  startRotation();
   setInterval(updateStatusText, 30 * 1000);
-  // Screen/window size can't change on a dedicated TV, but re-check on resize
+  // Screen/window size can't change on a dedicated TV, but repaginate on resize
   // anyway (covers testing on a desktop browser, or a different TV later).
   window.addEventListener('resize', () => {
-    if (fitResizeTimer) clearTimeout(fitResizeTimer);
-    fitResizeTimer = setTimeout(fitToScreen, 150);
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildPages, 150);
   });
   // 24/7 kiosk tab: force a clean reload periodically rather than trusting long-running JS state.
   setTimeout(() => location.reload(), RELOAD_AFTER_MS);
