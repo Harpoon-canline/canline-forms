@@ -368,13 +368,25 @@
                     <label for="canDO">DO Can (ppm)</label>
                     <input type="number" id="canDO" name="canDO" placeholder="e.g. 0.05" step="0.01">
                 </div>
-                <div class="fg">
+                <div class="fg" id="shakenDOWrap">
                     <label for="shakenDO">Shaken DO (ppm)</label>
                     <input type="number" id="shakenDO" name="shakenDO" placeholder="e.g. 0.08" step="0.01">
                 </div>
                 <div class="fg">
                     <label for="canCO2">CO2 Can (vol)</label>
                     <input type="number" id="canCO2" name="canCO2" placeholder="e.g. 2.7" step="0.1">
+                </div>
+            </div>
+
+            <!-- Nitrogen runs only (set on Run Start) -->
+            <div class="row c2" id="nitroRow" style="display:none;">
+                <div class="fg">
+                    <label for="n2Ppb">N2 (ppb)</label>
+                    <input type="number" id="n2Ppb" name="n2Ppb" placeholder="e.g. 1.20" step="0.01">
+                </div>
+                <div class="fg">
+                    <label for="pressurePsi">Pressure (psi)</label>
+                    <input type="number" id="pressurePsi" name="pressurePsi" placeholder="e.g. 30.0" step="0.1">
                 </div>
             </div>
 
@@ -672,13 +684,25 @@
                 <label for="eorFcCanDO">DO Can (ppm)</label>
                 <input type="number" id="eorFcCanDO" name="eorFcCanDO" placeholder="e.g. 0.05" step="0.01">
               </div>
-              <div class="fg">
+              <div class="fg" id="eorFcShakenDOWrap">
                 <label for="eorFcShakenDO">Shaken DO (ppm)</label>
                 <input type="number" id="eorFcShakenDO" name="eorFcShakenDO" placeholder="e.g. 0.08" step="0.01">
               </div>
               <div class="fg">
                 <label for="eorFcCanCO2">CO2 Can (vol)</label>
                 <input type="number" id="eorFcCanCO2" name="eorFcCanCO2" placeholder="e.g. 2.7" step="0.1">
+              </div>
+            </div>
+
+            <!-- Nitrogen runs only (set on Run Start) -->
+            <div class="row c2" id="eorNitroRow" style="display:none;margin-bottom:14px;">
+              <div class="fg">
+                <label for="eorFcN2Ppb">N2 (ppb)</label>
+                <input type="number" id="eorFcN2Ppb" name="eorFcN2Ppb" placeholder="e.g. 1.20" step="0.01">
+              </div>
+              <div class="fg">
+                <label for="eorFcPressurePsi">Pressure (psi)</label>
+                <input type="number" id="eorFcPressurePsi" name="eorFcPressurePsi" placeholder="e.g. 30.0" step="0.1">
               </div>
             </div>
 
@@ -938,6 +962,24 @@ window.onload = function() {
     }
 };
 
+// ── NITROGEN RUN LAYOUT ───────────────────────────────────
+function isNitroRun() { return !!(runData && runData.isNitro === 'Y'); }
+function applyNitroLayout() {
+    var nitro = isNitroRun();
+    document.getElementById('nitroRow').style.display          = nitro ? '' : 'none';
+    document.getElementById('eorNitroRow').style.display       = nitro ? '' : 'none';
+    document.getElementById('shakenDOWrap').style.display      = nitro ? 'none' : '';
+    document.getElementById('eorFcShakenDOWrap').style.display = nitro ? 'none' : '';
+}
+
+// Numbers that must stay BLANK in SharePoint when not entered (not turned into 0):
+// the N2 / Pressure readings, and Shaken DO on Nitrogen runs.
+function setOptionalNum(payload, key) {
+    var v = payload[key];
+    if (v === undefined || v === null || String(v).trim() === '') { delete payload[key]; }
+    else { payload[key] = parseFloat(v); }
+}
+
 // ── LOAD RUN CONTEXT ──────────────────────────────────────
 function loadRunContext() {
     var raw = localStorage.getItem(LS_RUN);
@@ -956,6 +998,9 @@ function loadRunContext() {
             document.getElementById('effRated').textContent =
                 'Rated: ' + parseInt(runData.ratedUPH).toLocaleString() + ' / hr';
         }
+        // Nitrogen run (chosen on Run Start): show N2 + Pressure, hide Shaken DO --
+        // on both the hourly check-in and the End of Run final checks.
+        applyNitroLayout();
         // Set weight range tolerance now that we know the config
         onTargetWeight('');
         // Show the full scheduled can target before any counter reading is entered
@@ -1282,6 +1327,8 @@ function onSubmit(ev) {
             canDO:         document.getElementById('canDO').value,
             shakenDO:      document.getElementById('shakenDO').value,
             canCO2:        document.getElementById('canCO2').value,
+            n2Ppb:         isNitroRun() ? document.getElementById('n2Ppb').value       : '',
+            pressurePsi:   isNitroRun() ? document.getElementById('pressurePsi').value : '',
             sensoryPoint:  document.getElementById('sensoryPoint').value,
             sensoryPF:     document.getElementById('sensoryPF').value,
             artOp:         document.querySelector('[name=artOp]').value,
@@ -1316,6 +1363,9 @@ function onSubmit(ev) {
             for (var k in data) { payload[k] = data[k]; }
                     intFields.forEach(function(f){ payload[f] = parseInt(payload[f]) || 0; });
                     numFields.forEach(function(f){ payload[f] = parseFloat(payload[f]) || 0; });
+                    setOptionalNum(payload, 'n2Ppb');
+                    setOptionalNum(payload, 'pressurePsi');
+                    if (isNitroRun()) { delete payload.shakenDO; }  // no Shaken DO on N2 runs -- leave it blank, not 0
                             fetch(FLOW_URL_HOURLY, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
@@ -1337,6 +1387,9 @@ function onSubmit(ev) {
     var payload = {};
     for (var k in data) { payload[k] = data[k]; }
     numFields.forEach(function(f){ payload[f] = parseFloat(payload[f]) || 0; });
+    setOptionalNum(payload, 'fcN2Ppb');
+    setOptionalNum(payload, 'fcPressurePsi');
+    if (isNitroRun()) { delete payload.fcShakenDO; }  // no Shaken DO on N2 runs -- leave it blank, not 0
         return fetch(FLOW_URL_EOR, {
     method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1811,6 +1864,8 @@ function submitEOR() {
             fcCanDO:       document.getElementById('eorFcCanDO').value,
             fcShakenDO:    document.getElementById('eorFcShakenDO').value,
             fcCanCO2:      document.getElementById('eorFcCanCO2').value,
+            fcN2Ppb:       isNitroRun() ? document.getElementById('eorFcN2Ppb').value       : '',
+            fcPressurePsi: isNitroRun() ? document.getElementById('eorFcPressurePsi').value : '',
             // Final Checks — lid & can info
             fcLidPlant:    document.getElementById('eorFcLidPlant').value,
             fcLidLot:      document.getElementById('eorFcLidLot').value,
