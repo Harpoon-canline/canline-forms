@@ -489,6 +489,15 @@
         </div>
         <div class="card-body">
 
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Nitrogen Run? <span class="check-sub">&#8212; Yes adds N2 &amp; Pressure, removes Shaken DO</span></span>
+                <div class="yn-row">
+                    <button type="button" class="yn-btn" id="isNitroY" onclick="setNitro('Y')">&#10003; Yes</button>
+                    <button type="button" class="yn-btn" id="isNitroN" onclick="setNitro('N')">&#10007; No</button>
+                </div>
+                <input type="hidden" id="isNitroYN" name="isNitro" value="N">
+            </div>
+
             <div class="row col-3">
                 <div class="fg">
                     <label for="beerTemp">Beer Temp <span class="hint" style="font-style:italic;font-weight:400;text-transform:none;">&#8212; optional</span></label>
@@ -525,8 +534,19 @@
                 </div>
             </div>
 
-            <div class="row col-2">
+            <div class="row col-2" id="nitroRow" style="display:none;">
                 <div class="fg">
+                    <label for="n2Ppb">N2 (ppb) <span class="req">*</span></label>
+                    <input type="number" id="n2Ppb" name="n2Ppb" placeholder="0.00" step="0.01">
+                </div>
+                <div class="fg">
+                    <label for="pressurePsi">Pressure (psi) <span class="req">*</span></label>
+                    <input type="number" id="pressurePsi" name="pressurePsi" placeholder="0.0" step="0.1">
+                </div>
+            </div>
+
+            <div class="row col-2">
+                <div class="fg" id="shakenDOWrap">
                     <label for="shakenDO">Shaken DO (ppm) <span class="req">*</span></label>
                     <input type="number" id="shakenDO" name="shakenDO" placeholder="0.000" step="0.001" required>
                 </div>
@@ -817,10 +837,30 @@ function setYN(which, val) {
 }
 
 // ─────────────────────────────────────────────
+// NITROGEN RUN TOGGLE
+// Yes: show N2 (ppb) + Pressure (psi), both required; hide Shaken DO and drop its
+//      requirement (no Shaken DO on N2 runs).
+// No:  the reverse -- the form behaves exactly as it did before this feature.
+// ─────────────────────────────────────────────
+function setNitro(val) {
+    setYN('isNitro', val);
+    const nitro  = val === 'Y';
+    const n2     = document.getElementById('n2Ppb');
+    const psi    = document.getElementById('pressurePsi');
+    const shaken = document.getElementById('shakenDO');
+    document.getElementById('nitroRow').style.display     = nitro ? '' : 'none';
+    document.getElementById('shakenDOWrap').style.display = nitro ? 'none' : '';
+    n2.required = nitro; psi.required = nitro; shaken.required = !nitro;
+    if (nitro) { shaken.value = ''; shaken.classList.remove('error'); }
+    else       { n2.value = ''; psi.value = ''; n2.classList.remove('error'); psi.classList.remove('error'); }
+}
+
+// ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initDate();
+    setNitro('N');
     checkSaved();
     document.getElementById('form').addEventListener('submit', onSubmit);
     document.getElementById('runDate').addEventListener('change', e => {
@@ -973,7 +1013,8 @@ function submitToFlow(data) {
             const payload = Object.assign({}, data);
             // Cast fields to match the flow's trigger schema types (Integer / Number)
             const intFields = ['julianDate', 'ratedCPM', 'ratedUPH', 'schedCases', 'fillerHours'];
-            const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure'];
+            const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure', 'n2Ppb', 'pressurePsi'];
+            payload.isNitro = (data.isNitro === 'Y');  // Yes/No column in SharePoint wants true/false
             intFields.forEach(f => {
                             if (payload[f] !== undefined && payload[f] !== '') payload[f] = parseInt(payload[f], 10);
             });
@@ -1029,7 +1070,8 @@ function showConf(d) {
         ['CO2 Can',              d.tpCO2],
         ['DO Can',               d.tpDO],
         ['Pre-Filters',          d.preFilters],
-        ['Shaken DO',            d.shakenDO || '—'],
+        ['Nitrogen Run',         d.isNitro === 'Y' ? 'Yes' : 'No'],
+        ...(d.isNitro === 'Y' ? [['N2 (ppb)', d.n2Ppb], ['Pressure (psi)', d.pressurePsi]] : [['Shaken DO', d.shakenDO || '—']]),
         ['Haze EBC',             d.hazeEBC  || '—'],
         ['Bowl DO',              d.bowlDO   || '—'],
         ['Bowl CO2',             d.bowlCO2  || '—'],
