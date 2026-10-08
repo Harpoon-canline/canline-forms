@@ -480,10 +480,10 @@
     </div>
 
     <!-- 4: DOWNTIME BREAKDOWN (shown only when DT > 0) -->
-    <div class="card" id="dtCard" style="display:none;">
+    <div class="card" id="dtCard">
         <div class="card-hdr"><div class="card-num">4</div><div class="card-title">Downtime Breakdown</div></div>
         <div class="card-body">
-            <p class="hint" style="margin-bottom:12px;">Add a row for each machine that stopped this hour.</p>
+            <p class="hint" style="margin-bottom:12px;">Always open &mdash; jot notes during the hour. Add a row for each machine that stopped; leave blank if no downtime.</p>
             <div id="dtRows"></div>
             <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
             <div class="fg">
@@ -1170,7 +1170,8 @@ function setYN(val) {
 
 // ── DOWNTIME ──────────────────────────────────────────────
 function onDtChange(val) {
-    document.getElementById('dtCard').style.display = (parseInt(val) || 0) > 0 ? 'block' : 'none';
+    // 2026-10-08: Downtime card is always visible (notes can be written during the hour).
+    // A note with 0 minutes is saved in DTNarrative only; machine rows without minutes are not sent.
 }
 
 function addDTRow() {
@@ -1462,7 +1463,6 @@ function resetForm() {
     dtRowCount = 0;
     document.getElementById('dtRows').innerHTML      = '';
     document.getElementById('dtNarrative').value     = '';
-    document.getElementById('dtCard').style.display  = 'none';
     document.getElementById('effPanel').className    = 'eff-panel';
     document.getElementById('effPct').textContent    = '-';
     document.getElementById('effUnits').textContent  = '-';
