@@ -300,7 +300,7 @@
   // Tune these three numbers to taste:
   const PAGE_DWELL_MS        = 15 * 1000; // how long each page stays up
   const MAX_SPLITS_PER_PAGE  = 2;         // split cards shown side by side per page
-  const MAX_RUNS_PER_PAGE    = 3;         // cards per Efficiency page (the day recap counts as one)
+  const MAX_RUNS_PER_PAGE    = 8;           // cards per Efficiency page (the day recap counts as one)
 
   let lastSuccessSplits = null;
   let lastSuccessEfficiency = null;
@@ -456,6 +456,18 @@
       return;
     }
 
+    // 2026-10-09: show splits in schedule order -- Canning Order, then Racking
+    // Order, then beer/batch name. Blank orders go last. "1", "1st", "#1" all read as 1.
+    const orderNum = v => {
+      const raw = (v && typeof v === 'object') ? v.Value : v;
+      const n = parseInt(String(raw ?? '').replace(/[^0-9]/g, ''), 10);
+      return isNaN(n) ? Infinity : n;
+    };
+    rows = [...rows].sort((a, b) =>
+      (orderNum(a.CanningOrder) - orderNum(b.CanningOrder)) ||
+      (orderNum(a.RackingOrder) - orderNum(b.RackingOrder)) ||
+      String(a.BeerBatch ?? '').localeCompare(String(b.BeerBatch ?? '')));
+
     rows.forEach(row => {
       const detailRows = parseDetails(row.PackagingDetails)
         .map(d => `<div class="field${d.isCategory ? ' category' : ''}"><span>${d.label}</span><span>${d.value}</span></div>`)
@@ -564,7 +576,20 @@
     return recap;
   }
 
+  // 2026-10-09: hard cap at 100% (matches the recap email). A short run can
+  // compute above 100%; every efficiency shown on the TV -- live cards, closed
+  // cards and the case-weighted day recap -- uses the capped value.
+  function cap100(v) {
+    return (v === null || v === undefined || isNaN(v)) ? v : Math.min(100, Number(v));
+  }
+
   function renderEfficiencySection(runs) {
+    if (runs && runs.length) {
+      runs = runs.map(r => Object.assign({}, r, {
+        OverallPkgLineEff: cap100(r.OverallPkgLineEff),
+        OverallFillerEff:  cap100(r.OverallFillerEff)
+      }));
+    }
     if (!runs || runs.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
