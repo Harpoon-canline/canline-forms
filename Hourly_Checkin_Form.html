@@ -1834,7 +1834,10 @@ function submitEOR() {
         var eorOverallEffNum = parseFloat(document.getElementById('eorOverallEff').textContent);
         var overallFillerEff = !isNaN(eorOverallEffNum) ? eorOverallEffNum.toFixed(1) : '';
 
-    var eorNetCasesForEff = parseInt(document.getElementById('eorNetCasesHid').value) || 0;
+    // 2026-10-09 (Kyle): efficiency measures how the line RAN, so it uses TOTAL cases produced.
+    // Cases put on hold afterward (e.g. pinhole leakers) are a quality loss, not an efficiency loss --
+    // net cases still go to SharePoint for Deacom/hold tracking. Matches CanLine_PowerQuery_Model RunEfficiency.
+    var eorNetCasesForEff = parseInt(document.getElementById('eorTotalCasesInput').value) || 0;
     var pkgConfigForEff = runData ? (runData.pkgConfig || '') : '';
     var cpcForEff = CANS_PER_CASE[pkgConfigForEff] || 24;
     var ratedCPMForEff = parseFloat(runData ? runData.ratedCPM : 0) || 1;
