@@ -549,8 +549,11 @@
   function buildDayRecap(runs) {
     const allClosed = runs.length > 0 && runs.every(r => r.RunStatus === 'Closed');
     if (!allClosed) return null;
-    const totalCases = runs.reduce((sum, r) => sum + (r.NetCases || 0), 0);
-    const weightedEff = runs.reduce((sum, r) => sum + (r.OverallPkgLineEff || 0) * (r.NetCases || 0), 0) / (totalCases || 1);
+    // 2026-10-09: weight by TOTAL cases produced (falls back to NetCases if the feed
+    // doesn't send TotalCases) so a run fully put on hold afterward still counts.
+    const casesOf = r => (r.TotalCases != null ? r.TotalCases : (r.NetCases || 0)) || 0;
+    const totalCases = runs.reduce((sum, r) => sum + casesOf(r), 0);
+    const weightedEff = runs.reduce((sum, r) => sum + (r.OverallPkgLineEff || 0) * casesOf(r), 0) / (totalCases || 1);
     const totalDT = runs.reduce((sum, r) => sum + (r.GrandTotalDT || 0), 0);
     const tier = effTier(weightedEff) || 'good';
 
@@ -653,7 +656,7 @@
             <span class="eff-label">Packaging Line Efficiency</span>
             <span class="eff-value ${effTier(run.OverallPkgLineEff)}">${fmtPct(run.OverallPkgLineEff)}</span>
           </div>
-          <div class="dt-row"><span>Final Case Count</span><span>${(run.NetCases ?? 0).toLocaleString()}</span></div>
+          <div class="dt-row"><span>Final Case Count</span><span>${(run.TotalCases ?? run.NetCases ?? 0).toLocaleString()}</span></div>
           <div class="dt-row"><span>Total Downtime</span><span>${run.GrandTotalDT ?? 0} min</span></div>
         `;
       }
