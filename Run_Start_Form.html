@@ -438,10 +438,14 @@
                         <option>12oz 24pk LSE SLV</option>
                         <option>16oz 6/4 PT NS</option>
                         <option>16oz 6/4 PT SLV</option>
+                        <option>16oz 2/12 Wrap NS</option>
+                        <option>16oz 2/12 Wrap SLV</option>
                         <option>16oz 24pk LSE NS</option>
                         <option>16oz 24pk LSE SLV</option>
                         <option>19.2oz 12pk NS</option>
                         <option>19.2oz 12pk SLV</option>
+                        <option>19.2oz 6/4 PT NS</option>
+                        <option>19.2oz 6/4 PT SLV</option>
                        
                     </select>
                 </div>
@@ -782,8 +786,12 @@ const SPEED = {
     '16oz 24pk LSE NS':      180,
     '16oz 24pk LSE SLV':     160,
     '16oz 6/4 PT SLV':       160,
+    '16oz 2/12 Wrap NS':     180,   // 2026-10-12 estimate (never run) - recheck after first run
+    '16oz 2/12 Wrap SLV':    160,   // 2026-10-12 estimate (never run) - recheck after first run
     '19.2oz 12pk NS':        125,
-    '19.2oz 12pk SLV':       125
+    '19.2oz 12pk SLV':       125,
+    '19.2oz 6/4 PT NS':      125,   // filler max for 19.2oz (cans step over above this)
+    '19.2oz 6/4 PT SLV':     125
     
 };
 
@@ -804,10 +812,14 @@ const CANS_PER_CASE = {
     '12oz 24pk LSE SLV':     24,
     '16oz 6/4 PT NS':        24,
     '16oz 6/4 PT SLV':       24,
+    '16oz 2/12 Wrap NS':     24,
+    '16oz 2/12 Wrap SLV':    24,
     '16oz 24pk LSE NS':      24,
     '16oz 24pk LSE SLV':     24,
     '19.2oz 12pk NS':        12,
-    '19.2oz 12pk SLV':       12
+    '19.2oz 12pk SLV':       12,
+    '19.2oz 6/4 PT NS':      24,
+    '19.2oz 6/4 PT SLV':     24
 };
 
 const LS_KEY = 'harpoon_run_start_v1';
