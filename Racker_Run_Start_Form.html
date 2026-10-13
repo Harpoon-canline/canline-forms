@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Racker Run Start — Harpoon Racking Line</title>
+    <!-- Add to Home Screen support (iOS Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Racker Start">
+    <link rel="apple-touch-icon" href="icon-run-start.png">
+    <style>
+        :root {
+            --navy:        #1F3864;
+            --navy-light:  #2d4f8a;
+            --accent:      #C9A84C;
+            --green:       #375623;
+            --green-light: #4a7a30;
+            --white:       #ffffff;
+            --gray-100:    #f8f9fa;
+            --gray-200:    #e9ecef;
+            --gray-400:    #ced4da;
+            --gray-600:    #6c757d;
+            --gray-800:    #343a40;
+            --danger:      #dc3545;
+            --warning-bg:  #fff3cd;
+            --warning-bd:  #ffc107;
+            --warning-tx:  #856404;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --radius:      10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #eef0f4;
+            color: var(--gray-800);
+            min-height: 100vh;
+            padding-bottom: 48px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: var(--navy);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+        }
+        .header h1  { font-size: 20px; font-weight: 700; }
+        .header p   { font-size: 12px; opacity: .75; margin-top: 2px; }
+        .header-badge {
+            background: var(--accent);
+            color: var(--navy);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            letter-spacing: .5px;
+            white-space: nowrap;
+        }
+
+        /* ── EXISTING-RUN BANNER ── */
+        .banner {
+            background: var(--warning-bg);
+            border-left: 4px solid var(--warning-bd);
+            padding: 14px 18px;
+            display: none;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .banner.show { display: flex; }
+        .banner p  { flex: 1; font-size: 14px; color: var(--warning-tx); font-weight: 500; line-height: 1.4; }
+        .btn-clear {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 42px;
+            white-space: nowrap;
+        }
+
+        /* ── LAYOUT ── */
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* ── SECTION CARD ── */
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .card-header {
+            background: var(--navy);
+            color: white;
+            padding: 13px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-num {
+            background: rgba(255,255,255,.22);
+            width: 27px; height: 27px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .card-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+        .card-body  { padding: 18px; }
+
+        /* ── FIELDS ── */
+        .row { display: grid; gap: 14px; margin-bottom: 14px; }
+        .row:last-child { margin-bottom: 0; }
+        .col-1 { grid-template-columns: 1fr; }
+        .col-2 { grid-template-columns: 1fr 1fr; }
+        .col-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .col-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+        .fg { display: flex; flex-direction: column; gap: 6px; }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-600);
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+        .req { color: var(--danger); margin-left: 2px; }
+
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--gray-800);
+            background: white;
+            min-height: 50px;
+            transition: border-color .15s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--navy); }
+        input.readonly { background: var(--gray-100); color: var(--gray-600); cursor: default; }
+        input.error, select.error { border-color: var(--danger); }
+
+        .hint { font-size: 11px; color: var(--gray-600); font-style: italic; margin-top: 1px; }
+
+        /* ── RATED SPEED PANEL ── */
+        .rated-panel {
+            background: #eaf4e8;
+            border: 2px solid #4a7a30;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+            gap: 0;
+            margin-top: 4px;
+            margin-bottom: 14px;
+        }
+        .rated-panel.show { display: flex; }
+        .rated-item { flex: 1; text-align: center; }
+        .rated-item + .rated-item { border-left: 1px solid #b7d9b0; }
+        .rated-item .r-label { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .4px; }
+        .rated-item .r-value { font-size: 26px; font-weight: 800; color: var(--green); line-height: 1.15; }
+        .rated-item .r-unit  { font-size: 12px; color: var(--green-light); }
+
+        /* ── CONDITIONAL FIELDS ── */
+        .cond { display: none; flex-direction: column; gap: 6px; }
+        .cond.show { display: flex; }
+
+        /* ── DIVIDER ── */
+        .divider { border: none; border-top: 1px solid var(--gray-200); margin: 16px 0; }
+
+        /* ── PASS / FAIL BUTTONS ── */
+        .pf-row { display: flex; gap: 10px; margin-bottom: 4px; }
+        .pf-btn { flex: 1; padding: 13px 10px; border: 2px solid var(--gray-400); border-radius: 8px; background: white; font-size: 15px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .pf-btn.pass { background: #2e7d32; border-color: #2e7d32; color: white; }
+        .pf-btn.fail { background: var(--danger); border-color: var(--danger); color: white; }
+
+        /* ── YES / NO BUTTONS ── */
+        .yn-row { display: flex; gap: 10px; margin-bottom: 4px; }
+        .yn-btn { flex: 1; padding: 13px 10px; border: 2px solid var(--gray-400); border-radius: 8px; background: white; font-size: 15px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .yn-btn.yes { background: #2e7d32; border-color: #2e7d32; color: white; }
+        .yn-btn.no  { background: var(--danger); border-color: var(--danger); color: white; }
+
+        /* ── CHECK BLOCK LABEL ── */
+        .check-lbl { display: block; font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+        .check-sub { font-size: 11px; color: var(--gray-600); font-weight: 400; }
+
+        /* ── INITIALS ── */
+        .initials {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 800;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        /* ── SUBMIT ── */
+        .btn-submit {
+            width: 100%;
+            background: var(--navy);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 62px;
+            letter-spacing: .3px;
+            margin-top: 4px;
+            transition: background .15s;
+        }
+        .btn-submit:active { background: var(--navy-light); }
+
+        /* ── CONFIRMATION OVERLAY ── */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; right: 0; bottom: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,.6);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .overlay.show { display: flex; }
+
+        .conf-card {
+            background: white;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,.35);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .conf-head {
+            background: var(--green);
+            color: white;
+            padding: 22px 20px 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .conf-head .icon { font-size: 38px; line-height: 1; margin-bottom: 6px; }
+        .conf-head h2 { font-size: 20px; font-weight: 700; }
+        .conf-head p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+
+        .conf-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .conf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 14px;
+            gap: 12px;
+        }
+        .conf-row:last-child { border-bottom: none; }
+        .conf-lbl { color: var(--gray-600); font-weight: 500; white-space: nowrap; }
+        .conf-val { font-weight: 700; color: var(--gray-800); text-align: right; }
+
+        .conf-foot {
+            padding: 14px 20px;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--gray-200);
+        }
+        .btn-edit {
+            background: var(--gray-200);
+            color: var(--gray-800);
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-next {
+            flex: 1;
+            background: var(--navy);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 500px) {
+            .col-2 { grid-template-columns: 1fr; }
+            .col-3 { grid-template-columns: 1fr 1fr; }
+            .col-4 { grid-template-columns: 1fr 1fr; }
+        }
+        /* ── Racker additions (2026-10-12) ── */
+        .initials-input { text-transform: uppercase; }
+        .static-val { font-size: 22px; font-weight: 700; color: var(--navy); padding: 8px 2px 2px; min-height: 38px; }
+        .notice { display:none; background:#fff3e0; border-left:4px solid #e65100; color:#7a3b00; padding:10px 14px; border-radius:6px; font-weight:600; margin:10px 0; }
+        .notice.show { display:block; }
+        .beer-row { display:grid; grid-template-columns: 1fr 1fr 44px; gap:12px; align-items:end; margin-bottom:10px; }
+        .beer-del { height:44px; border:none; border-radius:8px; background:#eee; font-size:18px; cursor:pointer; }
+        .btn-add { width:100%; padding:12px; border:2px dashed #b9c3d3; background:#f7f9fc; border-radius:8px; font-weight:700; cursor:pointer; margin-top:4px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div>
+        <h1>Racker Run Start</h1>
+        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size)</p>
+    </div>
+    <div class="header-badge">FORM 1 OF 3</div>
+</div>
+
+<!-- EXISTING RUN BANNER -->
+<div class="banner" id="banner">
+    <p id="bannerText">A run is already saved.</p>
+    <button class="btn-clear" onclick="clearRun()">Clear &amp; Start New</button>
+</div>
+
+<div class="container">
+<form id="form" novalidate>
+
+    <!-- 1 RUN INFO -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">1</div><div class="card-title">Run Info</div></div>
+        <div class="card-body">
+            <div class="row col-2">
+                <div class="fg">
+                    <label>Julian Date</label>
+                    <div class="static-val" id="julianShow">&mdash;</div>
+                    <span class="hint">Today's day of year &mdash; not editable</span>
+                </div>
+                <div class="fg">
+                    <label for="runDate">Date <span class="req">*</span></label>
+                    <input type="date" id="runDate" required>
+                </div>
+            </div>
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="dateCodeType">Date Code Type <span class="req">*</span></label>
+                    <select id="dateCodeType" required>
+                        <option value="">&mdash; Select Type &mdash;</option>
+                        <option>Packaged On</option>
+                        <option>Kegged On</option>
+                    </select>
+                </div>
+                <div class="fg">
+                    <label for="dateCode">Date Code / Pkg Date <span class="req">*</span></label>
+                    <input type="date" id="dateCode" required>
+                </div>
+            </div>
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="qualTime">Qualification Time <span class="req">*</span></label>
+                    <input type="time" id="qualTime" required>
+                    <span class="hint">First keg through the MiniMats &mdash; hourly check-ins count from here</span>
+                </div>
+                <div class="fg">
+                    <label for="jobNum">Deacom Job Number <span class="req">*</span></label>
+                    <input type="text" id="jobNum" placeholder="e.g. 2026-12345" required>
+                </div>
+                <div class="fg">
+                    <label for="batchNum">Batch # <span class="req">*</span></label>
+                    <input type="text" id="batchNum" placeholder="e.g. IHG36" required oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2 TANK, BEER & KEG SIZE -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">2</div><div class="card-title">Tank, Beer &amp; Keg Size</div></div>
+        <div class="card-body">
+            <div class="row col-2">
+                <div class="fg">
+                    <label for="bbt">BBT Number <span class="req">*</span></label>
+                    <input type="text" id="bbt" placeholder="e.g. BBT 7" required oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="fg">
+                    <label for="beerCode">Beer / Product Code <span class="req">*</span></label>
+                    <input type="text" id="beerCode" placeholder="e.g. IHG" required oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+            <div class="row col-1">
+                <div class="fg">
+                    <label for="kegSize">Keg Size <span class="req">*</span></label>
+                    <select id="kegSize" required onchange="onSize()">
+                        <option value="">&mdash; Select Keg Size &mdash;</option>
+                        <option value="MicroStar Logs">MicroStar Logs (5.17 gal)</option>
+                        <option value="Harpoon Logs">Harpoon Logs (5.17 gal)</option>
+                        <option value="13.2">13.2 (gal)</option>
+                        <option value="15.5">15.5 (gal, MicroStar)</option>
+                        <option value="30 Liter">30 Liter (stubby)</option>
+                    </select>
+                    <span class="hint">Hand racks (incl. 20L / 30L Uni) use the Hand Rack form, not this one</span>
+                </div>
+            </div>
+            <div class="rated-panel" id="ratedPanel">
+                <div class="rated-item"><div class="r-label">Rated Speed</div><div class="r-value" id="rUPH">&mdash;</div><div class="r-unit">kegs / hr</div></div>
+                <div class="rated-item"><div class="r-label">Gallons per Keg</div><div class="r-value" id="rGal">&mdash;</div><div class="r-unit">gal</div></div>
+            </div>
+            <div class="notice" id="htNotice">30 L kegs for export: use HEAT-TREAT pallets.</div>
+            <hr class="divider">
+
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Multi-Beer Run? <span class="check-sub">&#8212; same size, more than one product code (collar changes)</span></span>
+                <div class="yn-row">
+                    <button type="button" class="yn-btn" id="multiY" onclick="setMulti('Y')">&#10003; Yes</button>
+                    <button type="button" class="yn-btn" id="multiN" onclick="setMulti('N')">&#10007; No</button>
+                </div>
+            </div>
+            <div id="multiBox" style="display:none;margin-bottom:14px">
+                <div id="multiRows"></div>
+                <button type="button" class="btn-add" onclick="addRow()">+ Add Product Code</button>
+                <p class="hint" style="margin-top:6px">Scheduled Kegs = total of these rows. End of Run shows these codes so operators only type actual counts.</p>
+            </div>
+
+            <div class="row col-2">
+                <div class="fg">
+                    <label>Scheduled Gallons</label>
+                    <div class="static-val" id="schedGalShow">&mdash;</div>
+                    <span class="hint">Kegs &times; gallons per keg &mdash; not editable</span>
+                </div>
+                <div class="fg" id="schedWrap">
+                    <label for="schedKegs">Scheduled Kegs <span class="req">*</span></label>
+                    <input type="number" id="schedKegs" min="0" placeholder="0" required oninput="onSched()">
+                    <div class="static-val" id="schedShow" style="display:none">&mdash;</div>
+                    <span class="hint" id="schedHint"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3 QUALITY READINGS -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">3</div><div class="card-title">Quality Readings</div></div>
+        <div class="card-body">
+            <div style="margin-bottom:16px;">
+                <span class="check-lbl">Nitrogen Run? <span class="check-sub">&#8212; Yes adds N2 &amp; Pressure</span></span>
+                <div class="yn-row">
+                    <button type="button" class="yn-btn" id="nitroY" onclick="setNitro('Y')">&#10003; Yes</button>
+                    <button type="button" class="yn-btn" id="nitroN" onclick="setNitro('N')">&#10007; No</button>
+                </div>
+            </div>
+            <span class="check-lbl">Tank</span>
+            <div class="row col-3">
+                <div class="fg"><label for="beerTemp">Beer Temp</label><input type="number" id="beerTemp" step="0.1" placeholder="&deg;F"></div>
+                <div class="fg"><label for="tankCO2">Tank CO2 <span class="req">*</span></label><input type="number" id="tankCO2" step="0.01" placeholder="vols" required></div>
+                <div class="fg"><label for="tankDO">Tank DO <span class="req">*</span></label><input type="number" id="tankDO" step="1" placeholder="ppb" required></div>
+            </div>
+            <hr class="divider">
+            <span class="check-lbl">First keg off each MiniMat</span>
+            <div class="row col-4">
+                <div class="fg"><label for="mm1co2">MM1 TP CO2 <span class="req">*</span></label><input type="number" id="mm1co2" step="0.01" placeholder="vols" required></div>
+                <div class="fg"><label for="mm1do">MM1 TP DO <span class="req">*</span></label><input type="number" id="mm1do" step="1" placeholder="ppb" required></div>
+                <div class="fg"><label for="mm2co2">MM2 TP CO2 <span class="req">*</span></label><input type="number" id="mm2co2" step="0.01" placeholder="vols" required></div>
+                <div class="fg"><label for="mm2do">MM2 TP DO <span class="req">*</span></label><input type="number" id="mm2do" step="1" placeholder="ppb" required></div>
+            </div>
+            <div class="row col-2" id="nitroRow" style="display:none">
+                <div class="fg"><label for="n2">N2 (ppb) <span class="req">*</span></label><input type="number" id="n2" step="0.01" placeholder="e.g. 1.2"></div>
+                <div class="fg"><label for="psi">Pressure (psi) <span class="req">*</span></label><input type="number" id="psi" step="0.1" placeholder="psi"></div>
+            </div>
+            <hr class="divider">
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="preFilter">Pre-Filter <span class="req">*</span></label>
+                    <select id="preFilter" required>
+                        <option value="">&mdash; Select &mdash;</option>
+                        <option value="Bypass">Bypass</option>
+                        <option value="1.0m">1.0&micro;</option>
+                        <option value="20m">20&micro;</option>
+                        <option value="1.0m/.45m">1.0&micro;/.45&micro;</option>
+                    </select>
+                </div>
+                <div class="fg"><label for="haze">Haze EBC</label><input type="number" id="haze" step="0.01" placeholder="If applicable"><span class="hint">Also record in All Beer</span></div>
+                <div class="fg"><label for="cond">Start-Up Conductivity</label><input type="number" id="cond" step="0.1" placeholder="reading"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 RACKER STARTUP CHECKS -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">4</div><div class="card-title">Racker Startup Checks</div></div>
+        <div class="card-body">
+            <div class="row col-2">
+                <div class="fg"><label for="bbtHP">BBT Head Pressure</label><input type="number" id="bbtHP" step="0.1" placeholder="psi"></div>
+                <div class="fg"></div>
+            </div>
+            <hr class="divider">
+            <div style="margin-bottom:16px;"><span class="check-lbl">Head Pressure on at BBT</span>
+                <div class="yn-row"><button type="button" class="yn-btn" id="hpOnY" onclick="setYN('hpOn','Yes')">&#10003; Yes</button><button type="button" class="yn-btn" id="hpOnN" onclick="setYN('hpOn','No')">&#10007; No</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">Beer Recirced</span>
+                <div class="yn-row"><button type="button" class="yn-btn" id="recircY" onclick="setYN('recirc','Yes')">&#10003; Yes</button><button type="button" class="yn-btn" id="recircN" onclick="setYN('recirc','No')">&#10007; No</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">Lab Samples Taken</span>
+                <div class="yn-row"><button type="button" class="yn-btn" id="labY" onclick="setYN('lab','Yes')">&#10003; Yes</button><button type="button" class="yn-btn" id="labN" onclick="setYN('lab','No')">&#10007; No</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">E-Stops Verified</span>
+                <div class="pf-row"><button type="button" class="pf-btn" id="estopPass" onclick="setPF('estop','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="estopFail" onclick="setPF('estop','Fail')">&#10007; Fail</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">Keg Scale On &amp; Verified</span>
+                <div class="pf-row"><button type="button" class="pf-btn" id="scalePass" onclick="setPF('scale','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="scaleFail" onclick="setPF('scale','Fail')">&#10007; Fail</button></div></div>
+        </div>
+    </div>
+
+    <!-- 5 KEG & PACKAGING VERIFICATION -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">5</div><div class="card-title">Keg &amp; Packaging Verification</div></div>
+        <div class="card-body">
+            <div style="margin-bottom:16px;"><span class="check-lbl">Beginning Sensory <span class="req">*</span> <span class="check-sub">&#8212; two-person verification</span></span>
+                <div class="pf-row" style="margin-bottom:10px;"><button type="button" class="pf-btn" id="sensoryPass" onclick="setPF('sensory','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="sensoryFail" onclick="setPF('sensory','Fail')">&#10007; Fail</button></div>
+                <div class="row col-2">
+                    <div class="fg"><label for="sensOp">Operator Initials <span class="req">*</span></label><input type="text" id="sensOp" class="initials-input" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()"></div>
+                    <div class="fg"><label for="sensVr">Verifier Initials <span class="req">*</span></label><input type="text" id="sensVr" class="initials-input" maxlength="4" placeholder="DC" required oninput="this.value=this.value.toUpperCase()"></div>
+                </div>
+            </div>
+            <hr class="divider">
+            <div style="margin-bottom:16px;"><span class="check-lbl">Date Code Verified <span class="req">*</span></span>
+                <div class="pf-row"><button type="button" class="pf-btn" id="dcvPass" onclick="setPF('dcv','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="dcvFail" onclick="setPF('dcv','Fail')">&#10007; Fail</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">Correct Keg Collar <span class="req">*</span></span>
+                <div class="pf-row"><button type="button" class="pf-btn" id="collarPass" onclick="setPF('collar','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="collarFail" onclick="setPF('collar','Fail')">&#10007; Fail</button></div></div>
+            <div style="margin-bottom:16px;"><span class="check-lbl">Correct Keg Cap <span class="req">*</span></span>
+                <div class="pf-row"><button type="button" class="pf-btn" id="capPass" onclick="setPF('cap','Pass')">&#10003; Pass</button><button type="button" class="pf-btn" id="capFail" onclick="setPF('cap','Fail')">&#10007; Fail</button></div></div>
+            <hr class="divider">
+            <div style="margin-bottom:16px;"><span class="check-lbl">Pallet Tags Verified <span class="req">*</span> <span class="check-sub">&#8212; two-person verification</span></span>
+                <div class="row col-2">
+                    <div class="fg"><label for="palOp">Operator Initials <span class="req">*</span></label><input type="text" id="palOp" class="initials-input" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()"></div>
+                    <div class="fg"><label for="palVr">Verifier Initials <span class="req">*</span></label><input type="text" id="palVr" class="initials-input" maxlength="4" placeholder="DC" required oninput="this.value=this.value.toUpperCase()"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6 SIGN-OFF -->
+    <div class="card">
+        <div class="card-header"><div class="card-num">6</div><div class="card-title">Operator Sign-Off</div></div>
+        <div class="card-body">
+            <div class="row col-2">
+                <div class="fg"><label for="perfBy">Performed By <span class="req">*</span></label><input type="text" id="perfBy" class="initials-input" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()"></div>
+                <div class="fg"><label for="verBy">Verified By <span class="req">*</span></label><input type="text" id="verBy" class="initials-input" maxlength="4" placeholder="DC" required oninput="this.value=this.value.toUpperCase()"></div>
+            </div>
+        </div>
+    </div>
+
+    <p class="hint" id="errMsg" style="color:#c00000;font-weight:700;display:none;margin-bottom:10px"></p>
+    <button type="submit" class="btn-submit">&#10003; Submit Run Start</button>
+</form>
+</div>
+
+<!-- CONFIRMATION OVERLAY -->
+<div class="overlay" id="overlay">
+    <div class="conf-card">
+        <div class="conf-head">
+            <div class="icon">&#10003;</div>
+            <h2>Run Start Recorded</h2>
+            <p id="confTime"></p>
+        </div>
+        <div class="conf-body" id="confBody"></div>
+        <div class="conf-foot">
+            <button class="btn-edit" onclick="closeConf()">&#9998; Edit</button>
+            <button class="btn-next" onclick="nextForm()">Start Hourly Entry &#8594;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// RACKER RUN START  (built 2026-10-12 from the approved mock + Can Line Run Start)
+// Payload keys = RackRuns internal column names, so the flow mapping is 1:1.
+// Multi-beer rows go in payload.Beers -> the flow writes them to RackRunBeers with the new RunID.
+// ─────────────────────────────────────────────
+const FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/05/workflows/4e1f370c6dee4f42a180c5a6ceb3debe/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=a_ifqow5E9vIp1AxCwAk_GUr8iE04F2aNR0SaJSGdes';
+const LS_KEY   = 'harpoon_racker_run_v1';
+
+// Rated speed (kegs/hr) and gallons per keg by size — Kyle 10/8
+const SIZES = {
+    'MicroStar Logs': { uph: 230, gal: 5.17 },
+    'Harpoon Logs':   { uph: 230, gal: 5.17 },
+    '13.2':           { uph: 190, gal: 13.2 },
+    '15.5':           { uph: 180, gal: 15.5 },
+    '30 Liter':       { uph: 80,  gal: 7.93 }
+};
+
+const $ = id => document.getElementById(id);
+const vals = { hpOn:'', recirc:'', lab:'', estop:'', scale:'', sensory:'', dcv:'', collar:'', cap:'', multi:'N', nitro:'N' };
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function isoToday() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function julianToday() { const d = new Date(); return Math.floor((d - new Date(d.getFullYear(),0,0)) / 86400000); }
+
+function setPF(k, v) { vals[k] = v; $(k+'Pass').className = 'pf-btn' + (v==='Pass'?' pass':''); $(k+'Fail').className = 'pf-btn' + (v==='Fail'?' fail':''); }
+function setYN(k, v) { vals[k] = v; $(k+'Y').className = 'yn-btn' + (v==='Yes'?' yes':''); $(k+'N').className = 'yn-btn' + (v==='No'?' no':''); }
+
+function setNitro(v) {
+    vals.nitro = v;
+    $('nitroY').className = 'yn-btn' + (v==='Y'?' yes':''); $('nitroN').className = 'yn-btn' + (v==='N'?' no':'');
+    $('nitroRow').style.display = v==='Y' ? '' : 'none';
+    $('n2').required = $('psi').required = (v==='Y');
+    if (v!=='Y') { $('n2').value=''; $('psi').value=''; }
+}
+
+function onSize() {
+    const s = SIZES[$('kegSize').value];
+    if (s) { $('rUPH').textContent = s.uph; $('rGal').textContent = s.gal; $('ratedPanel').classList.add('show'); }
+    else   { $('ratedPanel').classList.remove('show'); }
+    $('htNotice').classList.toggle('show', $('kegSize').value === '30 Liter');
+    onSched();
+}
+function schedTotal() {
+    if (vals.multi !== 'Y') return parseFloat($('schedKegs').value);
+    let t = 0, any = false;
+    document.querySelectorAll('.mkegs').forEach(i => { if (i.value !== '') { any = true; t += parseFloat(i.value) || 0; } });
+    return any ? t : NaN;
+}
+function onSched() {
+    const s = SIZES[$('kegSize').value], k = schedTotal();
+    $('schedShow').textContent = isNaN(k) ? '—' : k;
+    $('schedGalShow').textContent = (s && !isNaN(k)) ? (Math.round(k * s.gal * 100) / 100).toLocaleString() + ' gal' : '—';
+}
+
+function setMulti(v) {
+    vals.multi = v;
+    $('multiY').className = 'yn-btn' + (v==='Y'?' yes':''); $('multiN').className = 'yn-btn' + (v==='N'?' no':'');
+    $('multiBox').style.display = v==='Y' ? 'block' : 'none';
+    // Read-only rule: when multi-beer, Scheduled Kegs is a calculated total -> plain text, not a box
+    $('schedKegs').style.display = v==='Y' ? 'none' : '';
+    $('schedKegs').required = v!=='Y';
+    $('schedShow').style.display = v==='Y' ? '' : 'none';
+    $('schedHint').textContent = v==='Y' ? 'Total of the product-code rows — not editable' : '';
+    if (v==='Y' && !$('multiRows').children.length) { addRow(); addRow(); }
+    onSched();
+}
+function addRow() {
+    const d = document.createElement('div');
+    d.className = 'beer-row';
+    d.innerHTML = '<div class="fg"><label>Product Code</label><input type="text" class="mcode" placeholder="e.g. 99HA" oninput="this.value=this.value.toUpperCase()"></div>'
+                + '<div class="fg"><label>Scheduled Kegs</label><input type="number" class="mkegs" min="0" placeholder="0" oninput="onSched()"></div>'
+                + '<button type="button" class="beer-del" title="Remove" onclick="this.parentNode.remove();onSched()">&times;</button>';
+    $('multiRows').appendChild(d);
+}
+function beerRows() {
+    const out = [];
+    document.querySelectorAll('#multiRows .beer-row').forEach(r => {
+        const c = r.querySelector('.mcode').value.trim(), k = r.querySelector('.mkegs').value;
+        if (c || k !== '') out.push({ ProductCode: c, ScheduledKegs: k === '' ? null : parseFloat(k) });
+    });
+    return out;
+}
+
+// ── validation ──
+function validate() {
+    let ok = true, msgs = [];
+    document.querySelectorAll('#form [required]').forEach(el => {
+        el.classList.remove('error');
+        if (el.offsetParent !== null && !String(el.value).trim()) { el.classList.add('error'); ok = false; }
+    });
+    const need = [['sensory','Beginning Sensory'],['dcv','Date Code Verified'],['collar','Correct Keg Collar'],['cap','Correct Keg Cap']];
+    need.forEach(([k,l]) => { if (!vals[k]) { ok = false; msgs.push(l); } });
+    if (vals.multi === 'Y') {
+        const rows = beerRows();
+        if (rows.length < 2 || rows.some(r => !r.ProductCode || r.ScheduledKegs === null)) { ok = false; msgs.push('Multi-beer rows (code + kegs, at least 2)'); }
+    }
+    $('errMsg').style.display = ok ? 'none' : '';
+    $('errMsg').textContent = ok ? '' : 'Please complete the highlighted fields' + (msgs.length ? ': ' + msgs.join(', ') : '') + '.';
+    if (!ok) { const f = document.querySelector('#form .error') || $('errMsg'); f.scrollIntoView({behavior:'smooth', block:'center'}); }
+    return ok;
+}
+
+// ── collect: keys = RackRuns column names ──
+function num(id) { const v = $(id).value; return v === '' ? null : parseFloat(v); }
+function collect() {
+    const size = $('kegSize').value, s = SIZES[size], k = schedTotal();
+    const job = $('jobNum').value.trim();
+    return {
+        Title: job, JobNumKey: job, BatchNum: $('batchNum').value.trim(),
+        RunDate: $('runDate').value, JulianDate: julianToday(),
+        DateCodeType: $('dateCodeType').value, DateCode: $('dateCode').value,
+        QualTime: $('qualTime').value, BBT: $('bbt').value.trim(), BeerCode: $('beerCode').value.trim(),
+        KegSize: size, RatedPerHour: s ? s.uph : null,
+        ScheduledKegs: isNaN(k) ? null : k,
+        ScheduledGallons: (s && !isNaN(k)) ? Math.round(k * s.gal * 100) / 100 : null,
+        IsMultiBeer: vals.multi === 'Y', Beers: vals.multi === 'Y' ? beerRows() : [],
+        BeerTemp: num('beerTemp'), TankCO2: num('tankCO2'), TankDO: num('tankDO'),
+        MM1TPCO2Start: num('mm1co2'), MM1TPDOStart: num('mm1do'), MM2TPCO2Start: num('mm2co2'), MM2TPDOStart: num('mm2do'),
+        IsNitro: vals.nitro === 'Y', N2ppbStart: num('n2'), PressurePSIStart: num('psi'),
+        PreFilter: $('preFilter').value, HazeEBC: num('haze'), StartupConductivity: num('cond'),
+        BBTHeadPressureStart: num('bbtHP'),
+        HeadPressureOnBBT: vals.hpOn || null, BeerRecirced: vals.recirc || null, LabSamplesTaken: vals.lab || null,
+        EStopsPF: vals.estop || null, KegScalePF: vals.scale || null,
+        SensoryPF: vals.sensory, SensoryOpInit: $('sensOp').value.trim(), SensoryVrInit: $('sensVr').value.trim(),
+        DateCodeVerifiedPF: vals.dcv, CollarPF: vals.collar, CapPF: vals.cap,
+        PalletOpInit: $('palOp').value.trim(), PalletVrInit: $('palVr').value.trim(),
+        PerformedBy: $('perfBy').value.trim(), VerifiedBy: $('verBy').value.trim(),
+        IsHandRack: false
+    };
+}
+
+// ── submit ──
+function onSubmit(e) {
+    e.preventDefault();
+    if (!validate()) return;
+    const data = collect();
+    data._ts = new Date().toISOString();
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (err) {}
+    submitToFlow(data);
+    showConf(data);
+}
+function submitToFlow(data) {
+    if (!FLOW_URL) { console.warn('Racker Run Start flow URL not configured — skipping submit.'); return; }
+    const payload = Object.assign({}, data); delete payload._ts;
+    fetch(FLOW_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .catch(err => console.error('Racker Run Start submit failed (data is still saved on this tablet):', err));
+}
+
+// ── saved run banner ──
+function checkSaved() {
+    let raw = null; try { raw = localStorage.getItem(LS_KEY); } catch (e) {}
+    if (!raw) return;
+    try {
+        const d = JSON.parse(raw), t = new Date(d._ts);
+        $('bannerText').textContent = `A run from ${t.toLocaleDateString([], {month:'short', day:'numeric'})} at ${t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} is already saved`
+            + (d.BeerCode ? ` — ${d.BeerCode}` : '') + (d.KegSize ? `, ${d.KegSize}` : '') + '. Starting a new run will clear it.';
+        $('banner').classList.add('show');
+    } catch (e) {}
+}
+function clearRun() { try { localStorage.removeItem(LS_KEY); } catch (e) {} $('banner').classList.remove('show'); }
+
+// ── confirmation ──
+function showConf(d) {
+    $('confTime').textContent = 'Saved at ' + new Date(d._ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const dash = v => (v === null || v === undefined || v === '') ? '—' : v;
+    const rows = [
+        ['Deacom Job #', d.JobNumKey], ['Batch', d.BatchNum], ['Beer / Product', d.BeerCode], ['BBT', d.BBT],
+        ['Keg Size', d.KegSize], ['Rated Speed', d.RatedPerHour ? d.RatedPerHour + ' kegs/hr' : '—'],
+        ['Scheduled Kegs', d.ScheduledKegs], ['Scheduled Gallons', d.ScheduledGallons ? d.ScheduledGallons.toLocaleString() + ' gal' : '—'],
+        ['Multi-Beer', d.IsMultiBeer ? d.Beers.map(b => b.ProductCode + ' ' + b.ScheduledKegs).join(', ') : 'No'],
+        ['Date', d.RunDate], ['Julian Date', d.JulianDate], ['Date Code', d.DateCodeType + ' ' + d.DateCode],
+        ['Qualification Time', d.QualTime], ['Pre-Filter', d.PreFilter],
+        ['Nitrogen Run', d.IsNitro ? 'Yes' : 'No'],
+        ...(d.IsNitro ? [['N2 / Pressure', dash(d.N2ppbStart) + ' ppb / ' + dash(d.PressurePSIStart) + ' psi']] : []),
+        ['Tank CO2 / DO', dash(d.TankCO2) + ' / ' + dash(d.TankDO)],
+        ['MM1 CO2 / DO', dash(d.MM1TPCO2Start) + ' / ' + dash(d.MM1TPDOStart)],
+        ['MM2 CO2 / DO', dash(d.MM2TPCO2Start) + ' / ' + dash(d.MM2TPDOStart)],
+        ['Sensory', d.SensoryPF + '  Op: ' + d.SensoryOpInit + ' / Vr: ' + d.SensoryVrInit],
+        ['Date Code / Collar / Cap', d.DateCodeVerifiedPF + ' / ' + d.CollarPF + ' / ' + d.CapPF],
+        ['Pallet Tags', 'Op: ' + d.PalletOpInit + ' / Vr: ' + d.PalletVrInit],
+        ['Performed / Verified', d.PerformedBy + ' / ' + d.VerifiedBy]
+    ];
+    $('confBody').innerHTML = rows.map(([l,v]) => `<div class="conf-row"><span class="conf-lbl">${l}</span><span class="conf-val">${dash(v)}</span></div>`).join('');
+    $('overlay').classList.add('show');
+}
+function closeConf() { $('overlay').classList.remove('show'); }
+function nextForm() { window.location.href = 'Racker_Hourly_Form.html'; }
+
+// ── init ──
+document.addEventListener('DOMContentLoaded', () => {
+    $('runDate').value = isoToday(); $('dateCode').value = isoToday();
+    $('julianShow').textContent = julianToday();
+    // Qualification Time is NOT pre-filled from the tablet clock (same as Can Line): the operator enters the real time
+    setNitro('N'); setMulti('N');
+    // "Next Size on This Job" from End of Run reopens this form with Date, Job # and Batch # pre-filled
+    const q = new URLSearchParams(location.search);
+    if (q.get('job'))   $('jobNum').value   = q.get('job');
+    if (q.get('batch')) $('batchNum').value = q.get('batch');
+    if (q.get('date'))  $('runDate').value  = q.get('date');
+    checkSaved();
+    $('form').addEventListener('submit', onSubmit);
+    ['input','change'].forEach(ev => $('form').addEventListener(ev, e => { if (e.target.classList) e.target.classList.remove('error'); }));
+});
+</script>
+</body>
+</html>
