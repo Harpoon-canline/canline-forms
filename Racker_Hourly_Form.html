@@ -323,7 +323,7 @@
 // KegSize is sent only so the flow can find the open run (JobNumKey + KegSize + Open + not hand rack).
 // Resubmitting the same hour (Edit This Hour) replaces that hour in SharePoint — the flow upserts on RunID + HourNum.
 // ─────────────────────────────────────────────
-const FLOW_URL = '';   // Kyle pastes the "Racker Hourly to SharePoint" HTTP URL here (never in chat)
+const FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/cd294c4ec4bc42b2a1f4405b66595ab7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4iAd5MYxPuVIBo6x1osJgqBaYrPhOyyflbTSYintwms';   // Kyle pastes the "Racker Hourly to SharePoint" HTTP URL here (never in chat)
 const LS_RUN    = 'harpoon_racker_run_v1';
 const LS_HOURLY = 'harpoon_racker_hourly_v1';
 const DT_MACHINES = ['Empty Keg Elev','External washer','MM Infeed','MM1','MM2','MM Outfeed','Full Keg Elevator','Keg Scale','Keg Rejection','Vacuum Arm','Wrapper','Wrapper Conveyors','Co2 Pressure','Steam','Maintenance Work','Empty Keg No Pressure Fault','MM Process Slowdown','Caustic Screen/Media Fault','Planned DT','Changeover'];
