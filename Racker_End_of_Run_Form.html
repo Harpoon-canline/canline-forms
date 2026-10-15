@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Racker End of Run</title>
+<style>
+    :root {
+        --navy:    #1F3864;
+        --navy-dk: #172d52;
+        --gold:    #C9A84C;
+        --green:   #2e7d32;
+        --green-bg:#e8f5e9;
+        --amber:   #e65100;
+        --amber-bg:#fff3e0;
+        --g100:    #f8f9fa;
+        --g200:    #e9ecef;
+        --g400:    #ced4da;
+        --g600:    #6c757d;
+        --g800:    #343a40;
+        --red:     #dc3545;
+        --shadow:  0 2px 8px rgba(0,0,0,.08);
+        --r:       10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #eef0f4; color: var(--g800); padding-bottom: 56px; }
+
+    /* HEADER */
+    .hdr { background: var(--navy); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+    .hdr-left h1 { font-size: 18px; font-weight: 700; }
+    .hdr-left p  { font-size: 12px; opacity: .8; margin-top: 1px; }
+    .hour-badge  { background: var(--gold); color: var(--navy); font-weight: 900; font-size: 13px; padding: 6px 14px; border-radius: 20px; letter-spacing: .5px; }
+
+    /* CONTEXT / WINDOW BARS */
+    .ctx-bar { background: var(--navy-dk); color: white; padding: 10px 18px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; }
+    .ctx-item { display: flex; flex-direction: column; gap: 1px; }
+    .ctx-lbl  { font-size: 10px; opacity: .65; text-transform: uppercase; letter-spacing: .4px; }
+    .ctx-val  { font-weight: 700; }
+    .win-bar  { background: white; border-bottom: 2px solid var(--g200); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+    .win-lbl  { color: var(--g600); }
+    .win-val  { font-weight: 700; font-size: 15px; color: var(--navy); }
+
+    /* ALERT BARS */
+    .no-run-bar { background: #fff3cd; border-bottom: 2px solid #ffc107; color: #856404; padding: 10px 18px; font-size: 14px; display: none; }
+    .no-run-bar.show { display: block; }
+    .err-bar { background: var(--red); color: white; padding: 12px 18px; font-size: 14px; display: none; word-break: break-all; }
+    .err-bar.show { display: block; }
+
+    /* LAYOUT */
+    .container { max-width: 780px; margin: 0 auto; padding: 16px; }
+    .card { background: white; border-radius: var(--r); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+    .card-hdr { background: var(--navy); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+    .card-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .card-title { font-size: 15px; font-weight: 700; }
+    .card-body  { padding: 16px; }
+
+    /* FORM GRID */
+    .row  { display: grid; gap: 12px; margin-bottom: 12px; }
+    .row:last-child { margin-bottom: 0; }
+    .c1   { grid-template-columns: 1fr; }
+    .c2   { grid-template-columns: 1fr 1fr; }
+    .c3   { grid-template-columns: 1fr 1fr 1fr; }
+    .fg   { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 11px; font-weight: 700; color: var(--g600); text-transform: uppercase; letter-spacing: .3px; }
+    input[type="text"], input[type="number"], textarea, select {
+        width: 100%; border: 1.5px solid var(--g400); border-radius: 8px;
+        padding: 12px 14px; font-size: 16px; color: var(--g800);
+        background: white; -webkit-appearance: none; transition: border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--navy); }
+    input.err { border-color: var(--red); }
+    .hint { font-size: 11px; color: var(--g600); font-style: italic; }
+    .req  { color: var(--red); }
+    .static-val { font-size: 22px; font-weight: 700; color: var(--navy, #1b2f52); padding: 10px 2px; }
+    .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
+
+    /* EFFICIENCY PANEL */
+    .eff-panel { border: 2px solid var(--g200); border-radius: 8px; padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: space-around; row-gap: 10px; margin-bottom: 12px; text-align: center; }
+    .eff-panel > div { min-width: 78px; }
+    .eff-panel.green { border-color: var(--green); background: var(--green-bg); }
+    .eff-panel.amber { border-color: var(--amber); background: var(--amber-bg); }
+    .eff-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--g600); letter-spacing: .5px; }
+    .eff-val { font-size: 24px; font-weight: 900; color: var(--g800); margin: 2px 0; }
+    .eff-sub { font-size: 11px; color: var(--g600); }
+    .eff-panel.green .eff-val, .eff-panel.green .eff-lbl { color: var(--green); }
+    .eff-panel.amber .eff-val, .eff-panel.amber .eff-lbl { color: var(--amber); }
+
+    /* CAN WEIGHTS */
+    .wt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .wt-item input { padding: 10px 8px; font-size: 15px; text-align: center; }
+    .avg-row { background: var(--g100); border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .avg-val { font-size: 18px; font-weight: 900; color: var(--navy); }
+    .range-display { width: 100%; border: 1.5px solid var(--g200); border-radius: 8px; padding: 12px 14px; font-size: 16px; font-weight: 700; color: var(--navy); background: var(--g100); text-align: center; }
+
+    /* SENSORY BUTTONS */
+    .sense-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .sense-btn { flex: 1; min-width: 60px; padding: 12px 8px; border: 2px solid var(--g400); border-radius: 8px; background: var(--g100); font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+    .sense-btn.active { background: var(--navy); border-color: var(--navy); color: white; }
+
+    /* PASS/FAIL BUTTONS */
+    .pf-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .pf-btn { flex: 1; padding: 12px; border: 2px solid var(--g400); border-radius: 8px; background: white; font-size: 14px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .pf-btn.pass { background: var(--green); border-color: var(--green); color: white; }
+    .pf-btn.fail { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* CHECK TABLE */
+    .check-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .check-table th { background: var(--g100); padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--g600); text-align: left; border-bottom: 2px solid var(--g200); }
+    .check-table td { padding: 8px 12px; border-bottom: 1px solid var(--g200); }
+    .check-table tr:last-child td { border-bottom: none; }
+    .check-name { font-size: 14px; font-weight: 500; }
+    .check-table input[type="text"] { width: 64px; padding: 8px; font-size: 14px; text-align: center; border-radius: 6px; border: 1.5px solid var(--g400); }
+    .check-table .wide-input { width: 100%; max-width: none; text-align: left; }
+
+    /* YES/NO */
+    .yn-wrap { display: flex; gap: 6px; }
+    .yn-btn  { padding: 8px 14px; border: 1.5px solid var(--g400); border-radius: 6px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .yn-btn.yes { background: var(--green); border-color: var(--green); color: white; }
+    .yn-btn.no  { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* TWO-PERSON P/F CHECK (Filtec, Flowmeter) */
+    .check-group { margin-bottom: 16px; }
+    .check-group-lbl { font-size: 13px; font-weight: 700; color: var(--g800); display: block; margin-bottom: 6px; }
+    .check-group-sub { font-size: 11px; color: var(--g600); font-weight: 400; }
+    .two-person-row  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .two-person-row .pf-btn { flex: 0 0 100px; }
+    .two-person-row .init-in { width: 72px; padding: 10px 8px; font-size: 14px; text-align: center; border-radius: 8px; border: 1.5px solid var(--g400); }
+
+    /* COMPACT P/F FOR TABLE (End of Run final checks) */
+    .tbl-pf     { display: flex; gap: 4px; }
+    .tbl-pf-btn { flex: 1; min-width: 48px; padding: 7px 4px; border: 1.5px solid var(--g400); border-radius: 6px; background: white; font-size: 12px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: center; }
+    .tbl-pf-btn.pass { background: var(--green); border-color: var(--green); color: white; }
+    .tbl-pf-btn.fail { background: var(--red);   border-color: var(--red);   color: white; }
+    .tbl-pf-btn.yes  { background: var(--green); border-color: var(--green); color: white; }
+    .tbl-pf-btn.no   { background: var(--red);   border-color: var(--red);   color: white; }
+
+    /* DOWNTIME */
+    .dt-event-row, .eor-dt-event-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .btn-add-dt   { padding: 10px 16px; background: var(--g100); border: 1.5px dashed var(--g400); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 12px; color: var(--navy); }
+    .btn-remove   { padding: 8px 12px; background: var(--red); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .dt-planned-btn { padding: 8px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; border: 1.5px solid var(--g400); background: var(--g100); color: var(--g600); cursor: pointer; white-space: nowrap; }
+    .dt-planned-btn.on { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+    textarea      { resize: vertical; min-height: 80px; }
+
+    /* INITIALS */
+    .initials-input { text-transform: uppercase; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 2px; }
+
+    /* SUBMIT */
+    .btn-submit { display: block; width: 100%; padding: 18px; margin-top: 8px; background: var(--navy); color: white; border: none; border-radius: var(--r); font-size: 18px; font-weight: 700; cursor: pointer; letter-spacing: .5px; -webkit-tap-highlight-color: transparent; }
+    .btn-submit:active { background: var(--navy-dk); }
+
+    /* HISTORY */
+    .history-section { max-width: 780px; margin: 16px auto 0; padding: 0 16px; }
+    .history-toggle  { width: 100%; background: white; border: none; padding: 14px 16px; border-radius: var(--r); box-shadow: var(--shadow); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+    .history-list    { display: none; margin-top: 8px; }
+    .history-list.show { display: block; }
+    .hist-card  { background: white; border-radius: var(--r); box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
+    .hist-hour  { font-weight: 900; font-size: 15px; color: var(--navy); min-width: 40px; }
+    .hist-data  { font-size: 13px; color: var(--g600); flex: 1; }
+    .hist-eff   { font-weight: 700; font-size: 14px; }
+    .hist-eff.green { color: var(--green); }
+    .hist-eff.amber { color: var(--amber); }
+
+    /* CONFIRMATION OVERLAY */
+    .overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+    .overlay.show { display: flex; }
+    .conf-card { background: white; border-radius: var(--r); width: 100%; max-width: 480px; box-shadow: 0 10px 40px rgba(0,0,0,.3); max-height: 88vh; display: flex; flex-direction: column; }
+    .conf-hdr  { background: var(--navy); color: white; padding: 20px; text-align: center; border-radius: var(--r) var(--r) 0 0; }
+    .conf-hdr .icon { font-size: 36px; margin-bottom: 8px; }
+    .conf-hdr h2 { font-size: 20px; font-weight: 900; }
+    .conf-hdr p  { font-size: 13px; opacity: .8; margin-top: 4px; }
+    .conf-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .conf-row  { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--g200); }
+    .conf-row:last-child { border-bottom: none; }
+    .conf-lbl  { font-size: 13px; color: var(--g600); }
+    .conf-val  { font-size: 14px; font-weight: 700; }
+    .conf-val.green { color: var(--green); }
+    .conf-val.amber { color: var(--amber); }
+    .conf-foot { padding: 14px 20px; display: flex; gap: 10px; border-top: 1px solid var(--g200); flex-shrink: 0; }
+    .btn-edit      { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-next-hour { flex: 2; padding: 14px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* END OF RUN BUTTON */
+    .btn-end-run { display: block; width: 100%; padding: 15px; margin-top: 10px; background: white; color: var(--red); border: 2.5px solid var(--red); border-radius: var(--r); font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: .3px; -webkit-tap-highlight-color: transparent; }
+    .btn-end-run:active { background: #fff5f5; }
+    .or-divider { text-align: center; color: var(--g400); font-size: 12px; margin: 10px 0 2px; letter-spacing: 1px; }
+
+    /* END OF RUN OVERLAY */
+    .eor-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 600; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .eor-overlay.show { display: block; }
+    .eor-card { background: #eef0f4; border-radius: var(--r); width: 100%; max-width: 600px; margin: 20px auto; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .eor-hdr { background: var(--red); color: white; padding: 20px 24px; border-radius: var(--r) var(--r) 0 0; text-align: center; }
+    .eor-hdr .eor-icon { font-size: 32px; margin-bottom: 6px; }
+    .eor-hdr h2 { font-size: 22px; font-weight: 900; }
+    .eor-hdr p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+    .eor-body { padding: 12px 12px 4px; }
+    .eor-foot { background: white; border-top: 1px solid var(--g200); border-radius: 0 0 var(--r) var(--r); padding: 14px 16px; display: flex; gap: 10px; }
+    .btn-eor-cancel { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-eor-submit { flex: 2; padding: 14px; background: var(--red); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* SUMMARY TABLE */
+    .sum-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+    .sum-table td { padding: 8px 14px; border-bottom: 1px solid var(--g200); font-size: 13px; }
+    .sum-table tr:last-child td { border-bottom: none; }
+    .sum-table td:first-child { font-weight: 700; color: var(--g600); width: 55%; }
+    .sum-table td:last-child  { font-weight: 700; color: var(--g800); }
+
+    /* TOTALS BOXES */
+    .totals-row { display: flex; gap: 8px; margin-top: 8px; }
+    .total-box  { flex: 1; background: white; border-radius: 8px; padding: 12px 8px; text-align: center; border: 2px solid var(--g200); }
+    .total-box.hi { border-color: var(--navy); background: #f0f4ff; }
+    .total-lbl  { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--g600); letter-spacing: .4px; }
+    .total-val  { font-size: 20px; font-weight: 900; color: var(--navy); margin: 4px 0; }
+    .total-sub  { font-size: 10px; color: var(--g600); }
+
+    /* FINAL CONFIRMATION OVERLAY */
+    /* Card is capped to the viewport and split into header/body/footer so the
+       action buttons in .final-foot are always on-screen and clickable, even
+       in landscape where the recap body is taller than the viewport — only
+       the body scrolls internally. (Kyle, 2026-09-02: buttons were unreachable
+       in landscape without rotating to portrait.) */
+    .final-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.75); z-index: 700; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+    .final-overlay.show { display: flex; }
+    .final-card { background: white; border-radius: var(--r); width: 100%; max-width: 460px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); box-shadow: 0 10px 40px rgba(0,0,0,.4); display: flex; flex-direction: column; overflow: hidden; }
+    .final-hdr  { background: var(--green); color: white; padding: 24px; text-align: center; border-radius: var(--r) var(--r) 0 0; flex-shrink: 0; }
+    .final-hdr .icon { font-size: 42px; margin-bottom: 6px; }
+    .final-hdr h2 { font-size: 24px; font-weight: 900; }
+    .final-hdr p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+    .final-body { padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0; }
+    .final-foot { padding: 16px 20px; border-top: 1px solid var(--g200); flex-shrink: 0; }
+
+    @media (max-width: 500px) {
+        .c2 { grid-template-columns: 1fr; }
+        .c3 { grid-template-columns: 1fr 1fr; }
+        .wt-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    
+.pfx{display:flex;gap:10px}.pfx button{flex:1;padding:12px;border:2px solid #ced4da;border-radius:8px;background:#fff;font-size:15px;font-weight:700;cursor:pointer}
+.pfx button.p{background:#2e7d32;border-color:#2e7d32;color:#fff}.pfx button.f{background:#dc3545;border-color:#dc3545;color:#fff}
+.chk{margin-bottom:14px}.chk-lbl{display:block;font-size:13px;font-weight:700;margin-bottom:8px}
+
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:12px;margin-bottom:14px}
+.sum .l{font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase}.sum .v{font-size:24px;font-weight:800;color:#1F3864}.sum .s{font-size:11px;color:#6c757d}
+.mb-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:8px}
+.mb-row .sched,.mb-row .diff{background:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;min-height:50px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.diff.neg{color:#dc3545}.diff.pos{color:#2e7d32}
+.cond{display:none}.cond.show{display:block}
+.warn{font-size:13px;font-weight:700;margin-top:6px}
+@media (max-width:560px){.sum{grid-template-columns:1fr 1fr}}
+
+.pfx[data-k="last"] button.f{background:#1F3864;border-color:#1F3864;color:#fff}
+</style></head>
+<body>
+<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run</p></div><div class="hour-badge">FORM 3 OF 3</div></div>
+<div class="ctx-bar">
+  <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">-</span></div>
+  <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">-</span></div>
+  <div class="ctx-item"><span class="ctx-lbl">Keg Size</span><span class="ctx-val" id="ctxSize">-</span></div>
+  <div class="ctx-item"><span class="ctx-lbl">Tank</span><span class="ctx-val" id="ctxTank">-</span></div>
+  <div class="ctx-item"><span class="ctx-lbl">Qual Start</span><span class="ctx-val" id="ctxStart">-</span></div>
+  <div class="ctx-item"><span class="ctx-lbl">Rated</span><span class="ctx-val" id="ctxRated">-</span></div>
+</div>
+<div class="no-run-bar" id="noRunBar">No run found on this tablet. Fill out <a href="Racker_Run_Start_Form.html">Racker Run Start</a> first.</div>
+<div class="err-bar" id="errBar"></div>
+
+<div class="container"><form id="eorForm" novalidate>
+
+<div class="card"><div class="card-hdr"><div class="card-num">1</div><div class="card-title">Timing</div></div><div class="card-body">
+  <div class="row c2">
+    <div class="fg"><label>Qualification Time</label><div class="static-val" id="qualShow">-</div><span class="hint">From Run Start &mdash; not editable</span></div>
+    <div class="fg"><label>Run End Time <span class="req">*</span></label><input type="time" id="endT" required oninput="calc()"><span class="hint">Last keg through the MiniMats</span></div>
+  </div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">2</div><div class="card-title">Run Totals</div></div><div class="card-body">
+  <div class="row c2">
+    <div class="fg"><label>Final Count (Total Kegs) <span class="req">*</span></label><input type="number" id="total" min="0" placeholder="kegs on finished pallets" required oninput="calc()"></div>
+    <div class="fg"><label>Filler Count <span class="req">*</span></label><input type="number" id="filler" min="0" placeholder="racker counter at end" required></div>
+  </div>
+  <div id="mbBox" style="display:none">
+    <div class="chk"><span class="chk-lbl">Multi-Beer Run <span class="hint">&mdash; codes come from Run Start</span></span></div>
+    <div id="mbRows"></div>
+    <p class="warn" id="mbWarn"></p>
+  </div>
+  <hr class="divider">
+  <div class="row c2"><div class="fg"><label>Scale Totals (optional)</label><input type="number" id="scTot" min="0" placeholder="kegs"></div><div class="fg"><label>Scale Reworks (optional)</label><input type="number" id="scRw" min="0" placeholder="kegs"></div></div>
+  <div class="row c2"><div class="fg"><label>Scale Rejects (optional)</label><input type="number" id="scRj" min="0" placeholder="kegs"></div><div class="fg"><label>Dumps (Kegs Dumped) <span class="req">*</span></label><input type="number" id="dumps" min="0" placeholder="kegs" required></div></div>
+  <div class="row c2"><div class="fg"><label>Kegs on Hold</label><input type="number" id="hold" min="0" placeholder="kegs"></div><div class="fg"><label>Pressure-Faulted Kegs <span class="req">*</span></label><input type="number" id="pfk" min="0" placeholder="kegs" required></div></div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">3</div><div class="card-title">Flow Meters &amp; Loss</div></div><div class="card-body">
+  <div class="row c2"><div class="fg"><label>Flow Meter MM1 (gal) <span class="req">*</span></label><input type="number" step="0.1" id="mm1" min="0" placeholder="gallons this size" required oninput="calc()"><span class="hint">Read at end of this size, then reset the meter</span></div><div class="fg"><label>Flow Meter MM2 (gal) <span class="req">*</span></label><input type="number" step="0.1" id="mm2" min="0" placeholder="gallons this size" required oninput="calc()"><span class="hint">Read at end of this size, then reset the meter</span></div></div>
+  <div class="sum">
+    <div><div class="l">Flow Meter Total</div><div class="v" id="fT">-</div><div class="s">gal (MM1 + MM2)</div></div>
+    <div><div class="l">Physical on Pallets</div><div class="v" id="pT">-</div><div class="s" id="pTsub">gal</div></div>
+    <div><div class="l">Loss</div><div class="v" id="lT">-</div><div class="s">gal</div></div>
+    <div><div class="l">Loss %</div><div class="v" id="lP">-</div><div class="s">of flow</div></div>
+  </div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">4</div><div class="card-title">Quality &mdash; Last Keg</div></div><div class="card-body">
+  <div class="row c2"><div class="fg"><label>MM1 TP CO2 (vol) <span class="req">*</span></label><input type="number" step="0.01" id="m1co2" placeholder="e.g. 2.55" required></div><div class="fg"><label>MM1 TP DO (ppb) <span class="req">*</span></label><input type="number" id="m1do" placeholder="e.g. 25" required></div></div>
+  <div class="row c2"><div class="fg"><label>MM2 TP CO2 (vol) <span class="req">*</span></label><input type="number" step="0.01" id="m2co2" placeholder="e.g. 2.55" required></div><div class="fg"><label>MM2 TP DO (ppb) <span class="req">*</span></label><input type="number" id="m2do" placeholder="e.g. 25" required></div></div>
+  <div class="row c2" id="nitroRow" style="display:none"><div class="fg"><label>N2 (ppb) <span class="req">*</span></label><input type="number" id="n2" placeholder="e.g. 20"></div><div class="fg"><label>Pressure (psi) <span class="req">*</span></label><input type="number" step="0.1" id="psi" placeholder="e.g. 30"></div></div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">5</div><div class="card-title">Final Checks</div></div><div class="card-body">
+  <div class="chk"><span class="chk-lbl">Tank Kicked? <span class="req">*</span></span><div class="pfx" data-k="kick"><button type="button" onclick="setYN('kick','Yes')">&#10003; Yes</button><button type="button" onclick="setYN('kick','No')">&#10007; No</button></div></div>
+  <div class="cond" id="kickBox">
+    <div class="chk"><span class="chk-lbl">Glycol Turned Off <span class="req">*</span></span><div class="pfx" data-k="glycol"><button type="button" onclick="setYN('glycol','Yes')">&#10003; Yes</button><button type="button" onclick="setYN('glycol','No')">&#10007; No</button></div></div>
+    <div class="chk"><span class="chk-lbl">Head Pressure Turned Off <span class="req">*</span></span><div class="pfx" data-k="hpoff"><button type="button" onclick="setYN('hpoff','Yes')">&#10003; Yes</button><button type="button" onclick="setYN('hpoff','No')">&#10007; No</button></div></div>
+  </div>
+  <div class="row c2"><div class="fg"><label>Conductivity Meter Reading</label><input type="number" step="0.01" id="cond" placeholder="reading"></div><div class="fg"></div></div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">6</div><div class="card-title">Downtime &mdash; Last Partial Hour</div></div><div class="card-body">
+  <p class="hint" style="margin-bottom:12px">Always open. Add a row for each machine that stopped since the last hourly check-in; leave blank if none. Changeover time goes to <b>Changeover</b>.</p>
+  <div id="dtRows"></div>
+  <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
+  <div class="fg"><label>What Happened / Action Taken</label><textarea id="dtNarr" placeholder="Describe the issue and what was done to resolve it..."></textarea></div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">7</div><div class="card-title">Efficiency Summary</div></div><div class="card-body">
+  <div class="sum">
+    <div><div class="l">Run Time</div><div class="v" id="sRt">-</div><div class="s" id="sRtSub">minus planned DT</div></div>
+    <div><div class="l">Kegs / Hour</div><div class="v" id="sKph">-</div><div class="s" id="sKphSub">rated -</div></div>
+    <div><div class="l">Run Efficiency</div><div class="v" id="sEff">-</div><div class="s">capped at 100%</div></div>
+    <div><div class="l">Total Downtime</div><div class="v" id="sDt">-</div><div class="s">hourly + end of run</div></div>
+  </div>
+  <p class="hint">Auto-calculated from Final Count &divide; run time (minus planned downtime) &divide; rated speed. Nothing to enter here.</p>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">8</div><div class="card-title">Sign-Off</div></div><div class="card-body">
+  <div class="chk"><span class="chk-lbl">Last size run on this job? <span class="req">*</span> <span class="hint">&mdash; Yes sends the job recap email</span></span><div class="pfx" data-k="last"><button type="button" onclick="setYN('last','Yes')">&#10003; Yes, job done</button><button type="button" onclick="setYN('last','No')">More sizes to run</button></div></div>
+  <div class="row c2">
+    <div class="fg"><label>Operator Initials <span class="req">*</span></label><input type="text" class="initials-input" id="opInit" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="fg"><label>Notes</label><input type="text" id="notes" placeholder="Optional"></div>
+  </div>
+</div></div>
+
+<p class="hint" id="valMsg" style="color:var(--red);font-style:normal;font-weight:700;display:none;margin-bottom:8px"></p>
+<button type="submit" class="btn-submit" id="btnSubmit">&#10003; Submit End of Run</button>
+</form></div>
+
+<div class="final-overlay" id="finalOv"><div class="final-card">
+  <div class="final-hdr"><div class="icon">&#10003;</div><h2 id="finTitle">Run Closed</h2><p id="finSub"></p></div>
+  <div class="final-body" id="finBody"></div>
+  <div class="final-foot" id="finFoot"></div>
+</div></div>
+
+<script>
+// ─────────────────────────────────────────────
+// RACKER END OF RUN  (built 2026-10-13 from the approved mock + Can Line EOR)
+// Payload keys = RackRuns EOR column names. KegSize/JobNumKey find the open run.
+// Beers -> RackRunBeers.ActualKegs by ProductCode. DTEvents -> RackDTEvents with HourNum 0.
+// JobComplete (from "Last size run on this job?") tells the flow to send the ONE recap email per job (Kyle 10/13).
+// Local data is cleared ONLY after the flow confirms success (same rule as Can Line EOR).
+// Efficiency = Final Count / (QualTime->EndTime minus PLANNED downtime) / rated, capped at 100%.
+// ─────────────────────────────────────────────
+const FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/21beccfde89c43e9aa583f13feaa6c16/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=W9hDzRw3T-iOotX-xiUaH9KFRA-jUqMeDJasLB87sSk';  
+const LS_RUN = 'harpoon_racker_run_v1', LS_HOURLY = 'harpoon_racker_hourly_v1', LS_ARCHIVE = 'harpoon_racker_completed_v1';
+const GAL = { 'MicroStar Logs': 5.17, 'Harpoon Logs': 5.17, '13.2': 13.2, '15.5': 15.5, '30 Liter': 7.93 };
+const DT_MACHINES = ['Empty Keg Elev','External washer','MM Infeed','MM1','MM2','MM Outfeed','Full Keg Elevator','Keg Scale','Keg Rejection','Vacuum Arm','Wrapper','Wrapper Conveyors','Co2 Pressure','Steam','Maintenance Work','Empty Keg No Pressure Fault','MM Process Slowdown','Caustic Screen/Media Fault','Planned DT','Changeover'];
+
+const $ = id => document.getElementById(id);
+let runData = null, hourly = [], dtN = 0, lastCalc = {};
+const yn = { kick:'', glycol:'', hpoff:'', last:'' };
+
+function setYN(k, v) {
+    yn[k] = v;
+    const b = document.querySelector('.pfx[data-k="' + k + '"]').children;
+    b[0].className = v === 'Yes' ? 'p' : ''; b[1].className = v === 'No' ? 'f' : '';
+    if (k === 'kick') { $('kickBox').classList.toggle('show', v === 'Yes'); if (v !== 'Yes') { yn.glycol = yn.hpoff = ''; ['glycol','hpoff'].forEach(x => { const c = document.querySelector('.pfx[data-k="' + x + '"]').children; c[0].className = c[1].className = ''; }); } }
+}
+function num(id) { const v = $(id).value; return v === '' ? null : parseFloat(v); }
+function mins(t) { const p = (t || '').split(':'); return p.length < 2 ? null : (+p[0]) * 60 + (+p[1]); }
+function rated() { return runData ? parseFloat(runData.RatedPerHour) || 0 : 0; }
+function isNitro() { return !!(runData && runData.IsNitro); }
+
+function loadRun() {
+    try { hourly = JSON.parse(localStorage.getItem(LS_HOURLY) || '[]'); } catch (e) { hourly = []; }
+    let raw = null; try { raw = localStorage.getItem(LS_RUN); } catch (e) {}
+    if (!raw) { $('noRunBar').classList.add('show'); return; }
+    try { runData = JSON.parse(raw); } catch (e) { showErr('Could not read the saved run: ' + e.message); return; }
+    $('ctxJob').textContent = runData.JobNumKey || '-';
+    $('ctxBeer').textContent = runData.IsMultiBeer && runData.Beers && runData.Beers.length ? runData.Beers.map(b => b.ProductCode).join(' / ') : (runData.BeerCode || '-');
+    $('ctxSize').textContent = runData.KegSize || '-'; $('ctxTank').textContent = runData.BBT || '-';
+    $('ctxStart').textContent = runData.QualTime || '-'; $('qualShow').textContent = runData.QualTime || '-';
+    $('ctxRated').textContent = rated() ? rated() + ' / hr' : '-'; $('sKphSub').textContent = 'rated ' + (rated() || '-');
+    $('pTsub').textContent = 'gal (kegs × ' + (GAL[runData.KegSize] || '?') + ')';
+    $('nitroRow').style.display = isNitro() ? '' : 'none'; $('n2').required = $('psi').required = isNitro();
+    if (runData.IsMultiBeer && runData.Beers && runData.Beers.length) {
+        $('mbBox').style.display = '';
+        $('mbRows').innerHTML = runData.Beers.map((b, i) => '<div class="mb-row"><div class="fg"><label>Product Code</label><div class="static-val" style="font-size:18px">' + b.ProductCode + '</div></div>'
+            + '<div class="fg"><label>Actual Kegs <span class="req">*</span></label><input type="number" min="0" class="mk" data-i="' + i + '" required oninput="calc()" placeholder="0"></div>'
+            + '<div class="fg"><label>Scheduled</label><div class="sched">' + (b.ScheduledKegs == null ? '-' : b.ScheduledKegs) + '</div></div>'
+            + '<div class="fg"><label>+/&minus;</label><div class="diff">&mdash;</div></div></div>').join('');
+    }
+}
+
+// downtime already logged on the hourly check-ins (total and the planned part)
+function hourlyDT() {
+    let tot = 0, planned = 0;
+    hourly.forEach(h => { tot += parseInt(h.DTMinsThisHour) || 0; (h.DTEvents || []).forEach(e => { if (e.Planned === 'planned') planned += parseInt(e.Minutes) || 0; }); });
+    return { tot, planned };
+}
+function collectDT() {
+    const out = [];
+    document.querySelectorAll('.dt-event-row').forEach(r => { const m = r.querySelector('input').value; if (m !== '') out.push({ Machine: r.querySelector('select').value, Minutes: parseInt(m) || 0, Planned: r.querySelector('.dt-planned-btn').classList.contains('on') ? 'planned' : 'unplanned' }); });
+    return out;
+}
+function addDTRow() {
+    dtN++; const row = document.createElement('div'); row.className = 'dt-event-row';
+    row.innerHTML = '<select onchange="calc()">' + DT_MACHINES.map(m => '<option>' + m + '</option>').join('') + '</select>'
+        + '<input type="number" placeholder="mins" min="0" style="width:80px;" oninput="calc()">'
+        + '<button type="button" class="dt-planned-btn" onclick="this.classList.toggle(\'on\');this.textContent=this.classList.contains(\'on\')?\'Planned\':\'Unplanned\';calc()">Unplanned</button>'
+        + '<button type="button" class="btn-remove" onclick="this.parentNode.remove();calc()">&#215;</button>';
+    $('dtRows').appendChild(row);
+}
+
+function calc() {
+    const c = {}; const tot = num('total');
+    const hd = hourlyDT(), ed = collectDT();
+    const eTot = ed.reduce((s, e) => s + e.Minutes, 0), ePl = ed.filter(e => e.Planned === 'planned').reduce((s, e) => s + e.Minutes, 0);
+    c.grandDT = hd.tot + eTot; c.plannedDT = hd.planned + ePl;
+    $('sDt').textContent = c.grandDT + ' min';
+    const q = runData ? mins(runData.QualTime) : null, e = mins($('endT').value);
+    if (q != null && e != null) {
+        let el = e - q; if (el <= 0) el += 1440;
+        c.elapsed = el; c.adj = Math.max(el - c.plannedDT, 1);
+        $('sRt').textContent = c.adj + ' min'; $('sRtSub').textContent = el + ' elapsed − ' + c.plannedDT + ' planned DT';
+        if (tot != null && tot >= 0 && rated()) {
+            c.kph = tot / (c.adj / 60); c.eff = Math.round(Math.min(c.kph / rated(), 1) * 1000) / 10;
+            $('sKph').textContent = c.kph.toFixed(0); $('sEff').textContent = c.eff.toFixed(1) + '%';
+        } else { $('sKph').textContent = '-'; $('sEff').textContent = '-'; }
+    }
+    // multi-beer: actuals must add up to Final Count
+    let sum = 0, any = false, allIn = true;
+    document.querySelectorAll('#mbRows .mb-row').forEach(r => {
+        const i = r.querySelector('.mk'), d = r.querySelector('.diff'), s = runData.Beers[+i.dataset.i].ScheduledKegs;
+        if (i.value !== '') { any = true; const a = +i.value, x = s == null ? 0 : a - s; sum += a; d.textContent = (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x); d.className = 'diff' + (x < 0 ? ' neg' : x > 0 ? ' pos' : ''); }
+        else { allIn = false; d.textContent = '—'; d.className = 'diff'; }
+    });
+    c.mbOk = !any || (allIn && tot != null && sum === tot);
+    const w = $('mbWarn');
+    if (any && tot != null) { w.textContent = sum === tot ? '✓ Codes add up to Final Count (' + tot + ')' : 'Codes add up to ' + sum + ' but Final Count is ' + tot + ' — must match to submit'; w.style.color = sum === tot ? '#2e7d32' : '#dc3545'; } else w.textContent = '';
+    // flow meters vs physical (gallons per keg by size)
+    const m1 = num('mm1'), m2 = num('mm2'), g = runData ? GAL[runData.KegSize] : null;
+    if (m1 != null || m2 != null) {
+        const fg = (m1 || 0) + (m2 || 0); $('fT').textContent = fg.toFixed(0);
+        if (tot != null && g) { const pg = tot * g, l = fg - pg; c.lossGal = Math.round(l * 10) / 10; c.lossPct = fg ? Math.round(l / fg * 1000) / 10 : null;
+            $('pT').textContent = pg.toFixed(0); $('lT').textContent = l.toFixed(0); $('lP').textContent = fg ? (l / fg * 100).toFixed(1) + '%' : '-'; }
+    }
+    lastCalc = c; return c;
+}
+
+function validate() {
+    let ok = true; const miss = [];
+    document.querySelectorAll('#eorForm [required]').forEach(el => { el.classList.remove('err'); if (el.offsetParent !== null && !String(el.value).trim()) { el.classList.add('err'); ok = false; } });
+    if (!yn.kick) { ok = false; miss.push('Tank Kicked'); }
+    if (yn.kick === 'Yes' && (!yn.glycol || !yn.hpoff)) { ok = false; miss.push('Glycol / Head Pressure off'); }
+    if (!yn.last) { ok = false; miss.push('Last size run on this job?'); }
+    if (!runData) { ok = false; miss.push('no run on this tablet'); }
+    const c = calc();
+    if (!c.mbOk) { ok = false; miss.push('product code kegs must add up to Final Count'); }
+    if (c.elapsed == null) { ok = false; miss.push('Run End Time'); }
+    $('valMsg').style.display = ok ? 'none' : ''; $('valMsg').textContent = ok ? '' : 'Please complete the highlighted fields' + (miss.length ? ': ' + miss.join(', ') : '') + '.';
+    if (!ok) { const f = document.querySelector('#eorForm .err') || $('valMsg'); f.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    return ok;
+}
+
+function collect() {
+    const c = calc(), narr = $('dtNarr').value.trim(), notes = $('notes').value.trim();
+    return {
+        Title: runData.JobNumKey, JobNumKey: runData.JobNumKey, KegSize: runData.KegSize, JobComplete: yn.last === 'Yes',
+        EndTime: $('endT').value, FinalCount: num('total'), FillerCount: num('filler'),
+        ScaleTotals: num('scTot'), ScaleReworks: num('scRw'), ScaleRejects: num('scRj'),
+        Dumps: num('dumps'), KegsOnHold: num('hold'), PressureFaultedKegs: num('pfk'),
+        FlowMM1Gal: num('mm1'), FlowMM2Gal: num('mm2'), FlowLossGal: c.lossGal == null ? null : c.lossGal, FlowLossPct: c.lossPct == null ? null : c.lossPct,
+        MM1TPCO2Final: num('m1co2'), MM1TPDOFinal: num('m1do'), MM2TPCO2Final: num('m2co2'), MM2TPDOFinal: num('m2do'),
+        N2ppbFinal: isNitro() ? num('n2') : null, PressurePSIFinal: isNitro() ? num('psi') : null,
+        TankKicked: yn.kick, GlycolOff: yn.kick === 'Yes' ? yn.glycol : null, HeadPressureOff: yn.kick === 'Yes' ? yn.hpoff : null,
+        EndConductivity: num('cond'), GrandTotalDT: c.grandDT, RunEffPct: c.eff == null ? null : c.eff,
+        EOROpInit: $('opInit').value.trim(),
+        // RackRuns has one notes column: operator notes + the last-partial-hour DT narrative
+        EORNotes: [notes, narr ? 'DT: ' + narr : ''].filter(Boolean).join(' | ') || null,
+        Beers: runData.IsMultiBeer ? [...document.querySelectorAll('#mbRows .mk')].map(i => ({ ProductCode: runData.Beers[+i.dataset.i].ProductCode, ActualKegs: i.value === '' ? null : parseFloat(i.value) })) : [],
+        DTEvents: collectDT()
+    };
+}
+
+async function onSubmit(ev) {
+    ev.preventDefault();
+    if (!validate()) return;
+    const data = collect();
+    if (!FLOW_URL) { showErr('End of Run flow URL is not set in this form — nothing was sent. Your entries are still here. Let Kyle know.'); return; }
+    $('btnSubmit').disabled = true; $('btnSubmit').textContent = 'Saving…';
+    try {
+        const r = await fetch(FLOW_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+    } catch (err) {
+        $('btnSubmit').disabled = false; $('btnSubmit').innerHTML = '&#10003; Submit End of Run';
+        showErr('End of Run did not save to SharePoint (' + err.message + '). Nothing was cleared — check the connection and press Submit again.');
+        return;
+    }
+    // confirmed: archive, then clear this run from the tablet
+    const run = runData;
+    try {
+        const arc = JSON.parse(localStorage.getItem(LS_ARCHIVE) || '[]');
+        arc.push({ run, hourly, eor: data, _ts: new Date().toISOString() }); while (arc.length > 20) arc.shift();
+        localStorage.setItem(LS_ARCHIVE, JSON.stringify(arc));
+    } catch (e) {}
+    try { localStorage.removeItem(LS_RUN); localStorage.removeItem(LS_HOURLY); } catch (e) {}
+    showFinal(data, run);
+}
+
+function showFinal(d, run) {
+    $('finTitle').textContent = d.JobComplete ? 'Job Complete' : 'Size Run Closed';
+    $('finSub').textContent = run.JobNumKey + ' — ' + run.KegSize + (d.JobComplete ? ' — recap email will be sent' : ' — start the next size');
+    const dash = v => (v === null || v === undefined || v === '') ? '-' : v;
+    const rows = [['Final Count', d.FinalCount + ' kegs'], ['Run Efficiency', d.RunEffPct == null ? '-' : d.RunEffPct.toFixed(1) + '%'], ['Total Downtime', d.GrandTotalDT + ' min'],
+        ['Flow Loss', d.FlowLossGal == null ? '-' : d.FlowLossGal + ' gal (' + dash(d.FlowLossPct) + '%)'], ['Tank Kicked', d.TankKicked], ['Operator', d.EOROpInit]]
+        .concat(d.Beers.map(b => [b.ProductCode, b.ActualKegs + ' kegs']));
+    $('finBody').innerHTML = rows.map(r => '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + r[1] + '</span></div>').join('');
+    const q = 'job=' + encodeURIComponent(run.JobNumKey || '') + '&batch=' + encodeURIComponent(run.BatchNum || '') + '&date=' + encodeURIComponent(run.RunDate || '');
+    $('finFoot').innerHTML = d.JobComplete
+        ? '<button type="button" class="btn-submit" onclick="location.href=\'Racker_Run_Start_Form.html\'">Done &mdash; Back to Run Start</button>'
+        : '<button type="button" class="btn-submit" onclick="location.href=\'Racker_Run_Start_Form.html?' + q + '\'">Next Size on This Job &rarr;</button>';
+    $('finalOv').classList.add('show');
+}
+
+function showErr(msg) { const b = $('errBar'); b.textContent = 'ERROR: ' + msg; b.classList.add('show'); b.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadRun(); calc();
+    $('eorForm').addEventListener('submit', onSubmit);
+    ['input','change'].forEach(ev => $('eorForm').addEventListener(ev, e => { if (e.target.classList) e.target.classList.remove('err'); }));
+});
+</script>
+</body>
+</html>
