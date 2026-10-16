@@ -248,7 +248,7 @@
 .pfx[data-k="last"] button.f{background:#1F3864;border-color:#1F3864;color:#fff}
 </style></head>
 <body>
-<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run</p></div><div class="hour-badge">FORM 3 OF 3</div></div>
+<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-16</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
 <div class="ctx-bar">
   <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">-</span></div>
   <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">-</span></div>
@@ -327,7 +327,16 @@
   <p class="hint">Auto-calculated from Final Count &divide; run time (minus planned downtime) &divide; rated speed. Nothing to enter here.</p>
 </div></div>
 
-<div class="card"><div class="card-hdr"><div class="card-num">8</div><div class="card-title">Sign-Off</div></div><div class="card-body">
+<div class="card"><div class="card-hdr"><div class="card-num">8</div><div class="card-title">Hand Rack</div></div><div class="card-body">
+  <div class="chk"><span class="chk-lbl">Any hand racking on this job? <span class="req">*</span> <span class="hint">&mdash; 20L / 30L Uni kegs filled by hand</span></span><div class="pfx" data-k="hr"><button type="button" onclick="setYN('hr','Yes')">&#10003; Yes</button><button type="button" onclick="setYN('hr','No')">&#10007; No</button></div></div>
+  <div class="cond" id="hrBox">
+    <p class="hint" style="margin-bottom:10px">One line per size. Enter hand-racked kegs <b>before</b> the final &ldquo;job done&rdquo; End of Run so they make the recap email. Hand racks are not part of line efficiency.</p>
+    <div id="hrRows"></div>
+    <button type="button" class="btn-add-dt" onclick="addHRRow()">+ Add Size</button>
+  </div>
+</div></div>
+
+<div class="card"><div class="card-hdr"><div class="card-num">9</div><div class="card-title">Sign-Off</div></div><div class="card-body">
   <div class="chk"><span class="chk-lbl">Last size run on this job? <span class="req">*</span> <span class="hint">&mdash; Yes sends the job recap email</span></span><div class="pfx" data-k="last"><button type="button" onclick="setYN('last','Yes')">&#10003; Yes, job done</button><button type="button" onclick="setYN('last','No')">More sizes to run</button></div></div>
   <div class="row c2">
     <div class="fg"><label>Operator Initials <span class="req">*</span></label><input type="text" class="initials-input" id="opInit" maxlength="4" placeholder="CS" required oninput="this.value=this.value.toUpperCase()"></div>
@@ -361,12 +370,13 @@ const DT_MACHINES = ['Empty Keg Elev','External washer','MM Infeed','MM1','MM2',
 
 const $ = id => document.getElementById(id);
 let runData = null, hourly = [], dtN = 0, lastCalc = {};
-const yn = { kick:'', glycol:'', hpoff:'', last:'' };
+const yn = { kick:'', glycol:'', hpoff:'', last:'', hr:'' };
 
 function setYN(k, v) {
     yn[k] = v;
     const b = document.querySelector('.pfx[data-k="' + k + '"]').children;
     b[0].className = v === 'Yes' ? 'p' : ''; b[1].className = v === 'No' ? 'f' : '';
+    if (k === 'hr') { $('hrBox').classList.toggle('show', v === 'Yes'); if (v === 'Yes' && !document.querySelector('#hrRows .hr-row')) addHRRow(); }
     if (k === 'kick') { $('kickBox').classList.toggle('show', v === 'Yes'); if (v !== 'Yes') { yn.glycol = yn.hpoff = ''; ['glycol','hpoff'].forEach(x => { const c = document.querySelector('.pfx[data-k="' + x + '"]').children; c[0].className = c[1].className = ''; }); } }
 }
 function num(id) { const v = $(id).value; return v === '' ? null : parseFloat(v); }
@@ -415,6 +425,29 @@ function addDTRow() {
     $('dtRows').appendChild(row);
 }
 
+// hand rack lines: each becomes its own RackRuns row (IsHandRack = Yes) on this job (Kyle 10/16)
+function addHRRow() {
+    const row = document.createElement('div'); row.className = 'hr-row';
+    row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;border:1px solid var(--g200,#ddd);border-radius:8px';
+    const beer = runData ? (runData.BeerCode || '') : '';
+    row.innerHTML = '<div class="fg" style="flex:1;min-width:110px"><label>Size</label><select class="hr-size"><option>20L Uni</option><option>30L Uni</option></select></div>'
+        + '<div class="fg" style="flex:1;min-width:80px"><label>Kegs <span class="req">*</span></label><input type="number" min="1" class="hr-kegs" placeholder="0"></div>'
+        + '<div class="fg" style="flex:1;min-width:100px"><label>Beer</label><input type="text" class="hr-beer" value="' + String(beer).replace(/"/g, '&quot;') + '"></div>'
+        + '<div class="fg" style="flex:1;min-width:90px"><label>Sample Taken</label><select class="hr-sample"><option>Yes</option><option>No</option></select></div>'
+        + '<div class="fg" style="flex:1;min-width:70px"><label>Initials <span class="req">*</span></label><input type="text" class="hr-init initials-input" maxlength="4" oninput="this.value=this.value.toUpperCase()"></div>'
+        + '<button type="button" class="btn-remove" onclick="this.parentNode.remove()">&#215;</button>';
+    $('hrRows').appendChild(row);
+}
+function collectHR() {
+    if (yn.hr !== 'Yes' || !runData) return [];
+    return [...document.querySelectorAll('#hrRows .hr-row')].map(r => ({
+        Title: runData.JobNumKey, JobNumKey: runData.JobNumKey, BatchNum: runData.BatchNum || null, RunDate: runData.RunDate || null, BBT: runData.BBT || null,
+        BeerCode: r.querySelector('.hr-beer').value.trim() || runData.BeerCode || null, KegSize: r.querySelector('.hr-size').value,
+        FinalCount: parseInt(r.querySelector('.hr-kegs').value) || 0, IsHandRack: true, HandRackSampleTaken: r.querySelector('.hr-sample').value === 'Yes',
+        EOROpInit: r.querySelector('.hr-init').value.trim(), EndTime: $('endT').value || null, RunStatus: 'Closed', RecapSent: false
+    }));
+}
+
 function calc() {
     const c = {}; const tot = num('total');
     const hd = hourlyDT(), ed = collectDT();
@@ -457,6 +490,14 @@ function validate() {
     if (!yn.kick) { ok = false; miss.push('Tank Kicked'); }
     if (yn.kick === 'Yes' && (!yn.glycol || !yn.hpoff)) { ok = false; miss.push('Glycol / Head Pressure off'); }
     if (!yn.last) { ok = false; miss.push('Last size run on this job?'); }
+    if (!yn.hr) { ok = false; miss.push('Any hand racking?'); }
+    if (yn.hr === 'Yes') {
+        const rows = [...document.querySelectorAll('#hrRows .hr-row')];
+        if (!rows.length) { ok = false; miss.push('add at least one hand rack line'); }
+        rows.forEach(r => { const k = r.querySelector('.hr-kegs'), i = r.querySelector('.hr-init'); [k, i].forEach(x => x.classList.remove('err'));
+            if (!(parseInt(k.value) > 0)) { k.classList.add('err'); ok = false; } if (!i.value.trim()) { i.classList.add('err'); ok = false; } });
+        if (rows.some(r => !(parseInt(r.querySelector('.hr-kegs').value) > 0) || !r.querySelector('.hr-init').value.trim())) miss.push('hand rack kegs and initials');
+    }
     if (!runData) { ok = false; miss.push('no run on this tablet'); }
     const c = calc();
     if (!c.mbOk) { ok = false; miss.push('product code kegs must add up to Final Count'); }
@@ -482,7 +523,8 @@ function collect() {
         // RackRuns has one notes column: operator notes + the last-partial-hour DT narrative
         EORNotes: [notes, narr ? 'DT: ' + narr : ''].filter(Boolean).join(' | ') || null,
         Beers: runData.IsMultiBeer ? [...document.querySelectorAll('#mbRows .mk')].map(i => ({ ProductCode: runData.Beers[+i.dataset.i].ProductCode, ActualKegs: i.value === '' ? null : parseFloat(i.value) })) : [],
-        DTEvents: collectDT()
+        DTEvents: collectDT(),
+        HandRacks: collectHR()
     };
 }
 
@@ -517,7 +559,8 @@ function showFinal(d, run) {
     const dash = v => (v === null || v === undefined || v === '') ? '-' : v;
     const rows = [['Final Count', d.FinalCount + ' kegs'], ['Run Efficiency', d.RunEffPct == null ? '-' : d.RunEffPct.toFixed(1) + '%'], ['Total Downtime', d.GrandTotalDT + ' min'],
         ['Flow Loss', d.FlowLossGal == null ? '-' : d.FlowLossGal + ' gal (' + dash(d.FlowLossPct) + '%)'], ['Tank Kicked', d.TankKicked], ['Operator', d.EOROpInit]]
-        .concat(d.Beers.map(b => [b.ProductCode, b.ActualKegs + ' kegs']));
+        .concat(d.Beers.map(b => [b.ProductCode, b.ActualKegs + ' kegs']))
+        .concat((d.HandRacks || []).map(h => ['Hand rack ' + h.KegSize + ' (' + (h.BeerCode || '-') + ')', h.FinalCount + ' kegs']));
     $('finBody').innerHTML = rows.map(r => '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + r[1] + '</span></div>').join('');
     const q = 'job=' + encodeURIComponent(run.JobNumKey || '') + '&batch=' + encodeURIComponent(run.BatchNum || '') + '&date=' + encodeURIComponent(run.RunDate || '');
     $('finFoot').innerHTML = d.JobComplete
