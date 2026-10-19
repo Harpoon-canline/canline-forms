@@ -65,7 +65,7 @@
         background: white; -webkit-appearance: none; transition: border-color .15s;
     }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--navy); }
-    input.err { border-color: var(--red); }
+    input.err, select.err { border-color: var(--red); }
     .hint { font-size: 11px; color: var(--g600); font-style: italic; }
     .req  { color: var(--red); }
     .static-val { font-size: 22px; font-weight: 700; color: var(--navy, #1b2f52); padding: 10px 2px; }
@@ -248,7 +248,7 @@
 .pfx[data-k="last"] button.f{background:#1F3864;border-color:#1F3864;color:#fff}
 </style></head>
 <body>
-<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-16</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
+<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-19</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
 <div class="ctx-bar">
   <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">-</span></div>
   <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">-</span></div>
@@ -312,6 +312,7 @@
 
 <div class="card"><div class="card-hdr"><div class="card-num">6</div><div class="card-title">Downtime &mdash; Last Partial Hour</div></div><div class="card-body">
   <p class="hint" style="margin-bottom:12px">Always open. Add a row for each machine that stopped since the last hourly check-in; leave blank if none. Changeover time goes to <b>Changeover</b>.</p>
+  <div id="dtEst" class="hint" style="font-style:normal;font-weight:700;padding:10px 12px;border-radius:8px;margin-bottom:12px;background:#f1f3f5">Enter the End Time and Final Count to see the downtime to assign.</div>
   <div id="dtRows"></div>
   <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
   <div class="fg"><label>What Happened / Action Taken</label><textarea id="dtNarr" placeholder="Describe the issue and what was done to resolve it..."></textarea></div>
@@ -413,12 +414,12 @@ function hourlyDT() {
 }
 function collectDT() {
     const out = [];
-    document.querySelectorAll('.dt-event-row').forEach(r => { const m = r.querySelector('input').value; if (m !== '') out.push({ Machine: r.querySelector('select').value, Minutes: parseInt(m) || 0, Planned: r.querySelector('.dt-planned-btn').classList.contains('on') ? 'planned' : 'unplanned' }); });
+    document.querySelectorAll('.dt-event-row').forEach(r => { const m = r.querySelector('input').value; if (m !== '') out.push({ Machine: r.querySelector('select').value, Minutes: parseInt(m) || 0, Planned: r.querySelector('.dt-planned-btn').classList.contains('on') ? 'planned' : 'unplanned', BatchNum: runData ? (runData.BatchNum || null) : null }); });
     return out;
 }
 function addDTRow() {
     dtN++; const row = document.createElement('div'); row.className = 'dt-event-row';
-    row.innerHTML = '<select onchange="calc()">' + DT_MACHINES.map(m => '<option>' + m + '</option>').join('') + '</select>'
+    row.innerHTML = '<select onchange="calc()"><option value="">&mdash; Select machine &mdash;</option>' + DT_MACHINES.map(m => '<option>' + m + '</option>').join('') + '</select>'
         + '<input type="number" placeholder="mins" min="0" style="width:80px;" oninput="calc()">'
         + '<button type="button" class="dt-planned-btn" onclick="this.classList.toggle(\'on\');this.textContent=this.classList.contains(\'on\')?\'Planned\':\'Unplanned\';calc()">Unplanned</button>'
         + '<button type="button" class="btn-remove" onclick="this.parentNode.remove();calc()">&#215;</button>';
@@ -464,6 +465,19 @@ function calc() {
             $('sKph').textContent = c.kph.toFixed(0); $('sEff').textContent = c.eff.toFixed(1) + '%';
         } else { $('sKph').textContent = '-'; $('sEff').textContent = '-'; }
     }
+    // 2026-10-19: downtime the counts show (elapsed minus the time needed at rated speed) vs downtime assigned to machines.
+    // Planned DT is on both sides (it is in the elapsed time and in the assigned rows), so it cancels out.
+    // Tolerance: 1 min, plus half a minute per hourly check-in (each hour rounds its own downtime).
+    c.tolDT = 1 + Math.floor(hourly.length / 2); c.estDT = null; c.remDT = null;
+    const est = $('dtEst');
+    if (c.elapsed != null && tot != null && tot >= 0 && rated()) {
+        c.estDT = Math.max(0, Math.round(c.elapsed - tot / rated() * 60));
+        c.remDT = c.estDT - c.grandDT;
+        const parts = 'Downtime this run (from the counts): <b>' + c.estDT + ' min</b> &middot; Assigned: ' + c.grandDT + ' min' + (hd.tot ? ' (' + hd.tot + ' hourly + ' + eTot + ' here)' : '');
+        if (c.remDT > c.tolDT) { est.innerHTML = parts + '<br>&#9888; Assign the remaining <b>' + c.remDT + ' min</b> to a machine below before submitting.'; est.style.background = '#fdecea'; est.style.color = '#b71c1c'; }
+        else if (c.remDT < -c.tolDT) { est.innerHTML = parts + '<br>More downtime is assigned than the counts show (' + (-c.remDT) + ' min over). Double-check the minutes &mdash; you can still submit.'; est.style.background = '#fff4e5'; est.style.color = '#8a5300'; }
+        else { est.innerHTML = parts + '<br>&#10003; Downtime is fully assigned.'; est.style.background = '#e8f5e9'; est.style.color = '#2e7d32'; }
+    } else { est.textContent = 'Enter the End Time and Final Count to see the downtime to assign.'; est.style.background = '#f1f3f5'; est.style.color = ''; }
     // multi-beer: actuals must add up to Final Count
     let sum = 0, any = false, allIn = true;
     document.querySelectorAll('#mbRows .mb-row').forEach(r => {
@@ -502,6 +516,13 @@ function validate() {
     const c = calc();
     if (!c.mbOk) { ok = false; miss.push('product code kegs must add up to Final Count'); }
     if (c.elapsed == null) { ok = false; miss.push('Run End Time'); }
+    // 2026-10-19 downtime rows: each row needs a machine AND minutes; all downtime must be assigned
+    let badRow = false;
+    document.querySelectorAll('#dtRows .dt-event-row').forEach(r => { const sel = r.querySelector('select'), inp = r.querySelector('input'); sel.classList.remove('err'); inp.classList.remove('err');
+        const hasM = inp.value !== '' && parseInt(inp.value) > 0, hasS = sel.value !== '';
+        if (hasM && !hasS) { sel.classList.add('err'); badRow = true; } if (hasS && !hasM) { inp.classList.add('err'); badRow = true; } });
+    if (badRow) { ok = false; miss.push('each downtime row needs a machine and minutes'); }
+    if (c.remDT != null && c.remDT > c.tolDT) { ok = false; miss.push('assign the remaining ' + c.remDT + ' min of downtime to a machine (Section 6)'); }
     $('valMsg').style.display = ok ? 'none' : ''; $('valMsg').textContent = ok ? '' : 'Please complete the highlighted fields' + (miss.length ? ': ' + miss.join(', ') : '') + '.';
     if (!ok) { const f = document.querySelector('#eorForm .err') || $('valMsg'); f.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     return ok;
@@ -562,7 +583,9 @@ function showFinal(d, run) {
         .concat(d.Beers.map(b => [b.ProductCode, b.ActualKegs + ' kegs']))
         .concat((d.HandRacks || []).map(h => ['Hand rack ' + h.KegSize + ' (' + (h.BeerCode || '-') + ')', h.FinalCount + ' kegs']));
     $('finBody').innerHTML = rows.map(r => '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + r[1] + '</span></div>').join('');
-    const q = 'job=' + encodeURIComponent(run.JobNumKey || '') + '&batch=' + encodeURIComponent(run.BatchNum || '') + '&date=' + encodeURIComponent(run.RunDate || '');
+    const q = 'job=' + encodeURIComponent(run.JobNumKey || '') + '&batch=' + encodeURIComponent(run.BatchNum || '') + '&date=' + encodeURIComponent(run.RunDate || '')
+        + '&bbt=' + encodeURIComponent(run.BBT || '') + '&beer=' + encodeURIComponent(run.BeerCode || '')
+        + '&co2=' + encodeURIComponent(run.TankCO2 == null ? '' : run.TankCO2) + '&do=' + encodeURIComponent(run.TankDO == null ? '' : run.TankDO);
     $('finFoot').innerHTML = d.JobComplete
         ? '<button type="button" class="btn-submit" onclick="location.href=\'Racker_Run_Start_Form.html\'">Done &mdash; Back to Run Start</button>'
         : '<button type="button" class="btn-submit" onclick="location.href=\'Racker_Run_Start_Form.html?' + q + '\'">Next Size on This Job &rarr;</button>';
