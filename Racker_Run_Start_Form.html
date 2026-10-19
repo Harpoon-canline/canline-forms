@@ -792,6 +792,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (q.get('job'))   $('jobNum').value   = q.get('job');
     if (q.get('batch')) $('batchNum').value = q.get('batch');
     if (q.get('date'))  $('runDate').value  = q.get('date');
+    // 2026-10-19: Next Size also carries BBT, beer code and tank CO2/DO from the previous size (all still editable)
+    if (q.get('bbt'))  $('bbt').value      = q.get('bbt');
+    if (q.get('beer')) $('beerCode').value = q.get('beer');
+    if (q.get('co2'))  $('tankCO2').value  = q.get('co2');
+    if (q.get('do'))   $('tankDO').value   = q.get('do');
     checkSaved();
     $('form').addEventListener('submit', onSubmit);
     ['input','change'].forEach(ev => $('form').addEventListener(ev, e => { if (e.target.classList) e.target.classList.remove('error'); }));
