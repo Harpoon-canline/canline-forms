@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-20</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-20b</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -843,9 +843,10 @@
               <span>Net Good Cases</span>
               <span class="avg-val" id="eorNetDisplay">&mdash;</span>
             </div>
-            <!-- 2026-10-20: mix packs (2/12 formats only) -->
+            <!-- 2026-10-20: mix packs (2/12 formats only). 2026-10-20b: shown only when Run Start said Mix packs = Yes; the Yes/No question is hidden -->
             <div id="mixBox" style="display:none;margin-top:12px;">
-              <div class="check-group">
+              <p class="hint" id="mixSchedHint" style="font-style:normal;font-weight:700;margin-bottom:6px;"></p>
+              <div class="check-group" id="mixAsk" style="display:none;">
                 <span class="check-group-lbl">Mix packs on this run? <span class="req">*</span></span>
                 <div class="two-person-row">
                   <button type="button" class="yn-btn" id="mixY" onclick="setMix('Y')">&#10003; Yes</button>
@@ -1746,7 +1747,13 @@ function openEOR() {
         sleeveIn.value = '';
     }
 
-    document.getElementById('mixBox').style.display = isTwoTwelve() ? '' : 'none';
+    // 2026-10-20b: mix split only when Run Start said Mix packs = Yes (strict, no late Yes)
+    var mixOn = isTwoTwelve() && runData && runData.mixPacks === 'Y';
+    document.getElementById('mixBox').style.display = mixOn ? '' : 'none';
+    document.getElementById('mixSchedHint').textContent = mixOn
+        ? 'Mix pack run \u2014 scheduled ' + (parseInt(runData.schedCasesRegular) || 0).toLocaleString() + ' Regular + ' + (parseInt(runData.schedCasesMix) || 0).toLocaleString() + ' Mix. Enter the actual split:'
+        : '';
+    setMix(mixOn ? 'Y' : 'N');
 
     document.getElementById('eorOverlay').className = 'eor-overlay show';
     document.getElementById('eorOverlay').scrollTop = 0;
@@ -1891,7 +1898,7 @@ function calcEorEfficiency() {
     document.getElementById('eorEffCard').style.display = 'block';
 }
 
-function isTwoTwelve() { return !!(runData && (runData.pkgConfig || '').indexOf('2/12') !== -1); }
+function isTwoTwelve() { return !!(runData && (runData.pkgConfig || '').indexOf('12oz 2/12') === 0); }   // mix packs: 12oz 2/12 only
 function setMix(v) {
     eorMix = v;
     document.getElementById('mixY').className = 'yn-btn' + (v === 'Y' ? ' yes' : '');
@@ -1943,7 +1950,6 @@ function validateEOR() {
     if (badDtRows('#eorDtRows .eor-dt-event-row')) { ok = false; msgs.push('each downtime row needs a machine and minutes'); }
     calcEorEfficiency();
     if (eorDtRem !== null && eorDtRem > 1) { ok = false; msgs.push('assign the remaining ' + eorDtRem + ' min of downtime to a machine'); }
-    if (isTwoTwelve() && !eorMix) { ok = false; msgs.push('answer "Mix packs on this run?"'); }
     if (!mixCheck()) { ok = false; msgs.push('Regular + Mix Pack cases must add up to Net Good Cases'); }
     var eb = document.getElementById('eorSubmitErr');
     if (msgs.length) { eb.textContent = 'Please fix: ' + msgs.join('; ') + '.'; eb.className = 'err-bar show'; }
