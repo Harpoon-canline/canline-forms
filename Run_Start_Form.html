@@ -329,7 +329,7 @@
 <!-- HEADER -->
 <div class="header">
     <div>
-        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-20</span></h1>
+        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-20b</span></h1>
         <p>Harpoon Can Line &mdash; Fill at Qualification</p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
@@ -473,6 +473,7 @@
                 <div class="fg">
                     <label for="schedCases">Scheduled Case QTY <span class="req">*</span></label>
                     <input type="number" id="schedCases" name="schedCases" placeholder="0" min="0" required oninput="onSchedCases()">
+                    <span class="hint" id="schedCasesHint" style="display:none;">Auto total: Regular + Mix</span>
                 </div>
                 <div class="fg">
                     <label for="schedCans">Scheduled Can QTY</label>
@@ -480,6 +481,27 @@
                     <span class="hint" id="schedCansHint">Select a package format first</span>
                 </div>
             </div>
+            <!-- 2026-10-20b: mix packs decided at Run Start (2/12 formats only) -->
+            <div id="rsMixBox" style="display:none;margin-top:14px;">
+                <span class="check-lbl">Mix packs on this run? <span class="req">*</span> <span class="check-sub">&#8212; Yes splits Scheduled Cases into Regular + Mix</span></span>
+                <div class="yn-row">
+                    <button type="button" class="yn-btn" id="mixPacksY" onclick="setRsMix('Y')">&#10003; Yes</button>
+                    <button type="button" class="yn-btn" id="mixPacksN" onclick="setRsMix('N')">&#10007; No</button>
+                </div>
+                <input type="hidden" id="mixPacksYN" name="mixPacks" value="">
+                <div class="row col-2" id="rsMixSplit" style="display:none;margin-top:12px;">
+                    <div class="fg">
+                        <label for="schedCasesRegular">Scheduled Regular Cases <span class="req">*</span></label>
+                        <input type="number" id="schedCasesRegular" name="schedCasesRegular" placeholder="0" min="0" oninput="onMixSched()">
+                    </div>
+                    <div class="fg">
+                        <label for="schedCasesMix">Scheduled Mix Pack Cases <span class="req">*</span></label>
+                        <input type="number" id="schedCasesMix" name="schedCasesMix" placeholder="0" min="0" oninput="onMixSched()">
+                    </div>
+                </div>
+                <p class="hint" id="rsMixMsg" style="font-style:normal;font-weight:700;"></p>
+            </div>
+
             <p class="hint" style="margin-top:4px;">Sleeve count is recorded at End of Run on the Hourly Check-In form.</p>
 
         </div>
@@ -939,7 +961,54 @@ function onConfig() {
     // Paktech lot number is recorded by downstairs ops (Pages 6-7) — not on this form
     // Sleeve count is recorded at End of Run on the Hourly Check-In form
 
+    // 2026-10-20b: mix packs question only for 12oz 2/12 formats
+    const twoTwelve = cfg.indexOf('12oz 2/12') === 0;   // mix packs: 12oz 2/12 only (not 16oz)
+    document.getElementById('rsMixBox').style.display = twoTwelve ? '' : 'none';
+    if (!twoTwelve && document.getElementById('mixPacksYN').value) setRsMix('');
+
     // Case qty → can qty conversion depends on the config, so refresh it too
+    onSchedCases();
+}
+
+// ─────────────────────────────────────────────
+// MIX PACKS (2026-10-20b) — 2/12 only
+// Yes: Scheduled Regular + Scheduled Mix required; Scheduled Cases = their total (locked).
+// No / not 2/12: Scheduled Cases typed as before.
+// ─────────────────────────────────────────────
+function setRsMix(val) {
+    document.getElementById('mixPacksY').className = 'yn-btn' + (val === 'Y' ? ' yes' : '');
+    document.getElementById('mixPacksN').className = 'yn-btn' + (val === 'N' ? ' no'  : '');
+    document.getElementById('mixPacksYN').value = val;
+    const yes   = val === 'Y';
+    const sc    = document.getElementById('schedCases');
+    const reg   = document.getElementById('schedCasesRegular');
+    const mix   = document.getElementById('schedCasesMix');
+    document.getElementById('rsMixSplit').style.display = yes ? '' : 'none';
+    document.getElementById('schedCasesHint').style.display = yes ? '' : 'none';
+    sc.readOnly = yes;
+    sc.classList.toggle('readonly', yes);
+    reg.required = yes; mix.required = yes;
+    if (yes) { onMixSched(); }
+    else {
+        reg.value = ''; mix.value = '';
+        reg.classList.remove('error'); mix.classList.remove('error');
+        document.getElementById('rsMixMsg').textContent = '';
+    }
+}
+function onMixSched() {
+    const r = document.getElementById('schedCasesRegular').value;
+    const m = document.getElementById('schedCasesMix').value;
+    const sc = document.getElementById('schedCases');
+    const msg = document.getElementById('rsMixMsg');
+    if (r === '' || m === '') {
+        sc.value = '';
+        msg.textContent = 'Enter both Regular and Mix Pack scheduled cases.'; msg.style.color = '#b71c1c';
+    } else {
+        const tot = (parseInt(r, 10) || 0) + (parseInt(m, 10) || 0);
+        sc.value = tot;
+        msg.textContent = '\u2713 Scheduled Cases = ' + (parseInt(r,10)||0).toLocaleString() + ' Regular + ' + (parseInt(m,10)||0).toLocaleString() + ' Mix = ' + tot.toLocaleString();
+        msg.style.color = '#2e7d32';
+    }
     onSchedCases();
 }
 
@@ -1024,7 +1093,10 @@ function submitToFlow(data) {
     }
             const payload = Object.assign({}, data);
             // Cast fields to match the flow's trigger schema types (Integer / Number)
-            const intFields = ['julianDate', 'ratedCPM', 'ratedUPH', 'schedCases', 'fillerHours'];
+            // 2026-10-20b: mix packs. Not Yes => regular = scheduled, mix = 0
+            if (data.mixPacks !== 'Y') { payload.schedCasesRegular = data.schedCases; payload.schedCasesMix = '0'; }
+            payload.mixPacks = (data.mixPacks === 'Y');
+            const intFields = ['julianDate', 'ratedCPM', 'ratedUPH', 'schedCases', 'fillerHours', 'schedCasesRegular', 'schedCasesMix'];
             const numFields = ['beerTemp', 'co2BBT', 'doBBT', 'tpCO2', 'tpDO', 'shakenDO', 'hazeEBC', 'bowlDO', 'bowlCO2', 'bowlBeerTemp', 'headPressure', 'n2Ppb', 'pressurePsi'];
             payload.isNitro = (data.isNitro === 'Y');  // Yes/No column in SharePoint wants true/false
             intFields.forEach(f => {
@@ -1049,6 +1121,18 @@ function validate() {
         el.classList.remove('error');
         if (!el.value.trim()) { el.classList.add('error'); ok = false; }
     });
+    // 2026-10-20b: 2/12 runs must answer the mix packs question; Yes needs Mix > 0
+    if (document.getElementById('pkgConfig').value.indexOf('12oz 2/12') === 0) {
+        const mp = document.getElementById('mixPacksYN').value;
+        const msg = document.getElementById('rsMixMsg');
+        if (!mp) {
+            ok = false; msg.textContent = 'Answer "Mix packs on this run?"'; msg.style.color = '#b71c1c';
+            document.getElementById('mixPacksY').classList.add('error');
+        } else if (mp === 'Y' && (parseInt(document.getElementById('schedCasesMix').value, 10) || 0) <= 0) {
+            ok = false; document.getElementById('schedCasesMix').classList.add('error');
+            msg.textContent = 'Mix Pack cases must be more than 0 (or answer No).'; msg.style.color = '#b71c1c';
+        }
+    }
     if (!ok) {
         const first = document.querySelector('#form .error');
         if (first) first.scrollIntoView({behavior:'smooth', block:'center'});
@@ -1097,6 +1181,7 @@ function showConf(d) {
         ['Beginning Seam Check', cap(d.seamPF)    + (d.seamOpInit    ? '  Op: ' + d.seamOpInit    + ' / Vr: ' + d.seamVrInit    : '')],
         ['Lid Type',             d.lidType],
         ['Scheduled Cases',      d.schedCases],
+        ...(d.mixPacks === 'Y' ? [['  Regular (sched.)', d.schedCasesRegular], ['  Mix Pack (sched.)', d.schedCasesMix]] : []),
         ['Pallet Tags (Op)',      d.ptOpInit],
         ['Pallet Tags (Vr)',      d.ptVrInit],
         ['Operator',             d.opInitials],
