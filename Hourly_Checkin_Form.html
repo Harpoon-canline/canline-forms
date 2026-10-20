@@ -74,7 +74,8 @@
         background: white; -webkit-appearance: none; transition: border-color .15s;
     }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--navy); }
-    input.err { border-color: var(--red); }
+    input.err, select.err { border-color: var(--red); }
+    .dt-status { font-weight:700; padding:10px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; background:#f1f3f5; }
     .hint { font-size: 11px; color: var(--g600); font-style: italic; }
     .req  { color: var(--red); }
     .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
@@ -247,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour</p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-20</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -315,7 +316,7 @@
                 </div>
                 <div class="fg">
                     <label for="dtMins">Downtime This Hour (mins)</label>
-                    <input type="number" id="dtMins" name="dtMins" placeholder="0" min="0" max="60" value="0" oninput="onDtChange(this.value)">
+                    <input type="number" id="dtMins" name="dtMins" placeholder="0" min="0" max="60" value="0" oninput="onDtChange(this.value); dtStatus()">
                     <span class="hint">Auto-calculated &mdash; edit to override</span>
                 </div>
             </div>
@@ -484,6 +485,7 @@
         <div class="card-hdr"><div class="card-num">4</div><div class="card-title">Downtime Breakdown</div></div>
         <div class="card-body">
             <p class="hint" style="margin-bottom:12px;">Always open &mdash; jot notes during the hour. Add a row for each machine that stopped; leave blank if no downtime.</p>
+            <div id="dtAssign" class="dt-status" style="display:none"></div>
             <div id="dtRows"></div>
             <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
             <div class="fg">
@@ -578,7 +580,8 @@
               </div>
             </div>
             <hr class="divider">
-            <p class="hint" style="margin-bottom:8px;">Add a row for each machine / event that caused DT this run.</p>
+            <p class="hint" style="margin-bottom:8px;">Add a row for each machine / event that caused DT in the final partial hour.</p>
+            <div id="eorDtAssign" class="dt-status">Enter the end time and final counter to see the downtime to assign.</div>
             <div id="eorDtRows"></div>
             <button type="button" class="btn-add-dt" onclick="addEorDTRow()">+ Add Machine</button>
             <div class="fg">
@@ -840,9 +843,37 @@
               <span>Net Good Cases</span>
               <span class="avg-val" id="eorNetDisplay">&mdash;</span>
             </div>
+            <!-- 2026-10-20: mix packs (2/12 formats only) -->
+            <div id="mixBox" style="display:none;margin-top:12px;">
+              <div class="check-group">
+                <span class="check-group-lbl">Mix packs on this run? <span class="req">*</span></span>
+                <div class="two-person-row">
+                  <button type="button" class="yn-btn" id="mixY" onclick="setMix('Y')">&#10003; Yes</button>
+                  <button type="button" class="yn-btn" id="mixN" onclick="setMix('N')">&#10007; No</button>
+                </div>
+              </div>
+              <div id="mixSplit" style="display:none;">
+                <div class="row c2">
+                  <div class="fg"><label for="eorRegCases">Regular Cases <span class="req">*</span></label><input type="number" id="eorRegCases" min="0" placeholder="0" oninput="mixCheck()"></div>
+                  <div class="fg"><label for="eorMixCases">Mix Pack Cases <span class="req">*</span></label><input type="number" id="eorMixCases" min="0" placeholder="0" oninput="mixCheck()"></div>
+                </div>
+                <p class="hint" id="mixMsg" style="font-style:normal;font-weight:700;"></p>
+              </div>
+            </div>
             <input type="hidden" id="eorTotalCansHid"  name="eorTotalCansHid"  value="0">
             <input type="hidden" id="eorNetCasesHid"   name="eorNetCasesHid"   value="0">
             <input type="hidden" id="eorGrandTotalDT"  name="eorGrandTotalDT"  value="0">
+          </div>
+        </div>
+
+        <!-- 2026-10-20: Run Notes (same as the Racker) -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-title">Run Notes</div></div>
+          <div class="card-body">
+            <div class="fg">
+              <label for="eorRunNotes">Anything else about this run (optional)</label>
+              <textarea id="eorRunNotes" name="eorRunNotes" placeholder="e.g. tank swap, hold reason, quality issue..."></textarea>
+            </div>
           </div>
         </div>
 
@@ -947,6 +978,8 @@ var hourlyData   = [];
 var dtRowCount   = 0;
 var eorDtRowCount = 0;
 var eorLoggedDT  = 0;  // DT from completed logged hours — set in openEOR()
+var eorDtRem = null;  // EOR: partial-hour downtime not yet assigned to machines (2026-10-20)
+var eorMix = '';     // EOR: mix packs on this run? 'Y' / 'N' (2/12 only)
 var eorTotalRunMinutes = 0;  // total elapsed run minutes (logged hours + final partial) — set in calcEorEfficiency()
 
 // ── INIT ──────────────────────────────────────────────────
@@ -954,6 +987,7 @@ window.onload = function() {
     try {
         loadRunContext();
         loadHourlyHistory();
+        prefillTargetWeight();
         updateHourBadge();
         updateWindowDisplay();
         document.getElementById('hourlyForm').onsubmit = onSubmit;
@@ -1048,6 +1082,17 @@ function getWeightTol() {
     return runData.pkgConfig.indexOf('19.2oz') !== -1 ? 0.3 : 0.2;
 }
 
+// 2026-10-20: the run's target can weight carries forward to every later hour and the End of Run
+// (still editable). It comes from the last hour that had one, so it clears when the run closes.
+function lastTargetWeight() {
+    for (var i = hourlyData.length - 1; i >= 0; i--) { if (hourlyData[i].targetWeight) return hourlyData[i].targetWeight; }
+    return '';
+}
+function prefillTargetWeight() {
+    var tw = lastTargetWeight(), el = document.getElementById('targetWeight');
+    if (tw && !el.value) { el.value = tw; }
+    onTargetWeight(el.value);
+}
 function onTargetWeight(val) {
     var tol = getWeightTol();
     var el  = document.getElementById('weightRange');
@@ -1116,6 +1161,7 @@ function onCounter(val) {
     var dtCalc = Math.round(Math.max(0, 60 - (units / ratedCPM)));
     document.getElementById('dtMins').value = dtCalc;
     onDtChange(dtCalc);
+    dtStatus();
 }
 
 // ── CAN WEIGHT AVERAGE ────────────────────────────────────
@@ -1185,11 +1231,12 @@ function addDTRow() {
     var row = document.createElement('div');
     row.className = 'dt-event-row';
     row.id = id;
-    row.innerHTML = '<select name="dtMachine_' + idx + '">' + opts + '</select>'
-        + '<input type="number" name="dtMins_' + idx + '" placeholder="mins" min="0" max="60" style="width:80px;">'
+    row.innerHTML = '<select name="dtMachine_' + idx + '" onchange="dtStatus()"><option value="">&mdash; Select machine &mdash;</option>' + opts + '</select>'
+        + '<input type="number" name="dtMins_' + idx + '" placeholder="mins" min="0" max="60" style="width:80px;" oninput="dtStatus()">'
         + '<button type="button" class="dt-planned-btn" id="' + id + '_planned" onclick="toggleDtPlanned(\'' + id + '\')">Unplanned</button>'
-        + '<button type="button" class="btn-remove" onclick="rmRow(\'' + id + '\')">&#215;</button>';
+        + '<button type="button" class="btn-remove" onclick="rmRow(\'' + id + '\'); dtStatus()">&#215;</button>';
     document.getElementById('dtRows').appendChild(row);
+    dtStatus();
 }
 
 function rmRow(id) {
@@ -1209,10 +1256,10 @@ function addEorDTRow() {
     var row = document.createElement('div');
     row.className = 'eor-dt-event-row';
     row.id = id;
-    row.innerHTML = '<select name="eorDtMachine_' + idx + '">' + opts + '</select>'
-        + '<input type="number" name="eorDtMins_' + idx + '" placeholder="mins" min="0" style="width:80px;">'
+    row.innerHTML = '<select name="eorDtMachine_' + idx + '" onchange="calcEorEfficiency()"><option value="">&mdash; Select machine &mdash;</option>' + opts + '</select>'
+        + '<input type="number" name="eorDtMins_' + idx + '" placeholder="mins" min="0" style="width:80px;" oninput="calcEorEfficiency()">'
         + '<button type="button" class="dt-planned-btn" id="' + id + '_planned" onclick="toggleDtPlanned(\'' + id + '\')">Unplanned</button>'
-        + '<button type="button" class="btn-remove" onclick="rmEorDtRow(\'' + id + '\')">&#215;</button>';
+        + '<button type="button" class="btn-remove" onclick="rmEorDtRow(\'' + id + '\'); calcEorEfficiency()">&#215;</button>';
     document.getElementById('eorDtRows').appendChild(row);
 }
 
@@ -1229,6 +1276,7 @@ function toggleDtPlanned(id) {
     if (!btn) return;
     var isOn = btn.classList.toggle('on');
     btn.textContent = isOn ? 'Planned' : 'Unplanned';
+    if (id.indexOf('eordtr') === 0) calcEorEfficiency(); else dtStatus();
 }
 
 function collectEorDT() {
@@ -1241,6 +1289,7 @@ function collectEorDT() {
         if (sel && inp && inp.value) {
             events.push({
                 machine: sel.value,
+                batchNum: runData ? (runData.batchNum || '') : '',
                 mins: parseInt(inp.value) || 0,
                 planned: (plannedB && plannedB.classList.contains('on')) ? 'planned' : 'unplanned'
             });
@@ -1259,12 +1308,40 @@ function collectDT() {
         if (sel && inp && inp.value) {
             events.push({
                 machine: sel.value,
+                batchNum: runData ? (runData.batchNum || '') : '',
                 minutes: parseInt(inp.value) || 0,
                 planned: (plannedB && plannedB.classList.contains('on')) ? 'planned' : 'unplanned'
             });
         }
     }
     return events;
+}
+
+// 2026-10-20: downtime rows must add up to "Downtime This Hour", and every row needs a machine + minutes
+function dtStatus() {
+    var box = document.getElementById('dtAssign');
+    var tot = parseInt(document.getElementById('dtMins').value) || 0;
+    var assigned = 0;
+    collectDT().forEach(function(e){ assigned += e.minutes; });
+    var rem = tot - assigned;
+    if (!tot && !assigned) { box.style.display = 'none'; return { tot: tot, assigned: assigned, rem: rem }; }
+    box.style.display = '';
+    var head = 'Downtime this hour: ' + tot + ' min &middot; Assigned to machines: ' + assigned + ' min';
+    if (rem > 0)      { box.innerHTML = head + '<br>&#9888; Assign the remaining ' + rem + ' min to a machine before submitting.'; box.style.background = '#fdecea'; box.style.color = '#b71c1c'; }
+    else if (rem < 0) { box.innerHTML = head + '<br>&#9888; ' + (-rem) + ' min more than this hour\'s downtime. Fix the rows, or change Downtime This Hour if it is wrong.'; box.style.background = '#fdecea'; box.style.color = '#b71c1c'; }
+    else              { box.innerHTML = head + '<br>&#10003; Downtime is fully assigned.'; box.style.background = '#e8f5e9'; box.style.color = '#2e7d32'; }
+    return { tot: tot, assigned: assigned, rem: rem };
+}
+function badDtRows(selector) {
+    var bad = false;
+    document.querySelectorAll(selector).forEach(function(r){
+        var sel = r.querySelector('select'), inp = r.querySelector('input[type="number"]');
+        sel.classList.remove('err'); inp.classList.remove('err');
+        var hasM = inp.value !== '' && parseInt(inp.value) > 0, hasS = sel.value !== '';
+        if (hasM && !hasS) { sel.classList.add('err'); bad = true; }
+        if (hasS && !hasM) { inp.classList.add('err'); bad = true; }
+    });
+    return bad;
 }
 
 // ── VALIDATE ──────────────────────────────────────────────
@@ -1275,6 +1352,12 @@ function validate() {
         els[i].classList.remove('err');
         if (!els[i].value.trim()) { els[i].classList.add('err'); ok = false; }
     }
+    var dtMsg = '';
+    if (badDtRows('#dtRows .dt-event-row')) { ok = false; dtMsg = 'Each downtime row needs a machine and minutes.'; }
+    var ds = dtStatus();
+    if (ds.rem > 0) { ok = false; dtMsg = 'Assign the remaining ' + ds.rem + ' min of downtime to a machine.'; }
+    if (ds.rem < 0) { ok = false; dtMsg = 'Downtime rows add up to ' + ds.assigned + ' min but Downtime This Hour is ' + ds.tot + ' min.'; }
+    if (dtMsg) { document.getElementById('dtCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); return false; }
     if (!ok) {
         var first = document.querySelector('#hourlyForm .err');
         if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1314,6 +1397,7 @@ function onSubmit(ev) {
 
         var entry = {
                     jobNumKey:    (runData ? runData.deacomJobNum : ''),
+            batchNum:     (runData ? (runData.batchNum || '') : ''),
             hourNum:      hourNum,
             windowStart:  winStart,
             windowEnd:    winEnd,
@@ -1472,6 +1556,8 @@ function resetForm() {
     document.getElementById('effRemainingSub').textContent = 'Enter filler counter below';
     document.getElementById('avgDisplay').textContent= '- g';
     onTargetWeight(''); // reset range display to just ± tolerance
+    prefillTargetWeight();
+    dtStatus();
 
     var btns = ['sB','sM','sE','sN'];
     for (var i = 0; i < btns.length; i++) document.getElementById(btns[i]).classList.remove('active');
@@ -1639,8 +1725,10 @@ function openEOR() {
         : 'Enter end time and counter to calculate total';
     document.getElementById('eorGrandTotalDT').value = totalDT;
 
-    // Seed final checks weight range tolerance
-    onEorFcWeight('');
+    // Seed final checks weight range tolerance; carry the run's target weight forward (2026-10-20)
+    var fcTw = document.getElementById('eorFcTargetWeight');
+    if (!fcTw.value) fcTw.value = lastTargetWeight();
+    onEorFcWeight(fcTw.value);
 
     // Pre-set cans/case from config (before counter is entered)
     var cpc = CANS_PER_CASE[config] || 24;
@@ -1657,6 +1745,8 @@ function openEOR() {
         sleeveIn.required = false;
         sleeveIn.value = '';
     }
+
+    document.getElementById('mixBox').style.display = isTwoTwelve() ? '' : 'none';
 
     document.getElementById('eorOverlay').className = 'eor-overlay show';
     document.getElementById('eorOverlay').scrollTop = 0;
@@ -1731,6 +1821,24 @@ function calcEorEfficiency() {
     document.getElementById('eorTotalDTSub').textContent      = '';
     document.getElementById('eorGrandTotalDT').value          = grandTotalDT;
 
+    // 2026-10-20: the final partial hour's downtime must be assigned to machine rows before submit
+    var eorAssigned = 0, eorPlanned = 0;
+    collectEorDT().forEach(function(ev){ eorAssigned += ev.mins; if (ev.planned === 'planned') eorPlanned += ev.mins; });
+    eorDtRem = partialDT - eorAssigned;
+    var dtBox  = document.getElementById('eorDtAssign');
+    var dtHead = 'Downtime in the final partial hour: ' + partialDT + ' min &middot; Assigned to machines: ' + eorAssigned + ' min';
+    if (eorDtRem > 1)       { dtBox.innerHTML = dtHead + '<br>&#9888; Assign the remaining ' + eorDtRem + ' min to a machine before submitting.'; dtBox.style.background = '#fdecea'; dtBox.style.color = '#b71c1c'; }
+    else if (eorDtRem < -1) { dtBox.innerHTML = dtHead + '<br>More downtime is assigned than the counter shows (' + (-eorDtRem) + ' min over). Double-check the minutes &mdash; you can still submit.'; dtBox.style.background = '#fff4e5'; dtBox.style.color = '#8a5300'; }
+    else                    { dtBox.innerHTML = dtHead + '<br>&#10003; Downtime is fully assigned.'; dtBox.style.background = '#e8f5e9'; dtBox.style.color = '#2e7d32'; }
+
+    // 2026-10-20 (TV fix): planned downtime (hourly + end of run) comes off run time before efficiency,
+    // so the stored OverallFillerEff / OverallPkgLineEff match the recap email and the Excel model.
+    var hourlyPlanned = 0;
+    for (var hp = 0; hp < hourlyData.length; hp++) {
+        (hourlyData[hp].dtEvents || []).forEach(function(ev){ if (ev.planned === 'planned') hourlyPlanned += parseInt(ev.minutes) || 0; });
+    }
+    var plannedTotal = hourlyPlanned + eorPlanned;
+
     // Partial hour efficiency
     var ratedPartial = ratedCPM * partialDuration;
     var partialEff   = ratedPartial > 0 ? (partialUnits / ratedPartial) * 100 : 0;
@@ -1766,9 +1874,14 @@ function calcEorEfficiency() {
 
     document.getElementById('eorEffRows').innerHTML = html;
 
-    // Overall efficiency = total cans produced / total rated cans over full run time
-    eorTotalRunMinutes = totalMinutes;
-    var totalRated  = ratedCPM * totalMinutes;
+    // Overall efficiency = total cans produced / total rated cans over run time MINUS planned downtime
+    var adjMinutes = Math.max(totalMinutes - plannedTotal, 1);
+    eorTotalRunMinutes = adjMinutes;
+    if (plannedTotal > 0) {
+        html += '<div class="conf-row"><span class="conf-lbl">Planned downtime removed</span><span class="conf-val">&minus;' + plannedTotal + ' min</span></div>';
+        document.getElementById('eorEffRows').innerHTML = html;
+    }
+    var totalRated  = ratedCPM * adjMinutes;
     var overallEff  = totalRated > 0 ? (totalActual / totalRated) * 100 : 0;
     var overallCls  = overallEff >= 80 ? 'var(--green)' : 'var(--amber)';
     var overallEl   = document.getElementById('eorOverallEff');
@@ -1778,6 +1891,26 @@ function calcEorEfficiency() {
     document.getElementById('eorEffCard').style.display = 'block';
 }
 
+function isTwoTwelve() { return !!(runData && (runData.pkgConfig || '').indexOf('2/12') !== -1); }
+function setMix(v) {
+    eorMix = v;
+    document.getElementById('mixY').className = 'yn-btn' + (v === 'Y' ? ' yes' : '');
+    document.getElementById('mixN').className = 'yn-btn' + (v === 'N' ? ' no'  : '');
+    document.getElementById('mixSplit').style.display = v === 'Y' ? '' : 'none';
+    mixCheck();
+}
+// Regular + Mix must add up to Net Good Cases
+function mixCheck() {
+    var msg = document.getElementById('mixMsg');
+    if (!isTwoTwelve() || eorMix !== 'Y') { if (msg) msg.textContent = ''; return true; }
+    var net = parseInt(document.getElementById('eorNetCasesHid').value) || 0;
+    var r = document.getElementById('eorRegCases').value, m = document.getElementById('eorMixCases').value;
+    if (r === '' || m === '') { msg.textContent = 'Enter both Regular and Mix Pack cases.'; msg.style.color = '#b71c1c'; return false; }
+    var sum = (parseInt(r) || 0) + (parseInt(m) || 0);
+    if (sum !== net) { msg.textContent = 'Regular + Mix = ' + sum.toLocaleString() + ' but Net Good Cases is ' + net.toLocaleString() + ' \u2014 must match to submit.'; msg.style.color = '#b71c1c'; return false; }
+    msg.textContent = '\u2713 Regular + Mix match Net Good Cases (' + net.toLocaleString() + ')'; msg.style.color = '#2e7d32'; return true;
+}
+
 function onEorCasesInput(val) {
     // Recalculate net cases whenever the operator changes total cases
     var total = parseInt(val) || 0;
@@ -1785,6 +1918,7 @@ function onEorCasesInput(val) {
     var net   = Math.max(0, total - hold);
     document.getElementById('eorNetDisplay').textContent = net.toLocaleString();
     document.getElementById('eorNetCasesHid').value      = net;
+    mixCheck();
 }
 
 function onEorHoldChange(val) {
@@ -1794,6 +1928,7 @@ function onEorHoldChange(val) {
     var net   = Math.max(0, total - hold);
     document.getElementById('eorNetDisplay').textContent = net.toLocaleString();
     document.getElementById('eorNetCasesHid').value      = net;
+    mixCheck();
 }
 
 function validateEOR() {
@@ -1803,8 +1938,18 @@ function validateEOR() {
         els[i].classList.remove('err');
         if (!els[i].value.trim()) { els[i].classList.add('err'); ok = false; }
     }
+    // 2026-10-20: downtime rows complete + partial-hour downtime assigned; mix packs answered and matching
+    var msgs = [];
+    if (badDtRows('#eorDtRows .eor-dt-event-row')) { ok = false; msgs.push('each downtime row needs a machine and minutes'); }
+    calcEorEfficiency();
+    if (eorDtRem !== null && eorDtRem > 1) { ok = false; msgs.push('assign the remaining ' + eorDtRem + ' min of downtime to a machine'); }
+    if (isTwoTwelve() && !eorMix) { ok = false; msgs.push('answer "Mix packs on this run?"'); }
+    if (!mixCheck()) { ok = false; msgs.push('Regular + Mix Pack cases must add up to Net Good Cases'); }
+    var eb = document.getElementById('eorSubmitErr');
+    if (msgs.length) { eb.textContent = 'Please fix: ' + msgs.join('; ') + '.'; eb.className = 'err-bar show'; }
+    else if (eb) { eb.className = 'err-bar'; eb.textContent = ''; }
     if (!ok) {
-        var first = document.querySelector('#eorForm .err');
+        var first = document.querySelector('#eorForm .err') || (msgs.length ? eb : null);
         if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     return ok;
@@ -1888,6 +2033,9 @@ function submitEOR() {
             totalCans:     parseInt(document.getElementById('eorTotalCansHid').value)     || 0,
             totalCases:    parseInt(document.getElementById('eorTotalCasesInput').value)  || 0,
             netCases:      parseInt(document.getElementById('eorNetCasesHid').value)      || 0,
+            netCasesRegular: (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorRegCases').value) || 0) : (parseInt(document.getElementById('eorNetCasesHid').value) || 0),
+            netCasesMix:     (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorMixCases').value) || 0) : 0,
+            eorNotes:      document.getElementById('eorRunNotes').value.trim(),
             overallEff:    document.getElementById('eorOverallEff').textContent,
             overallFillerEff:  overallFillerEff,
     overallPkgLineEff: overallPkgLineEff,
