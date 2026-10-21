@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-20b</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-21</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -828,23 +828,8 @@
               Filler counter estimate: <strong id="eorTotalCans">&mdash;</strong> cans
               &nbsp;(&asymp;&nbsp;<strong id="eorEstCases">&mdash;</strong> cases at <span id="eorCansPerCase">&mdash;</span>/case) &mdash; for reference only
             </div>
-            <div class="row c2">
-              <div class="fg">
-                <label for="eorTotalCasesInput">Total Cases Produced <span class="req">*</span></label>
-                <input type="number" id="eorTotalCasesInput" name="eorTotalCasesInput" placeholder="0" min="0" required oninput="onEorCasesInput(this.value)">
-                <span class="hint">Must match forklift Deacom entry</span>
-              </div>
-              <div class="fg">
-                <label for="eorCasesHold">Cases on Hold</label>
-                <input type="number" id="eorCasesHold" name="eorCasesHold" placeholder="0" min="0" value="0" oninput="onEorHoldChange(this.value)">
-              </div>
-            </div>
-            <div class="avg-row" style="margin-top:4px;">
-              <span>Net Good Cases</span>
-              <span class="avg-val" id="eorNetDisplay">&mdash;</span>
-            </div>
-            <!-- 2026-10-20: mix packs (2/12 formats only). 2026-10-20b: shown only when Run Start said Mix packs = Yes; the Yes/No question is hidden -->
-            <div id="mixBox" style="display:none;margin-top:12px;">
+            <!-- Mix packs (12oz 2/12 only, Run Start said Yes). 2026-10-21: Regular + Mix sit ABOVE the totals; Total Cases = Regular + Mix + On Hold (locked) -->
+            <div id="mixBox" style="display:none;margin-bottom:12px;">
               <p class="hint" id="mixSchedHint" style="font-style:normal;font-weight:700;margin-bottom:6px;"></p>
               <div class="check-group" id="mixAsk" style="display:none;">
                 <span class="check-group-lbl">Mix packs on this run? <span class="req">*</span></span>
@@ -855,11 +840,26 @@
               </div>
               <div id="mixSplit" style="display:none;">
                 <div class="row c2">
-                  <div class="fg"><label for="eorRegCases">Regular Cases <span class="req">*</span></label><input type="number" id="eorRegCases" min="0" placeholder="0" oninput="mixCheck()"></div>
-                  <div class="fg"><label for="eorMixCases">Mix Pack Cases <span class="req">*</span></label><input type="number" id="eorMixCases" min="0" placeholder="0" oninput="mixCheck()"></div>
+                  <div class="fg"><label for="eorRegCases">Regular Cases (good) <span class="req">*</span></label><input type="number" id="eorRegCases" min="0" placeholder="0" oninput="onMixInput()"></div>
+                  <div class="fg"><label for="eorMixCases">Mix Pack Cases (good) <span class="req">*</span></label><input type="number" id="eorMixCases" min="0" placeholder="0" oninput="onMixInput()"></div>
                 </div>
                 <p class="hint" id="mixMsg" style="font-style:normal;font-weight:700;"></p>
               </div>
+            </div>
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorTotalCasesInput">Total Cases Produced <span class="req">*</span></label>
+                <input type="number" id="eorTotalCasesInput" name="eorTotalCasesInput" placeholder="0" min="0" required oninput="onEorCasesInput(this.value)">
+                <span class="hint" id="eorTotalHint">Must match forklift Deacom entry</span>
+              </div>
+              <div class="fg">
+                <label for="eorCasesHold">Cases on Hold</label>
+                <input type="number" id="eorCasesHold" name="eorCasesHold" placeholder="0" min="0" value="0" oninput="onEorHoldChange(this.value)">
+              </div>
+            </div>
+            <div class="avg-row" style="margin-top:4px;">
+              <span>Net Good Cases</span>
+              <span class="avg-val" id="eorNetDisplay">&mdash;</span>
             </div>
             <input type="hidden" id="eorTotalCansHid"  name="eorTotalCansHid"  value="0">
             <input type="hidden" id="eorNetCasesHid"   name="eorNetCasesHid"   value="0">
@@ -1754,6 +1754,14 @@ function openEOR() {
         ? 'Mix pack run \u2014 scheduled ' + (parseInt(runData.schedCasesRegular) || 0).toLocaleString() + ' Regular + ' + (parseInt(runData.schedCasesMix) || 0).toLocaleString() + ' Mix. Enter the actual split:'
         : '';
     setMix(mixOn ? 'Y' : 'N');
+    // 2026-10-21: on mix runs Total Cases is calculated (Regular + Mix + On Hold) and locked
+    var totIn = document.getElementById('eorTotalCasesInput');
+    totIn.readOnly = mixOn;
+    totIn.style.background = mixOn ? '#eef0f3' : '';
+    document.getElementById('eorTotalHint').textContent = mixOn
+        ? 'Calculated: Regular + Mix + Cases on Hold. Must match forklift Deacom entry'
+        : 'Must match forklift Deacom entry';
+    if (mixOn) onMixInput();
 
     document.getElementById('eorOverlay').className = 'eor-overlay show';
     document.getElementById('eorOverlay').scrollTop = 0;
@@ -1915,7 +1923,27 @@ function mixCheck() {
     if (r === '' || m === '') { msg.textContent = 'Enter both Regular and Mix Pack cases.'; msg.style.color = '#b71c1c'; return false; }
     var sum = (parseInt(r) || 0) + (parseInt(m) || 0);
     if (sum !== net) { msg.textContent = 'Regular + Mix = ' + sum.toLocaleString() + ' but Net Good Cases is ' + net.toLocaleString() + ' \u2014 must match to submit.'; msg.style.color = '#b71c1c'; return false; }
-    msg.textContent = '\u2713 Regular + Mix match Net Good Cases (' + net.toLocaleString() + ')'; msg.style.color = '#2e7d32'; return true;
+    msg.textContent = '\u2713 Net Good Cases = Regular + Mix = ' + net.toLocaleString(); msg.style.color = '#2e7d32'; return true;
+}
+
+// 2026-10-21: mix runs - Regular + Mix (good cases) drive the totals
+function isMixRun() { return isTwoTwelve() && eorMix === 'Y'; }
+function onMixInput() {
+    if (!isMixRun()) { mixCheck(); return; }
+    var r = document.getElementById('eorRegCases').value, m = document.getElementById('eorMixCases').value;
+    var hold = parseInt(document.getElementById('eorCasesHold').value) || 0;
+    var totIn = document.getElementById('eorTotalCasesInput');
+    if (r === '' || m === '') {
+        totIn.value = '';
+        document.getElementById('eorNetDisplay').textContent = '\u2014';
+        document.getElementById('eorNetCasesHid').value = 0;
+    } else {
+        var net = (parseInt(r) || 0) + (parseInt(m) || 0);
+        totIn.value = net + hold;
+        document.getElementById('eorNetDisplay').textContent = net.toLocaleString();
+        document.getElementById('eorNetCasesHid').value = net;
+    }
+    mixCheck();
 }
 
 function onEorCasesInput(val) {
@@ -1929,6 +1957,7 @@ function onEorCasesInput(val) {
 }
 
 function onEorHoldChange(val) {
+    if (isMixRun()) { onMixInput(); return; }   // 2026-10-21: mix run - total = regular + mix + hold
     // Recalculate net cases when hold quantity changes
     var total = parseInt(document.getElementById('eorTotalCasesInput').value) || 0;
     var hold  = parseInt(val) || 0;
