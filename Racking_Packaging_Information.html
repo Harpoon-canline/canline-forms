@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Racking Packaging Information</title>
+<style>
+  :root {
+    --bg: #0b1e30;
+    --card: #204667;
+    --accent: #9e1a41;
+    --text: #ffffff;
+    --muted: #b9c7d4;
+    --warn: #ffcf5c;
+    --eff-good: #22e67a;
+    --eff-caution: #ffb020;
+    --eff-bad: #ff5252;
+    --live: #9e1a41;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    overscroll-behavior: none;
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    font-size: 18px;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: none;
+    display: flex;
+    flex-direction: column;
+  }
+  /* The TV has no one to scroll it, so the board is split into PAGES that rotate
+     on a timer. #stage fills whatever height is left under the header; every page
+     sits stacked in it and only the active one is visible (cross-fade). buildPages()
+     (below) packs cards onto pages by measuring real rendered height, so it adapts
+     to any screen size and to cards being added/removed through the day. */
+  header { text-align: center; margin-bottom: 12px; flex-shrink: 0; }
+  #status, #errorBanner { flex-shrink: 0; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .page {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    max-width: 1700px;
+    margin: 0 auto;
+    transform-origin: top center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+  }
+  .page.active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.6s ease;
+  }
+  .section-title .page-count { font-weight: 600; color: var(--muted); font-size: 1.3rem; margin-left: 10px; }
+  #pager {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    height: 30px;
+    margin-top: 10px;
+  }
+  #pager .dots { display: flex; gap: 10px; }
+  #pager .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.22); transition: background 0.3s ease, transform 0.3s ease; }
+  #pager .dot.active { background: var(--text); transform: scale(1.25); }
+  #pager .page-label { font-size: 1rem; color: var(--muted); }
+  .brand {
+    display: inline-block;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(158, 26, 65, 0.18);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 4px 16px;
+    margin-bottom: 10px;
+  }
+  header h1 { font-size: 2.4rem; margin: 0; color: var(--text); }
+  header p { font-size: 1.2rem; color: var(--text); margin: 4px 0 0; }
+  #status { text-align: center; font-size: 1rem; color: var(--text); margin-bottom: 10px; }
+  #status.stale { color: var(--warn); font-weight: 700; }
+  #errorBanner {
+    display: none;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    background: var(--accent);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+  }
+  #errorBanner.show { display: block; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .section-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    background: var(--accent);
+    color: var(--text);
+    font-size: 1.4rem;
+    font-weight: 800;
+    border-radius: 50%;
+  }
+  .section-title {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .split-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 20px;
+  }
+  .split-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 22px 26px;
+    border-left: 8px solid var(--accent);
+  }
+  .card-heading {
+    display: inline-block;
+    background: var(--text);
+    color: var(--card);
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 6px;
+    margin: 0 0 12px;
+  }
+  .split-card h2.card-heading { font-size: 1.9rem; }
+  .field {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text);
+  }
+  .field span:first-child { color: var(--muted); }
+  .field span:last-child { font-weight: 600; text-align: right; margin-left: 16px; color: var(--text); }
+  .field.category {
+    background: rgba(158, 26, 65, 0.28);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+  }
+  .field.category span:first-child,
+  .field.category span:last-child {
+    color: var(--text);
+    font-weight: 800;
+  }
+  .details-heading.card-heading {
+    display: block;
+    width: fit-content;
+    margin-top: 16px;
+    font-size: 1.3rem;
+  }
+  .notes-heading.card-heading {
+    display: block;
+    width: fit-content;
+    margin-top: 16px;
+    font-size: 1.15rem;
+    background: var(--accent);
+    color: var(--text);
+  }
+  .notes-box {
+    font-size: 1.15rem;
+    line-height: 1.5;
+    background: rgba(158, 26, 65, 0.28);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+  }
+  .empty-state { text-align: center; font-size: 1.5rem; color: var(--text); margin-top: 60px; }
+
+  /* ── Section 2: Efficiency ─────────────────────────────────────── */
+  .run-card { position: relative; }
+  .run-card.is-active { border-left-color: var(--live); }
+  .run-order {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--muted);
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .status-badge.active { background: var(--live); color: #ffffff; }
+  .status-badge.active::before { content: "● "; animation: pulse 1.4s infinite; }
+  .status-badge.closed { background: rgba(255, 255, 255, 0.15); color: var(--muted); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .eff-row { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0 14px; }
+  .eff-label { font-size: 1.1rem; color: var(--muted); }
+  .eff-value { font-size: 2.7rem; font-weight: 800; color: var(--text); }
+  .eff-value.good { color: var(--eff-good); }
+  .eff-value.caution { color: var(--eff-caution); }
+  .eff-value.bad { color: var(--eff-bad); }
+
+  .dt-row { display: flex; justify-content: space-between; font-size: 1.2rem; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.15); }
+  .dt-row span:first-child { color: var(--muted); }
+  .dt-row span:last-child { font-weight: 700; }
+
+  .progress-block { margin: 10px 0 16px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 1.1rem; color: var(--muted); margin-bottom: 6px; }
+  .progress-value { font-size: 1.6rem; font-weight: 800; color: var(--text); }
+  .progress-bar-track { background: rgba(255,255,255,0.12); border-radius: 10px; height: 18px; overflow: hidden; }
+  .progress-bar-fill { background: var(--live); height: 100%; border-radius: 10px; transition: width 0.4s ease; }
+
+  .secondary-stat { font-size: 1.2rem; color: var(--muted); margin-top: -4px; }
+  .secondary-stat strong { color: var(--text); font-weight: 700; }
+
+  .recap-card {
+    background: linear-gradient(135deg, var(--card), #15304a);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 28px 32px;
+    grid-column: 1 / -1;  /* recap spans the full row above the run cards */
+  }
+  .empty-state { grid-column: 1 / -1; }
+  .recap-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 18px; }
+  .recap-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+  .recap-stat-label { font-size: 1.05rem; color: var(--muted); margin-bottom: 4px; }
+  .recap-stat-value { font-size: 2.6rem; font-weight: 800; }
+
+  .section-placeholder {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.2rem;
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+  }
+  .hand-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; font-weight: 800; text-transform: uppercase; font-size: 0.95rem; letter-spacing: 1px; margin: 0 0 10px 8px; background: rgba(255,207,92,0.18); color: var(--warn); border: 1px solid var(--warn); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Harpoon Racking</div>
+    <h1>Racking Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-22</span></h1>
+    <p id="today-date"></p>
+  </header>
+  <div id="status">Loading...</div>
+  <div id="errorBanner"></div>
+
+  <!-- Pages are built by buildPages() and injected here, one visible at a time. -->
+  <div id="stage"></div>
+  <div id="pager"><div class="dots" id="pager-dots"></div><span class="page-label" id="pager-label"></span></div>
+
+<script>
+  // Section 1 (Today's Packaging Splits) -- same "Packaging Split - Read for Tablet" flow as the Can Line board.
+  const SPLITS_FLOW_URL = "https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/77de2ad55a5447168524f93111297b0d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bfm67jPfzS6IOBUOC8dNzgisGqKCo4OYl2I_Nzk-QP0";
+
+  // Section 2 (Racking Efficiency) -- "Racker - TV Efficiency Feed" flow.
+  const EFFICIENCY_FLOW_URL = "https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/5604be735d204eb682636f973dd91e9e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=BogMxtBxOk1q1nEBuAKzWcSma7ueHLOv96mX1nUGB4o";
+
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000;  // normal poll cadence once things are healthy
+  const RETRY_BACKOFF_MS   = [30, 60, 120].map(s => s * 1000); // fast retries after a failure
+  const STALE_AFTER_MS     = 15 * 60 * 1000;  // warn if the board hasn't refreshed successfully in this long
+  const RELOAD_AFTER_MS    = 6 * 60 * 60 * 1000; // full page reload every 6h -- keeps a 24/7 kiosk tab from drifting
+
+  // ── TV page rotation (no one is there to scroll it) ──────────────────────
+  // The board is split into pages that rotate on a timer instead of scrolling.
+  // Tune these three numbers to taste:
+  const PAGE_DWELL_MS        = 15 * 1000; // how long each page stays up
+  const MAX_SPLITS_PER_PAGE  = 2;         // split cards shown side by side per page
+  const MAX_RUNS_PER_PAGE    = 8;           // cards per Efficiency page (the day recap counts as one)
+
+  let lastSuccessSplits = null;
+  let lastSuccessEfficiency = null;
+  let consecutiveFailures = 0;
+  let pollTimer = null;
+  let resizeTimer = null;
+  let rotateTimer = null;
+
+  // The latest good card elements from each feed. Kept separately so that if one
+  // feed fails, the other still refreshes and the failed one keeps its last cards.
+  let splitItems = [];       // [HTMLElement]
+  let efficiencyItems = [];  // [HTMLElement] -- recap card (if any) first, then run cards
+  let pages = [];            // [HTMLElement] built by buildPages()
+  let currentPage = 0;
+
+  const SECTIONS = {
+    splits:     { num: 1, title: "Today's Packaging Splits", maxCards: MAX_SPLITS_PER_PAGE },
+    efficiency: { num: 2, title: 'Racking Efficiency',               maxCards: MAX_RUNS_PER_PAGE }
+  };
+
+  function makePage(sectionKey) {
+    const sec = SECTIONS[sectionKey];
+    const page = document.createElement('div');
+    page.className = 'page';
+    page.dataset.section = sectionKey;
+    page.innerHTML = `
+      <div class="section-header">
+        <span class="section-num">${sec.num}</span>
+        <span class="section-title">${sec.title}<span class="page-count"></span></span>
+      </div>
+      <div class="split-grid"></div>
+    `;
+    return page;
+  }
+
+  // Greedy packing: add cards to a page until it hits the per-page cap or its real
+  // rendered height no longer fits in the stage, then start a new page. A single
+  // card taller than the stage is shrunk to fit as a last resort (so nothing is
+  // ever cut off), but that should be rare.
+  function packSection(sectionKey, items, stage) {
+    const sectionPages = [];
+    const maxCards = SECTIONS[sectionKey].maxCards;
+    const stageH = stage.clientHeight;
+    let page = null, grid = null, count = 0;
+
+    const startPage = () => {
+      page = makePage(sectionKey);
+      stage.appendChild(page);
+      grid = page.querySelector('.split-grid');
+      count = 0;
+      sectionPages.push(page);
+    };
+
+    items.forEach(item => {
+      if (!page) startPage();
+      const heightBefore = page.offsetHeight;
+      grid.appendChild(item);
+      count++;
+      const tooMany = count > maxCards;
+      // Only a problem if adding this card made the page grow past the screen
+      // (a card that just sits beside another one doesn't add any height).
+      const tooTall = count > 1 && page.offsetHeight > Math.max(stageH, heightBefore);
+      if (tooMany || tooTall) {
+        grid.removeChild(item);
+        startPage();
+        grid.appendChild(item);
+        count = 1;
+      }
+    });
+
+    sectionPages.forEach((p, i) => {
+      if (sectionPages.length > 1) p.querySelector('.page-count').textContent = `${i + 1} of ${sectionPages.length}`;
+      const h = p.offsetHeight;
+      p.style.transform = h > stageH && h > 0 ? `scale(${stageH / h})` : '';
+    });
+    return sectionPages;
+  }
+
+  function buildPages() {
+    const stage = document.getElementById('stage');
+    stage.innerHTML = '';
+    pages = [];
+
+    const hasSplits = splitItems.length > 0;
+    const hasEff = efficiencyItems.length > 0;
+    if (!hasSplits && !hasEff) { renderPager(); return; }
+
+    if (hasSplits) pages.push(...packSection('splits', splitItems, stage));
+    if (hasEff)    pages.push(...packSection('efficiency', efficiencyItems, stage));
+
+    if (currentPage >= pages.length) currentPage = 0;
+    showPage(currentPage);
+  }
+
+  function showPage(index) {
+    currentPage = index;
+    pages.forEach((p, i) => p.classList.toggle('active', i === index));
+    renderPager();
+  }
+
+  function renderPager() {
+    const dots = document.getElementById('pager-dots');
+    const label = document.getElementById('pager-label');
+    if (pages.length <= 1) { dots.innerHTML = ''; label.textContent = ''; return; }
+    dots.innerHTML = pages.map((_, i) => `<span class="dot${i === currentPage ? ' active' : ''}"></span>`).join('');
+    label.textContent = `Page ${currentPage + 1} of ${pages.length}`;
+  }
+
+  function startRotation() {
+    if (rotateTimer) clearInterval(rotateTimer);
+    rotateTimer = setInterval(() => {
+      if (pages.length > 1) showPage((currentPage + 1) % pages.length);
+    }, PAGE_DWELL_MS);
+  }
+
+  function formatDateHeader() {
+    const today = new Date();
+    document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function parseDetails(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html || '';
+    const text = temp.textContent || temp.innerText || '';
+    return text.split(/\||\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(item => {
+        const idx = item.indexOf(':');
+        if (idx === -1) return { label: '', value: item, isCategory: false };
+        const label = item.slice(0, idx).trim();
+        const value = item.slice(idx + 1).trim();
+        const isCategory = /total qty/i.test(value);
+        return { label, value, isCategory };
+      });
+  }
+
+  function fieldHtml(label, value, highlight) {
+    return `<div class="field${highlight ? ' category' : ''}"><span>${label}</span><span>${value}</span></div>`;
+  }
+
+  // ── Section 1: Today's Packaging Splits ──────────────────────────
+  function renderSplitsSection(rows) {
+    const items = [];
+
+    if (!rows || rows.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No packaging splits scheduled for today.';
+      splitItems = [empty];
+      return;
+    }
+
+    // 2026-10-09: show splits in schedule order -- Canning Order, then Racking
+    // Order, then beer/batch name. Blank orders go last. "1", "1st", "#1" all read as 1.
+    const orderNum = v => {
+      const raw = (v && typeof v === 'object') ? v.Value : v;
+      const n = parseInt(String(raw ?? '').replace(/[^0-9]/g, ''), 10);
+      return isNaN(n) ? Infinity : n;
+    };
+    // Racking board: Racking Order first, then Canning Order (reverse of the Can Line board).
+    rows = [...rows].sort((a, b) =>
+      (orderNum(a.RackingOrder) - orderNum(b.RackingOrder)) ||
+      (orderNum(a.CanningOrder) - orderNum(b.CanningOrder)) ||
+      String(a.BeerBatch ?? '').localeCompare(String(b.BeerBatch ?? '')));
+
+    rows.forEach(row => {
+      const detailRows = parseDetails(row.PackagingDetails)
+        .map(d => `<div class="field${d.isCategory ? ' category' : ''}"><span>${d.label}</span><span>${d.value}</span></div>`)
+        .join('');
+
+      const rackingVal = row.RackingOrder?.Value ?? row.RackingOrder ?? '';
+      const canningVal = row.CanningOrder?.Value ?? row.CanningOrder ?? '';
+      const orderFields = [
+        rackingVal ? fieldHtml('Racking Order', rackingVal, true) : '',
+        canningVal ? fieldHtml('Canning Order', canningVal, true) : ''
+      ].join('');
+
+      const notesVal = (row.Notes ?? '').replace(/^\s*notes\s*[:\-]\s*/i, '').trim();
+      const notesBlock = notesVal ? `
+        <div class="notes-heading card-heading">Notes</div>
+        <div class="notes-box">${notesVal}</div>
+      ` : '';
+
+      const card = document.createElement('div');
+      card.className = 'split-card';
+      card.innerHTML = `
+        <h2 class="card-heading">${row.BeerBatch ?? ''}</h2>
+        <div class="field"><span>BBT</span><span>${row.BBT ?? ''}</span></div>
+        <div class="field"><span>Deacom Job</span><span>${row.DeacomJob ?? ''}</span></div>
+        <div class="field"><span>Beer Family</span><span>${row.BeerFamily?.Value ?? row.BeerFamily ?? ''}</span></div>
+        <div class="field"><span>Tank Volume</span><span>${row.TankVolume ?? ''}</span></div>
+        <div class="field"><span>Total Scheduled Volume</span><span>${row.TotalScheduledVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer Volume</span><span>${row.ExtraBeerVolume ?? ''}</span></div>
+        <div class="field"><span>Extra Beer After Split</span><span>${row.ExtraBeerAfterSplit ?? ''}</span></div>
+        <div class="field"><span>Total Beer Volume To Be Packaged</span><span>${row.TotalBeerVolumeToBePackaged ?? ''}</span></div>
+        ${orderFields}
+        <div class="details-heading card-heading">Packaging Details</div>
+        ${detailRows}
+        ${notesBlock}
+      `;
+      items.push(card);
+    });
+    splitItems = items;
+  }
+
+
+  // ── Section 2: Racking Efficiency ────────────────────────────────
+  // Feed = "Racker - TV Efficiency Feed" flow. It returns three flat lists and this
+  // page joins them on RunID (hard rule: join on run ID, never job number):
+  //   runs:   ID, JobNumKey, BatchNum, BeerCode, KegSize, IsHandRack, RunStatus,
+  //           QualTime, EndTime, RatedPerHour, ScheduledKegs, FinalCount,
+  //           KegsOnHold, GrandTotalDT, RunEffPct, RunStartTimestamp   (today's RackRuns)
+  //   hourly: RunID, HourNum, WindowEnd, CounterReading, DTNarrative   (recent RackHourlyEntries)
+  //   dt:     RunID, Minutes, Planned                                  (recent RackDTEvents)
+  // Live efficiency = the same formula as the End of Run form, run to date:
+  //   latest counter / ((last hourly window end - QualTime - planned DT so far) / 60) / rated, capped at 100%.
+  // Closed efficiency = RunEffPct as the End of Run form stored it.
+  // Hand racks (IsHandRack) show kegs only -- no rated speed, so no efficiency, and they
+  // are left out of the keg-weighted day efficiency (same as the Power Query model).
+
+  function effTier(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '';
+    if (pct >= 75) return 'good';
+    if (pct >= 60) return 'caution';
+    return 'bad';
+  }
+  function fmtPct(val) {
+    return (val === null || val === undefined || isNaN(val)) ? '—' : Number(val).toFixed(1) + '%';
+  }
+  function cap100(v) {
+    return (v === null || v === undefined || v === '' || isNaN(v)) ? null : Math.min(100, Number(v));
+  }
+  function hhmmToMin(t) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim());
+    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+  }
+  function formatStartTime(qualTime) {
+    const mins = hhmmToMin(qualTime);
+    if (mins === null) return null;
+    let hour = Math.floor(mins / 60);
+    const minute = String(mins % 60).padStart(2, '0');
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12; if (hour === 0) hour = 12;
+    return `${hour}:${minute} ${suffix}`;
+  }
+  const num = v => (v === null || v === undefined || v === '' || isNaN(v)) ? 0 : Number(v);
+  const isYes = v => v === true || v === 'Yes' || v === 'yes' || v === 1 || v === '1' || v === 'true';
+  const choiceVal = v => (v && typeof v === 'object') ? v.Value : v;
+
+  // Run-to-date numbers for an open machine run, from its hourly rows and DT rows.
+  function liveStats(run, hours, dts) {
+    const sorted = [...hours].sort((a, b) => num(a.HourNum) - num(b.HourNum));
+    const last = sorted[sorted.length - 1];
+    const counter = last ? num(last.CounterReading) : null;
+    const unplanned = dts.filter(d => choiceVal(d.Planned) !== 'planned').reduce((s, d) => s + num(d.Minutes), 0);
+    const planned = dts.filter(d => choiceVal(d.Planned) === 'planned').reduce((s, d) => s + num(d.Minutes), 0);
+    let eff = null;
+    const q = hhmmToMin(run.QualTime), e = last ? hhmmToMin(last.WindowEnd) : null, rated = num(run.RatedPerHour);
+    if (q !== null && e !== null && rated > 0 && counter !== null) {
+      let el = e - q; if (el <= 0) el += 1440;
+      const adj = Math.max(el - planned, 1);
+      eff = cap100((counter / (adj / 60)) / rated * 100);
+    }
+    const notes = sorted
+      .filter(h => String(h.DTNarrative || '').trim() !== '')
+      .map(h => `Hour ${h.HourNum}: ${String(h.DTNarrative).trim()}`);
+    return { counter, eff, unplanned, notes };
+  }
+
+  function buildDayRecap(runs) {
+    const allClosed = runs.length > 0 && runs.every(r => r.RunStatus === 'Closed');
+    if (!allClosed) return null;
+    const machine = runs.filter(r => !r.IsHandRack);
+    const hand = runs.filter(r => r.IsHandRack);
+    const machineKegs = machine.reduce((s, r) => s + num(r.FinalCount), 0);
+    const handKegs = hand.reduce((s, r) => s + num(r.FinalCount), 0);
+    // Keg-weighted: each run's efficiency counts in proportion to the kegs it produced.
+    const weighted = machine.filter(r => r.RunEffPct !== null);
+    const wKegs = weighted.reduce((s, r) => s + num(r.FinalCount), 0);
+    const dayEff = wKegs > 0 ? weighted.reduce((s, r) => s + r.RunEffPct * num(r.FinalCount), 0) / wKegs : null;
+    const totalDT = machine.reduce((s, r) => s + num(r.GrandTotalDT), 0);
+    const tier = effTier(dayEff) || 'good';
+    const recap = document.createElement('div');
+    recap.className = 'recap-card';
+    recap.innerHTML = `
+        <div class="recap-title">Day Recap — ${runs.length} Run${runs.length === 1 ? '' : 's'} Complete</div>
+        <div class="recap-stats">
+          <div>
+            <div class="recap-stat-label">Day Efficiency (keg-weighted)</div>
+            <div class="recap-stat-value" style="color: var(--eff-${tier})">${fmtPct(dayEff)}</div>
+          </div>
+          <div>
+            <div class="recap-stat-label">Total Downtime</div>
+            <div class="recap-stat-value">${totalDT} min</div>
+          </div>
+          <div>
+            <div class="recap-stat-label">Total Kegs</div>
+            <div class="recap-stat-value">${machineKegs.toLocaleString()}</div>
+          </div>
+          ${hand.length ? `<div>
+            <div class="recap-stat-label">Hand Racked Kegs</div>
+            <div class="recap-stat-value">${handKegs.toLocaleString()}</div>
+          </div>` : ''}
+        </div>
+    `;
+    return recap;
+  }
+
+  function renderEfficiencySection(feed) {
+    feed = feed || {};
+    const hourlyAll = Array.isArray(feed.hourly) ? feed.hourly : [];
+    const dtAll = Array.isArray(feed.dt) ? feed.dt : [];
+    let runs = (Array.isArray(feed.runs) ? feed.runs : []).map(r => Object.assign({}, r, {
+      KegSize: choiceVal(r.KegSize),
+      RunStatus: choiceVal(r.RunStatus),
+      IsHandRack: isYes(r.IsHandRack),
+      RunEffPct: cap100(r.RunEffPct)
+    }));
+    if (runs.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No racking runs today yet.';
+      efficiencyItems = [empty];
+      return;
+    }
+    // Day order = the order the runs were started (Run Start submit time), same as the Can Line board.
+    runs.sort((a, b) => String(a.RunStartTimestamp || '').localeCompare(String(b.RunStartTimestamp || '')) || num(a.ID) - num(b.ID));
+    const items = [];
+    runs.forEach((run, i) => {
+      const order = i + 1;
+      const isActive = run.RunStatus !== 'Closed';
+      const heading = run.BatchNum || run.JobNumKey || '';
+      const started = formatStartTime(run.QualTime);
+      const card = document.createElement('div');
+      card.className = 'split-card run-card' + (isActive ? ' is-active' : '');
+      let body = `
+        <span class="run-order">#${order}</span>
+        <span class="status-badge ${isActive ? 'active' : 'closed'}">${isActive ? 'Live' : 'Closed'}</span>${run.IsHandRack ? '<span class="hand-badge">Hand Rack</span>' : ''}
+        <h2 class="card-heading">${heading}</h2>
+        <div class="field"><span>Deacom Job</span><span>${run.JobNumKey ?? ''}</span></div>
+        <div class="field"><span>Keg Size</span><span>${run.KegSize ?? ''}</span></div>
+        ${run.BeerCode ? `<div class="field"><span>Beer</span><span>${run.BeerCode}</span></div>` : ''}
+        ${started ? `<div class="field"><span>Started</span><span>${started}</span></div>` : ''}
+      `;
+      if (isActive && run.IsHandRack) {
+        body += `<div class="secondary-stat" style="margin-top:12px">Hand rack in progress${num(run.ScheduledKegs) ? ` — <strong>${num(run.ScheduledKegs).toLocaleString()}</strong> kegs scheduled` : ''}</div>`;
+      } else if (isActive) {
+        const hours = hourlyAll.filter(h => num(h.RunID) === num(run.ID));
+        const dts = dtAll.filter(d => num(d.RunID) === num(run.ID));
+        const s = liveStats(run, hours, dts);
+        const sched = num(run.ScheduledKegs);
+        if (s.counter !== null && sched > 0) {
+          const pct = Math.min(100, Math.round((s.counter / sched) * 100));
+          body += `
+            <div class="progress-block">
+              <div class="progress-label">
+                <span>Kegs This Run</span>
+                <span class="progress-value">${s.counter.toLocaleString()} / ${sched.toLocaleString()}</span>
+              </div>
+              <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+            </div>
+          `;
+        } else if (sched > 0) {
+          body += `<div class="secondary-stat" style="margin-top:12px">Scheduled: <strong>${sched.toLocaleString()}</strong> kegs — first hourly check-in not in yet</div>`;
+        }
+        body += `
+          <div class="eff-row">
+            <span class="eff-label">Racker Efficiency (run to date)</span>
+            <span class="eff-value ${effTier(s.eff)}">${fmtPct(s.eff)}</span>
+          </div>
+          <div class="dt-row"><span>Downtime So Far</span><span>${s.unplanned} min</span></div>
+        `;
+        if (s.notes.length) {
+          body += `
+            <div class="notes-heading card-heading">DT Notes So Far</div>
+            <div class="notes-box">${s.notes.join('<br>')}</div>
+          `;
+        }
+      } else if (run.IsHandRack) {
+        body += `<div class="dt-row"><span>Kegs Hand Racked</span><span>${num(run.FinalCount).toLocaleString()}</span></div>`;
+      } else {
+        body += `
+          <div class="eff-row">
+            <span class="eff-label">Run Efficiency</span>
+            <span class="eff-value ${effTier(run.RunEffPct)}">${fmtPct(run.RunEffPct)}</span>
+          </div>
+          <div class="dt-row"><span>Final Keg Count</span><span>${num(run.FinalCount).toLocaleString()}</span></div>
+          ${num(run.KegsOnHold) > 0 ? `<div class="dt-row"><span>Kegs On Hold</span><span style="color:var(--eff-bad)">${num(run.KegsOnHold).toLocaleString()}</span></div>` : ''}
+          <div class="dt-row"><span>Total Downtime</span><span>${num(run.GrandTotalDT)} min</span></div>
+        `;
+      }
+      card.innerHTML = body;
+      items.push(card);
+    });
+    const recap = buildDayRecap(runs);
+    efficiencyItems = recap ? [recap, ...items] : items;
+  }
+
+  function minutesAgo(ms) {
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return mins + ' min ago';
+  }
+
+  function updateStatusText() {
+    const status = document.getElementById('status');
+    if (!lastSuccessSplits && !lastSuccessEfficiency) return; // still on "Loading..." until the first successful fetch
+    const known = [lastSuccessSplits, lastSuccessEfficiency].filter(Boolean).sort((a, b) => a - b);
+    const oldest = known[0];
+    const age = Date.now() - oldest;
+    const stale = age > STALE_AFTER_MS;
+    let text = `Last updated: ${new Date(oldest).toLocaleTimeString()} (${minutesAgo(age)})`;
+    if (!lastSuccessEfficiency) text += ' -- racking feed not yet connected';
+    if (stale) text += ' -- board may be stuck, check the flow';
+    status.textContent = text;
+    status.classList.toggle('stale', stale);
+  }
+
+  function showError(message) {
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = 'Not syncing: ' + message + ' -- showing last known data.';
+    banner.classList.add('show');
+  }
+
+  function clearError() {
+    document.getElementById('errorBanner').classList.remove('show');
+  }
+
+  async function fetchAll() {
+    const errors = [];
+
+    try {
+      const response = await fetch(SPLITS_FLOW_URL);
+      if (!response.ok) throw new Error('status ' + response.status);
+      renderSplitsSection(await response.json());
+      lastSuccessSplits = Date.now();
+    } catch (err) {
+      errors.push('Splits: ' + err.message);
+    }
+
+    try {
+      if (EFFICIENCY_FLOW_URL.startsWith('PASTE_')) throw new Error('URL not set yet');
+      const response = await fetch(EFFICIENCY_FLOW_URL);
+      if (!response.ok) throw new Error('status ' + response.status);
+      renderEfficiencySection(await response.json());
+      lastSuccessEfficiency = Date.now();
+    } catch (err) {
+      errors.push('Efficiency: ' + err.message);
+    }
+
+    if (errors.length) {
+      consecutiveFailures++;
+      showError(errors.join(' | '));
+    } else {
+      consecutiveFailures = 0;
+      clearError();
+    }
+    updateStatusText();
+    buildPages();
+    scheduleNextFetch();
+  }
+
+  function scheduleNextFetch() {
+    if (pollTimer) clearTimeout(pollTimer);
+    // Fast retries right after a failure so a blip clears itself in under a minute;
+    // settle back to the normal cadence once it's healthy or retries are exhausted.
+    const delay = consecutiveFailures > 0 && consecutiveFailures <= RETRY_BACKOFF_MS.length
+      ? RETRY_BACKOFF_MS[consecutiveFailures - 1]
+      : REFRESH_INTERVAL_MS;
+    pollTimer = setTimeout(fetchAll, delay);
+  }
+
+  formatDateHeader();
+  fetchAll();
+  startRotation();
+  setInterval(updateStatusText, 30 * 1000);
+  // Screen/window size can't change on a dedicated TV, but repaginate on resize
+  // anyway (covers testing on a desktop browser, or a different TV later).
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildPages, 150);
+  });
+  // 24/7 kiosk tab: force a clean reload periodically rather than trusting long-running JS state.
+  setTimeout(() => location.reload(), RELOAD_AFTER_MS);
+</script>
+</body>
+</html>
