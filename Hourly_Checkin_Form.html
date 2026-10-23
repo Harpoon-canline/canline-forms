@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-21</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-23</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -867,6 +867,37 @@
           </div>
         </div>
 
+        <!-- 2026-10-23: Tank Kicked (same as the Racker End of Run) -->
+        <div class="card">
+          <div class="card-hdr"><div class="card-title">Tank</div></div>
+          <div class="card-body">
+            <div class="check-group">
+              <span class="check-group-lbl">Tank Kicked? <span class="req">*</span></span>
+              <div class="two-person-row">
+                <button type="button" class="yn-btn" id="kickY" onclick="setTank('kick','Yes')">&#10003; Yes</button>
+                <button type="button" class="yn-btn" id="kickN" onclick="setTank('kick','No')">&#10007; No</button>
+              </div>
+            </div>
+            <div id="kickBox" style="display:none;">
+              <div class="check-group">
+                <span class="check-group-lbl">Glycol Turned Off <span class="req">*</span></span>
+                <div class="two-person-row">
+                  <button type="button" class="yn-btn" id="glycolY" onclick="setTank('glycol','Yes')">&#10003; Yes</button>
+                  <button type="button" class="yn-btn" id="glycolN" onclick="setTank('glycol','No')">&#10007; No</button>
+                </div>
+              </div>
+              <div class="check-group">
+                <span class="check-group-lbl">Head Pressure Turned Off <span class="req">*</span></span>
+                <div class="two-person-row">
+                  <button type="button" class="yn-btn" id="hpoffY" onclick="setTank('hpoff','Yes')">&#10003; Yes</button>
+                  <button type="button" class="yn-btn" id="hpoffN" onclick="setTank('hpoff','No')">&#10007; No</button>
+                </div>
+              </div>
+            </div>
+            <p class="hint" id="tankMsg" style="font-style:normal;font-weight:700;color:#b71c1c;"></p>
+          </div>
+        </div>
+
         <!-- 2026-10-20: Run Notes (same as the Racker) -->
         <div class="card">
           <div class="card-hdr"><div class="card-title">Run Notes</div></div>
@@ -980,6 +1011,7 @@ var dtRowCount   = 0;
 var eorDtRowCount = 0;
 var eorLoggedDT  = 0;  // DT from completed logged hours — set in openEOR()
 var eorDtRem = null;  // EOR: partial-hour downtime not yet assigned to machines (2026-10-20)
+var tankYN = { kick: '', glycol: '', hpoff: '' };  // 2026-10-23: EOR Tank Kicked / Glycol / Head Pressure ('Yes' / 'No')
 var eorMix = '';     // EOR: mix packs on this run? 'Y' / 'N' (2/12 only)
 var eorTotalRunMinutes = 0;  // total elapsed run minutes (logged hours + final partial) — set in calcEorEfficiency()
 
@@ -1754,6 +1786,8 @@ function openEOR() {
         ? 'Mix pack run \u2014 scheduled ' + (parseInt(runData.schedCasesRegular) || 0).toLocaleString() + ' Regular + ' + (parseInt(runData.schedCasesMix) || 0).toLocaleString() + ' Mix. Enter the actual split:'
         : '';
     setMix(mixOn ? 'Y' : 'N');
+    // 2026-10-23: Tank Kicked starts unanswered each End of Run
+    setTank('kick', ''); document.getElementById('kickN').className = 'yn-btn'; document.getElementById('tankMsg').textContent = '';
     // 2026-10-21: on mix runs Total Cases is calculated (Regular + Mix + On Hold) and locked
     var totIn = document.getElementById('eorTotalCasesInput');
     totIn.readOnly = mixOn;
@@ -1907,6 +1941,25 @@ function calcEorEfficiency() {
 }
 
 function isTwoTwelve() { return !!(runData && (runData.pkgConfig || '').indexOf('12oz 2/12') === 0); }   // mix packs: 12oz 2/12 only
+// 2026-10-23: Tank Kicked (same behaviour as the Racker): Yes shows Glycol + Head Pressure (both required); No hides and clears them
+function setTank(k, v) {
+    tankYN[k] = v;
+    document.getElementById(k + 'Y').className = 'yn-btn' + (v === 'Yes' ? ' yes' : '');
+    document.getElementById(k + 'N').className = 'yn-btn' + (v === 'No'  ? ' no'  : '');
+    if (k === 'kick') {
+        document.getElementById('kickBox').style.display = v === 'Yes' ? '' : 'none';
+        if (v !== 'Yes') { ['glycol', 'hpoff'].forEach(function (x) { tankYN[x] = ''; document.getElementById(x + 'Y').className = 'yn-btn'; document.getElementById(x + 'N').className = 'yn-btn'; }); }
+    }
+    tankCheck();
+}
+function tankCheck() {
+    var m = document.getElementById('tankMsg'), miss = '';
+    if (!tankYN.kick) miss = 'Answer Tank Kicked.';
+    else if (tankYN.kick === 'Yes' && (!tankYN.glycol || !tankYN.hpoff)) miss = 'Answer Glycol Turned Off and Head Pressure Turned Off.';
+    if (m) m.textContent = miss;
+    return !miss;
+}
+
 function setMix(v) {
     eorMix = v;
     document.getElementById('mixY').className = 'yn-btn' + (v === 'Y' ? ' yes' : '');
@@ -1980,6 +2033,7 @@ function validateEOR() {
     calcEorEfficiency();
     if (eorDtRem !== null && eorDtRem > 1) { ok = false; msgs.push('assign the remaining ' + eorDtRem + ' min of downtime to a machine'); }
     if (!mixCheck()) { ok = false; msgs.push('Regular + Mix Pack cases must add up to Net Good Cases'); }
+    if (!tankCheck()) { ok = false; msgs.push(tankYN.kick ? 'answer Glycol Turned Off and Head Pressure Turned Off' : 'answer Tank Kicked'); }
     var eb = document.getElementById('eorSubmitErr');
     if (msgs.length) { eb.textContent = 'Please fix: ' + msgs.join('; ') + '.'; eb.className = 'err-bar show'; }
     else if (eb) { eb.className = 'err-bar'; eb.textContent = ''; }
@@ -2071,6 +2125,10 @@ function submitEOR() {
             netCasesRegular: (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorRegCases').value) || 0) : (parseInt(document.getElementById('eorNetCasesHid').value) || 0),
             netCasesMix:     (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorMixCases').value) || 0) : 0,
             eorNotes:      document.getElementById('eorRunNotes').value.trim(),
+            // 2026-10-23: Tank Kicked (Yes/No); Glycol + Head Pressure only when kicked, else null
+            tankKicked:      tankYN.kick,
+            glycolOff:       tankYN.kick === 'Yes' ? tankYN.glycol : null,
+            headPressureOff: tankYN.kick === 'Yes' ? tankYN.hpoff  : null,
             overallEff:    document.getElementById('eorOverallEff').textContent,
             overallFillerEff:  overallFillerEff,
     overallPkgLineEff: overallPkgLineEff,
