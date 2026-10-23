@@ -248,7 +248,7 @@
 .pfx[data-k="last"] button.f{background:#1F3864;border-color:#1F3864;color:#fff}
 </style></head>
 <body>
-<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-19</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
+<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-23</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
 <div class="ctx-bar">
   <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">-</span></div>
   <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">-</span></div>
@@ -271,8 +271,9 @@
 
 <div class="card"><div class="card-hdr"><div class="card-num">2</div><div class="card-title">Run Totals</div></div><div class="card-body">
   <div class="row c2">
+    <!-- 2026-10-23 (Kyle): Filler Count first (drives efficiency + downtime), Final Count second (what is shown) -->
+    <div class="fg"><label>Filler Count <span class="req">*</span></label><input type="number" id="filler" min="0" placeholder="racker counter at end" required oninput="calc()"></div>
     <div class="fg"><label>Final Count (Total Kegs) <span class="req">*</span></label><input type="number" id="total" min="0" placeholder="kegs on finished pallets" required oninput="calc()"></div>
-    <div class="fg"><label>Filler Count <span class="req">*</span></label><input type="number" id="filler" min="0" placeholder="racker counter at end" required></div>
   </div>
   <div id="mbBox" style="display:none">
     <div class="chk"><span class="chk-lbl">Multi-Beer Run <span class="hint">&mdash; codes come from Run Start</span></span></div>
@@ -282,7 +283,7 @@
   <hr class="divider">
   <div class="row c2"><div class="fg"><label>Scale Totals (optional)</label><input type="number" id="scTot" min="0" placeholder="kegs"></div><div class="fg"><label>Scale Reworks (optional)</label><input type="number" id="scRw" min="0" placeholder="kegs"></div></div>
   <div class="row c2"><div class="fg"><label>Scale Rejects (optional)</label><input type="number" id="scRj" min="0" placeholder="kegs"></div><div class="fg"><label>Dumps (Kegs Dumped) <span class="req">*</span></label><input type="number" id="dumps" min="0" placeholder="kegs" required></div></div>
-  <div class="row c2"><div class="fg"><label>Kegs on Hold</label><input type="number" id="hold" min="0" placeholder="kegs"></div><div class="fg"><label>Pressure-Faulted Kegs <span class="req">*</span></label><input type="number" id="pfk" min="0" placeholder="kegs" required></div></div>
+  <div class="row c2"><div class="fg"><label>Kegs on Hold <span class="req">*</span></label><input type="number" id="hold" min="0" placeholder="kegs (0 if none)" required></div><div class="fg"><label>Pressure-Faulted Kegs <span class="req">*</span></label><input type="number" id="pfk" min="0" placeholder="kegs" required></div></div>
 </div></div>
 
 <div class="card"><div class="card-hdr"><div class="card-num">3</div><div class="card-title">Flow Meters &amp; Loss</div></div><div class="card-body">
@@ -312,7 +313,7 @@
 
 <div class="card"><div class="card-hdr"><div class="card-num">6</div><div class="card-title">Downtime &mdash; Last Partial Hour</div></div><div class="card-body">
   <p class="hint" style="margin-bottom:12px">Always open. Add a row for each machine that stopped since the last hourly check-in; leave blank if none. Changeover time goes to <b>Changeover</b>.</p>
-  <div id="dtEst" class="hint" style="font-style:normal;font-weight:700;padding:10px 12px;border-radius:8px;margin-bottom:12px;background:#f1f3f5">Enter the End Time and Final Count to see the downtime to assign.</div>
+  <div id="dtEst" class="hint" style="font-style:normal;font-weight:700;padding:10px 12px;border-radius:8px;margin-bottom:12px;background:#f1f3f5">Enter the End Time and Filler Count to see the downtime to assign.</div>
   <div id="dtRows"></div>
   <button type="button" class="btn-add-dt" onclick="addDTRow()">+ Add Machine</button>
   <div class="fg"><label>What Happened / Action Taken</label><textarea id="dtNarr" placeholder="Describe the issue and what was done to resolve it..."></textarea></div>
@@ -325,7 +326,7 @@
     <div><div class="l">Run Efficiency</div><div class="v" id="sEff">-</div><div class="s">capped at 100%</div></div>
     <div><div class="l">Total Downtime</div><div class="v" id="sDt">-</div><div class="s">hourly + end of run</div></div>
   </div>
-  <p class="hint">Auto-calculated from Final Count &divide; run time (minus planned downtime) &divide; rated speed. Nothing to enter here.</p>
+  <p class="hint">Auto-calculated from Filler Count &divide; run time (minus planned downtime) &divide; rated speed. Nothing to enter here.</p>
 </div></div>
 
 <div class="card"><div class="card-hdr"><div class="card-num">8</div><div class="card-title">Hand Rack</div></div><div class="card-body">
@@ -362,7 +363,7 @@
 // Beers -> RackRunBeers.ActualKegs by ProductCode. DTEvents -> RackDTEvents with HourNum 0.
 // JobComplete (from "Last size run on this job?") tells the flow to send the ONE recap email per job (Kyle 10/13).
 // Local data is cleared ONLY after the flow confirms success (same rule as Can Line EOR).
-// Efficiency = Final Count / (QualTime->EndTime minus PLANNED downtime) / rated, capped at 100%.
+// Efficiency = Filler Count / (QualTime->EndTime minus PLANNED downtime) / rated, capped at 100%.
 // ─────────────────────────────────────────────
 const FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/21beccfde89c43e9aa583f13feaa6c16/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=W9hDzRw3T-iOotX-xiUaH9KFRA-jUqMeDJasLB87sSk';  
 const LS_RUN = 'harpoon_racker_run_v1', LS_HOURLY = 'harpoon_racker_hourly_v1', LS_ARCHIVE = 'harpoon_racker_completed_v1';
@@ -450,7 +451,9 @@ function collectHR() {
 }
 
 function calc() {
-    const c = {}; const tot = num('total');
+    // 2026-10-23 (Kyle): efficiency and downtime-from-counts use the FILLER count (what went through the racker in the run time);
+    // Final Count (kegs on finished pallets) stays the displayed output.
+    const c = {}; const tot = num('filler');
     const hd = hourlyDT(), ed = collectDT();
     const eTot = ed.reduce((s, e) => s + e.Minutes, 0), ePl = ed.filter(e => e.Planned === 'planned').reduce((s, e) => s + e.Minutes, 0);
     c.grandDT = hd.tot + eTot; c.plannedDT = hd.planned + ePl;
@@ -477,17 +480,18 @@ function calc() {
         if (c.remDT > c.tolDT) { est.innerHTML = parts + '<br>&#9888; Assign the remaining <b>' + c.remDT + ' min</b> to a machine below before submitting.'; est.style.background = '#fdecea'; est.style.color = '#b71c1c'; }
         else if (c.remDT < -c.tolDT) { est.innerHTML = parts + '<br>More downtime is assigned than the counts show (' + (-c.remDT) + ' min over). Double-check the minutes &mdash; you can still submit.'; est.style.background = '#fff4e5'; est.style.color = '#8a5300'; }
         else { est.innerHTML = parts + '<br>&#10003; Downtime is fully assigned.'; est.style.background = '#e8f5e9'; est.style.color = '#2e7d32'; }
-    } else { est.textContent = 'Enter the End Time and Final Count to see the downtime to assign.'; est.style.background = '#f1f3f5'; est.style.color = ''; }
-    // multi-beer: actuals must add up to Final Count
+    } else { est.textContent = 'Enter the End Time and Filler Count to see the downtime to assign.'; est.style.background = '#f1f3f5'; est.style.color = ''; }
+    // multi-beer: actuals must add up to Final Count (NOT the filler count)
+    const fin = num('total');
     let sum = 0, any = false, allIn = true;
     document.querySelectorAll('#mbRows .mb-row').forEach(r => {
         const i = r.querySelector('.mk'), d = r.querySelector('.diff'), s = runData.Beers[+i.dataset.i].ScheduledKegs;
         if (i.value !== '') { any = true; const a = +i.value, x = s == null ? 0 : a - s; sum += a; d.textContent = (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x); d.className = 'diff' + (x < 0 ? ' neg' : x > 0 ? ' pos' : ''); }
         else { allIn = false; d.textContent = '—'; d.className = 'diff'; }
     });
-    c.mbOk = !any || (allIn && tot != null && sum === tot);
+    c.mbOk = !any || (allIn && fin != null && sum === fin);
     const w = $('mbWarn');
-    if (any && tot != null) { w.textContent = sum === tot ? '✓ Codes add up to Final Count (' + tot + ')' : 'Codes add up to ' + sum + ' but Final Count is ' + tot + ' — must match to submit'; w.style.color = sum === tot ? '#2e7d32' : '#dc3545'; } else w.textContent = '';
+    if (any && fin != null) { w.textContent = sum === fin ? '✓ Codes add up to Final Count (' + fin + ')' : 'Codes add up to ' + sum + ' but Final Count is ' + fin + ' — must match to submit'; w.style.color = sum === fin ? '#2e7d32' : '#dc3545'; } else w.textContent = '';
     // flow meters vs physical (gallons per keg by size)
     const m1 = num('mm1'), m2 = num('mm2'), g = runData ? GAL[runData.KegSize] : null;
     if (m1 != null || m2 != null) {
