@@ -332,13 +332,19 @@
         .beer-row { display:grid; grid-template-columns: 1fr 1fr 44px; gap:12px; align-items:end; margin-bottom:10px; }
         .beer-del { height:44px; border:none; border-radius:8px; background:#eee; font-size:18px; cursor:pointer; }
         .btn-add { width:100%; padding:12px; border:2px dashed #b9c3d3; background:#f7f9fc; border-radius:8px; font-weight:700; cursor:pointer; margin-top:4px; }
-    </style>
+    
+        /* 2026-10-26 date code formats */
+        .dc-preview { font-family: 'Courier New', monospace; font-size: 18px; font-weight: 700; background: #1b1b1b; color: #f5f5f5; padding: 10px 14px; border-radius: 8px; letter-spacing: 1px; line-height: 1.5; }
+        .dc-bos { display: inline-block; margin-left: 8px; background: #204667; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; letter-spacing: .5px; }
+        .dc-err { color: #b71c1c; font-size: 12px; font-weight: 700; }
+        #codeBlock, #wrapCodeBlock { margin-bottom: 14px; }
+</style>
 </head>
 <body>
 <div class="header">
     <div>
         <h1>Racker Run Start</h1>
-        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-10-19</span></p>
+        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-10-26</span></p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
 </div>
@@ -374,11 +380,43 @@
                         <option value="">&mdash; Select Type &mdash;</option>
                         <option>Packaged On</option>
                         <option>Kegged On</option>
+                        <option>Best By</option>
+                        <option>B&auml;st F&ouml;re</option>
+                        <option>Wicked Grove</option>
                     </select>
                 </div>
                 <div class="fg">
                     <label for="dateCode">Date Code / Pkg Date <span class="req">*</span></label>
                     <input type="date" id="dateCode" required>
+                </div>
+            </div>
+
+            <!-- 2026-10-26: date code format details (Best By / B&auml;st F&ouml;re / Wicked Grove + plant letter) -->
+            <div id="codeBlock" style="display:none">
+                <div class="row col-3">
+                    <div class="fg">
+                        <label for="codePrintDate" id="codePrintLbl">Printed Date</label>
+                        <input type="date" id="codePrintDate" name="codePrintDate">
+                        <span class="hint">Auto = Pkg Date + 1 year &middot; editable</span>
+                    </div>
+                    <div class="fg">
+                        <label for="codeLetter">Plant Letter</label>
+                        <input type="text" id="codeLetter" name="codeLetter" maxlength="3">
+                        <span class="hint">B = Boston &middot; blank for contract unless they ask for one</span>
+                    </div>
+                    <div class="fg" id="codeStateWrap">
+                        <label for="codeState">State</label>
+                        <input type="text" id="codeState" name="codeState" maxlength="3" placeholder="FL">
+                        <span class="hint">Default FL &middot; editable if the state changes</span>
+                    </div>
+                </div>
+                <div class="row col-1">
+                    <div class="fg">
+                        <label>Date Code Preview &mdash; should match the coder <span class="dc-bos" id="codeBos" style="display:none">BOS &middot; fixed</span></label>
+                        <div class="dc-preview" id="codePreview"></div>
+                        <input type="hidden" id="codeText" name="codeText">
+                        <span class="hint">Time stamp shown is the current time &mdash; the coder advances it on its own</span>
+                    </div>
                 </div>
             </div>
             <div class="row col-3">
@@ -676,6 +714,97 @@ function beerRows() {
     return out;
 }
 
+// ─────────────────────────────────────────────
+// DATE CODE FORMATS (2026-10-26, Kyle) — same block on Run Start (can bottom),
+// Downstairs Check (wrap) and Racker Run Start (sticker).
+//  Packaged On / Canned On / Kegged On : package date + plant letter (B = Boston)
+//  Best By      : printed date (default package date + 1 year, editable) + time stamp + B
+//  Bäst Före    : Sweden export, DD/MM/YYYY + B (no time stamp for now)
+//  Wicked Grove : contract. BB date (package date + 1 year, editable) + time stamp + BOS
+//                 (fixed) + state (FL default, editable; can bottom / sticker only). No letter.
+// The time stamp is calculated (the coder advances it on its own) and only shown in
+// the preview. The plant letter is editable so a contract that wants one can have one.
+// ─────────────────────────────────────────────
+var DC_FORMATS = {
+    'Packaged On':  { printDate: false, time: false, letter: 'B' },
+    'Canned On':    { printDate: false, time: false, letter: 'B' },
+    'Kegged On':    { printDate: false, time: false, letter: 'B' },
+    'Best By':      { printDate: true,  time: true,  letter: 'B', dateLabel: 'Best By Date' },
+    'Bäst Före': { printDate: true, time: false, letter: 'B', dateLabel: 'Bäst Före Date', eu: true },
+    'Wicked Grove': { printDate: true,  time: true,  letter: '',  dateLabel: 'BB Date (1 year)', bos: true, state: true }
+};
+function dcPad(n) { return String(n).padStart(2, '0'); }
+function dcPlusYear(iso) {
+    if (!iso) return '';
+    var p = iso.split('-'), y = +p[0] + 1, m = +p[1], d = +p[2];
+    var last = new Date(y, m, 0).getDate();           // Feb 29 -> Feb 28
+    return y + '-' + dcPad(m) + '-' + dcPad(Math.min(d, last));
+}
+function dcUS(iso) { if (!iso) return '__/__/__'; var p = iso.split('-'); return p[1] + '/' + p[2] + '/' + p[0].slice(2); }
+function dcEU(iso) { if (!iso) return '__/__/____'; var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function dcNow() { var d = new Date(); return dcPad(d.getHours()) + ':' + dcPad(d.getMinutes()); }
+// cfg: { type, pkgDate, block, printDate, printLbl, letter, stateWrap, state, bos, preview, text, useState, onChange }
+function dcLines(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var type = el(cfg.type).value, f = DC_FORMATS[type];
+    if (!f) return [];
+    var L = el(cfg.letter).value.trim(), sfx = L ? ' ' + L : '';
+    var pd = el(cfg.printDate).value, pk = el(cfg.pkgDate).value;
+    if (type === 'Wicked Grove') {
+        var st = cfg.useState ? el(cfg.state).value.trim() : '';
+        return ['BB ' + dcUS(pd) + sfx, dcNow() + ' BOS' + (st ? ' ' + st : '')];
+    }
+    if (type === 'Best By') return ['Best By ' + dcUS(pd) + sfx, dcNow()];
+    if (f.eu) return ['Bäst Före ' + dcEU(pd) + sfx];
+    return [type + ' ' + dcUS(pk) + sfx];
+}
+function dcRefresh(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var lines = dcLines(cfg);
+    el(cfg.preview).innerHTML = lines.length
+        ? lines.map(function (l) { return '<div>' + l.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'; }).join('')
+        : '<div style="opacity:.6">Select a date code type</div>';
+    el(cfg.text).value = lines.join(' / ');
+}
+function dcOnType(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var f = DC_FORMATS[el(cfg.type).value];
+    el(cfg.block).style.display = f ? '' : 'none';
+    var pdWrap = el(cfg.printDate).closest('.fg');
+    pdWrap.style.display = f && f.printDate ? '' : 'none';
+    el(cfg.printDate).required = !!(f && f.printDate);
+    if (f && f.printDate) {
+        el(cfg.printLbl).innerHTML = f.dateLabel + ' <span class="req">*</span>';
+        if (!el(cfg.printDate).dataset.changed) el(cfg.printDate).value = dcPlusYear(el(cfg.pkgDate).value);
+    } else { el(cfg.printDate).value = ''; el(cfg.printDate).dataset.changed = ''; }
+    if (f && !el(cfg.letter).dataset.changed) el(cfg.letter).value = f.letter;
+    var showState = !!(f && f.state && cfg.useState);
+    if (cfg.stateWrap) {
+        el(cfg.stateWrap).style.display = showState ? '' : 'none';
+        if (showState && !el(cfg.state).value) el(cfg.state).value = 'FL';
+        if (!showState) el(cfg.state).value = '';
+    }
+    el(cfg.bos).style.display = f && f.bos ? '' : 'none';
+    dcRefresh(cfg);
+    if (cfg.onChange) cfg.onChange(el(cfg.type).value);
+}
+function dcInit(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    el(cfg.type).addEventListener('change', function () { el(cfg.letter).dataset.changed = ''; dcOnType(cfg); });
+    el(cfg.pkgDate).addEventListener('change', function () {
+        var f = DC_FORMATS[el(cfg.type).value];
+        if (f && f.printDate && !el(cfg.printDate).dataset.changed) el(cfg.printDate).value = dcPlusYear(this.value);
+        dcRefresh(cfg);
+    });
+    el(cfg.printDate).addEventListener('change', function () { this.dataset.changed = '1'; dcRefresh(cfg); });
+    el(cfg.letter).addEventListener('input', function () { this.value = this.value.toUpperCase(); this.dataset.changed = '1'; dcRefresh(cfg); });
+    if (cfg.state) el(cfg.state).addEventListener('input', function () { this.value = this.value.toUpperCase(); dcRefresh(cfg); });
+    setInterval(function () { dcRefresh(cfg); }, 30000);   // keep the time stamp current
+    dcOnType(cfg);
+}
+
+const RK_DC = { type: 'dateCodeType', pkgDate: 'dateCode', block: 'codeBlock', printDate: 'codePrintDate', printLbl: 'codePrintLbl', letter: 'codeLetter', stateWrap: 'codeStateWrap', state: 'codeState', useState: true, bos: 'codeBos', preview: 'codePreview', text: 'codeText' };
+
 // ── validation ──
 function validate() {
     let ok = true, msgs = [];
@@ -704,6 +833,7 @@ function collect() {
         Title: job, JobNumKey: job, BatchNum: $('batchNum').value.trim(),
         RunDate: $('runDate').value, JulianDate: julianToday(),
         DateCodeType: $('dateCodeType').value, DateCode: $('dateCode').value,
+        CodePrintDate: $('codePrintDate').value || null, CodeLetter: $('codeLetter').value.trim(), CodeState: $('codeState').value.trim(), CodeText: $('codeText').value,
         QualTime: $('qualTime').value, BBT: $('bbt').value.trim(), BeerCode: $('beerCode').value.trim(),
         KegSize: size, RatedPerHour: s ? s.uph : null,
         ScheduledKegs: isNaN(k) ? null : k,
@@ -728,6 +858,7 @@ function collect() {
 function onSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
+    dcRefresh(RK_DC);
     const data = collect();
     data._ts = new Date().toISOString();
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (err) {}
@@ -763,7 +894,7 @@ function showConf(d) {
         ['Keg Size', d.KegSize], ['Rated Speed', d.RatedPerHour ? d.RatedPerHour + ' kegs/hr' : '—'],
         ['Scheduled Kegs', d.ScheduledKegs], ['Scheduled Gallons', d.ScheduledGallons ? d.ScheduledGallons.toLocaleString() + ' gal' : '—'],
         ['Multi-Beer', d.IsMultiBeer ? d.Beers.map(b => b.ProductCode + ' ' + b.ScheduledKegs).join(', ') : 'No'],
-        ['Date', d.RunDate], ['Julian Date', d.JulianDate], ['Date Code', d.DateCodeType + ' ' + d.DateCode],
+        ['Date', d.RunDate], ['Julian Date', d.JulianDate], ['Date Code', d.DateCodeType + ' ' + d.DateCode], ['Sticker Code', d.CodeText],
         ['Qualification Time', d.QualTime], ['Pre-Filter', d.PreFilter],
         ['Nitrogen Run', d.IsNitro ? 'Yes' : 'No'],
         ...(d.IsNitro ? [['N2 / Pressure', dash(d.N2ppbStart) + ' ppb / ' + dash(d.PressurePSIStart) + ' psi']] : []),
@@ -798,6 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (q.get('co2'))  $('tankCO2').value  = q.get('co2');
     if (q.get('do'))   $('tankDO').value   = q.get('do');
     checkSaved();
+    dcInit(RK_DC);
     $('form').addEventListener('submit', onSubmit);
     ['input','change'].forEach(ev => $('form').addEventListener(ev, e => { if (e.target.classList) e.target.classList.remove('error'); }));
 });
