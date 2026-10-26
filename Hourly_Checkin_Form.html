@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-23</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-26</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -420,11 +420,11 @@
                     </tr>
                     <tr>
                         <td class="check-name">Date Code</td>
-                        <td><input type="text" name="dcOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                        <td><input type="text" name="dcOp" maxlength="9" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
                     </tr>
                     <tr>
                         <td class="check-name">Lid Type</td>
-                        <td><input type="text" name="lcOp" maxlength="4" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
+                        <td><input type="text" name="lcOp" maxlength="9" oninput="this.value=this.value.toUpperCase()" placeholder="&mdash;"></td>
                     </tr>
                     <tr>
                         <td class="check-name">Seam Check</td>
@@ -449,7 +449,7 @@
                     </tr>
                     <tr>
                         <td class="check-name">Can Lot #</td>
-                        <td><input type="text" name="canLot" maxlength="20" placeholder="e.g. L25072501" class="wide-input"></td>
+                        <td><input type="text" name="canLot" maxlength="20" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" placeholder="e.g. L25072501" class="wide-input"></td>
                     </tr>
                 </tbody>
             </table>
@@ -725,7 +725,7 @@
             <div class="row c1" style="margin-bottom:14px;">
               <div class="fg">
                 <label for="eorFcCanLot">Can Lot #</label>
-                <input type="text" id="eorFcCanLot" name="eorFcCanLot" maxlength="20" placeholder="e.g. L25072501">
+                <input type="text" id="eorFcCanLot" name="eorFcCanLot" maxlength="20" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" placeholder="e.g. L25072501">
               </div>
             </div>
 
