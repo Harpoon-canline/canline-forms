@@ -163,13 +163,19 @@ textarea      { resize: vertical; min-height: 70px; }
     .c2 { grid-template-columns: 1fr; }
     .c3 { grid-template-columns: 1fr 1fr; }
 }
+
+        /* 2026-10-26 date code formats */
+        .dc-preview { font-family: 'Courier New', monospace; font-size: 18px; font-weight: 700; background: #1b1b1b; color: #f5f5f5; padding: 10px 14px; border-radius: 8px; letter-spacing: 1px; line-height: 1.5; }
+        .dc-bos { display: inline-block; margin-left: 8px; background: #204667; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; letter-spacing: .5px; }
+        .dc-err { color: #b71c1c; font-size: 12px; font-weight: 700; }
+        #codeBlock, #wrapCodeBlock { margin-bottom: 14px; }
 </style>
 </head>
 <body>
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-20</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-26</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -265,6 +271,9 @@ textarea      { resize: vertical; min-height: 70px; }
                             <option value="">&mdash; Select Type &mdash;</option>
                             <option>Packaged On</option>
                             <option>Canned On</option>
+                            <option>Best By</option>
+                        <option>B&auml;st F&ouml;re</option>
+                        <option>Wicked Grove</option>
                         </select>
                         <span class="hint">Same convention as the Run Start form &mdash; which date the printed code reflects</span>
                     </div>
@@ -279,6 +288,30 @@ textarea      { resize: vertical; min-height: 70px; }
                         <input type="text" id="wrapJulian" name="wrapJulian" class="readonly" readonly placeholder="Auto">
                     </div>
                 </div>
+
+            <!-- 2026-10-26: date code format details (Best By / B&auml;st F&ouml;re / Wicked Grove + plant letter) -->
+            <div id="wrapCodeBlock" style="display:none">
+                <div class="row c2">
+                    <div class="fg">
+                        <label for="wrapCodePrintDate" id="wrapCodePrintLbl">Printed Date</label>
+                        <input type="date" id="wrapCodePrintDate" name="wrapCodePrintDate">
+                        <span class="hint">Auto = Wrap Date Code + 1 year &middot; editable</span>
+                    </div>
+                    <div class="fg">
+                        <label for="wrapCodeLetter">Plant Letter</label>
+                        <input type="text" id="wrapCodeLetter" name="wrapCodeLetter" maxlength="3">
+                        <span class="hint">B = Boston &middot; blank for contract unless they ask for one</span>
+                    </div>
+                </div>
+                <div class="row c1">
+                    <div class="fg">
+                        <label>Date Code Preview &mdash; should match the coder <span class="dc-bos" id="wrapCodeBos" style="display:none">BOS &middot; fixed</span></label>
+                        <div class="dc-preview" id="wrapCodePreview"></div>
+                        <input type="hidden" id="wrapCodeText" name="wrapCodeText">
+                        <span class="hint">Time stamp shown is the current time &mdash; the coder advances it on its own</span>
+                    </div>
+                </div>
+            </div>
                 <div class="row c1">
                     <div class="fg">
                         <label for="wrapLotNum">Wrap Lot Number <span class="req">*</span></label>
@@ -313,6 +346,41 @@ textarea      { resize: vertical; min-height: 70px; }
                     <div class="fg">
                         <label for="trayLotNum">Tray Lot Number <span class="req">*</span></label>
                         <input type="text" id="trayLotNum" name="trayLotNum" placeholder="e.g. TR250714-01" required>
+                    </div>
+                </div>
+
+                <!-- 2026-10-26: Wicked Grove contract tray codes (only when the wrap code is Wicked Grove).
+                     Entered once per run and carried to every check + End of Run on this tablet. -->
+                <div id="wgTrayBlock" style="display:none">
+                    <span class="section-tag tag-tray">Wicked Grove &mdash; Tray Codes (3 lines)</span>
+                    <div class="row c2">
+                        <div class="fg">
+                            <label for="traySAP">SAP Sellable # <span class="req">*</span></label>
+                            <input type="text" id="traySAP" name="traySAP" inputmode="numeric" oninput="onTrayCodes()">
+                        </div>
+                        <div class="fg">
+                            <label for="trayGTIN">Display GTIN <span class="req">*</span></label>
+                            <input type="text" id="trayGTIN" name="trayGTIN" inputmode="numeric" maxlength="14" oninput="onTrayCodes()">
+                            <span class="dc-err" id="trayGtinMsg"></span>
+                        </div>
+                    </div>
+                    <div class="row c2">
+                        <div class="fg">
+                            <label for="trayProduct">Product Name <span class="req">*</span></label>
+                            <input type="text" id="trayProduct" name="trayProduct" placeholder="e.g. Fruit Theory Blueberry Ale" oninput="onTrayCodes()">
+                            <span class="hint">Type once &mdash; stays filled for the rest of this run</span>
+                        </div>
+                        <div class="fg">
+                            <label for="traySize">Size Line <span class="req">*</span></label>
+                            <input type="text" id="traySize" name="traySize" oninput="this.dataset.changed='1';onTrayCodes()">
+                            <span class="hint">Auto from Configuration (packs x cans x fl. oz.) &middot; editable</span>
+                        </div>
+                    </div>
+                    <div class="row c1">
+                        <div class="fg">
+                            <label>Tray Code Preview</label>
+                            <div class="dc-preview" id="trayPreview"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -530,6 +598,130 @@ var CONFIGS = [
     '19.2oz 24pk LSE NS','19.2oz 24pk LSE SLV'
 ];
 var DT_MACHINES = ['Cartoner','Paktech','Date Coder','Tray Packer','Check Weigher','Palletizer','Other'];
+// ─────────────────────────────────────────────
+// DATE CODE FORMATS (2026-10-26, Kyle) — same block on Run Start (can bottom),
+// Downstairs Check (wrap) and Racker Run Start (sticker).
+//  Packaged On / Canned On / Kegged On : package date + plant letter (B = Boston)
+//  Best By      : printed date (default package date + 1 year, editable) + time stamp + B
+//  Bäst Före    : Sweden export, DD/MM/YYYY + B (no time stamp for now)
+//  Wicked Grove : contract. BB date (package date + 1 year, editable) + time stamp + BOS
+//                 (fixed) + state (FL default, editable; can bottom / sticker only). No letter.
+// The time stamp is calculated (the coder advances it on its own) and only shown in
+// the preview. The plant letter is editable so a contract that wants one can have one.
+// ─────────────────────────────────────────────
+var DC_FORMATS = {
+    'Packaged On':  { printDate: false, time: false, letter: 'B' },
+    'Canned On':    { printDate: false, time: false, letter: 'B' },
+    'Kegged On':    { printDate: false, time: false, letter: 'B' },
+    'Best By':      { printDate: true,  time: true,  letter: 'B', dateLabel: 'Best By Date' },
+    'Bäst Före': { printDate: true, time: false, letter: 'B', dateLabel: 'Bäst Före Date', eu: true },
+    'Wicked Grove': { printDate: true,  time: true,  letter: '',  dateLabel: 'BB Date (1 year)', bos: true, state: true }
+};
+function dcPad(n) { return String(n).padStart(2, '0'); }
+function dcPlusYear(iso) {
+    if (!iso) return '';
+    var p = iso.split('-'), y = +p[0] + 1, m = +p[1], d = +p[2];
+    var last = new Date(y, m, 0).getDate();           // Feb 29 -> Feb 28
+    return y + '-' + dcPad(m) + '-' + dcPad(Math.min(d, last));
+}
+function dcUS(iso) { if (!iso) return '__/__/__'; var p = iso.split('-'); return p[1] + '/' + p[2] + '/' + p[0].slice(2); }
+function dcEU(iso) { if (!iso) return '__/__/____'; var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function dcNow() { var d = new Date(); return dcPad(d.getHours()) + ':' + dcPad(d.getMinutes()); }
+// cfg: { type, pkgDate, block, printDate, printLbl, letter, stateWrap, state, bos, preview, text, useState, onChange }
+function dcLines(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var type = el(cfg.type).value, f = DC_FORMATS[type];
+    if (!f) return [];
+    var L = el(cfg.letter).value.trim(), sfx = L ? ' ' + L : '';
+    var pd = el(cfg.printDate).value, pk = el(cfg.pkgDate).value;
+    if (type === 'Wicked Grove') {
+        var st = cfg.useState ? el(cfg.state).value.trim() : '';
+        return ['BB ' + dcUS(pd) + sfx, dcNow() + ' BOS' + (st ? ' ' + st : '')];
+    }
+    if (type === 'Best By') return ['Best By ' + dcUS(pd) + sfx, dcNow()];
+    if (f.eu) return ['Bäst Före ' + dcEU(pd) + sfx];
+    return [type + ' ' + dcUS(pk) + sfx];
+}
+function dcRefresh(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var lines = dcLines(cfg);
+    el(cfg.preview).innerHTML = lines.length
+        ? lines.map(function (l) { return '<div>' + l.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'; }).join('')
+        : '<div style="opacity:.6">Select a date code type</div>';
+    el(cfg.text).value = lines.join(' / ');
+}
+function dcOnType(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    var f = DC_FORMATS[el(cfg.type).value];
+    el(cfg.block).style.display = f ? '' : 'none';
+    var pdWrap = el(cfg.printDate).closest('.fg');
+    pdWrap.style.display = f && f.printDate ? '' : 'none';
+    el(cfg.printDate).required = !!(f && f.printDate);
+    if (f && f.printDate) {
+        el(cfg.printLbl).innerHTML = f.dateLabel + ' <span class="req">*</span>';
+        if (!el(cfg.printDate).dataset.changed) el(cfg.printDate).value = dcPlusYear(el(cfg.pkgDate).value);
+    } else { el(cfg.printDate).value = ''; el(cfg.printDate).dataset.changed = ''; }
+    if (f && !el(cfg.letter).dataset.changed) el(cfg.letter).value = f.letter;
+    var showState = !!(f && f.state && cfg.useState);
+    if (cfg.stateWrap) {
+        el(cfg.stateWrap).style.display = showState ? '' : 'none';
+        if (showState && !el(cfg.state).value) el(cfg.state).value = 'FL';
+        if (!showState) el(cfg.state).value = '';
+    }
+    el(cfg.bos).style.display = f && f.bos ? '' : 'none';
+    dcRefresh(cfg);
+    if (cfg.onChange) cfg.onChange(el(cfg.type).value);
+}
+function dcInit(cfg) {
+    var el = function (id) { return document.getElementById(id); };
+    el(cfg.type).addEventListener('change', function () { el(cfg.letter).dataset.changed = ''; dcOnType(cfg); });
+    el(cfg.pkgDate).addEventListener('change', function () {
+        var f = DC_FORMATS[el(cfg.type).value];
+        if (f && f.printDate && !el(cfg.printDate).dataset.changed) el(cfg.printDate).value = dcPlusYear(this.value);
+        dcRefresh(cfg);
+    });
+    el(cfg.printDate).addEventListener('change', function () { this.dataset.changed = '1'; dcRefresh(cfg); });
+    el(cfg.letter).addEventListener('input', function () { this.value = this.value.toUpperCase(); this.dataset.changed = '1'; dcRefresh(cfg); });
+    if (cfg.state) el(cfg.state).addEventListener('input', function () { this.value = this.value.toUpperCase(); dcRefresh(cfg); });
+    setInterval(function () { dcRefresh(cfg); }, 30000);   // keep the time stamp current
+    dcOnType(cfg);
+}
+
+var DS_DC = { type: 'wrapDateCodeType', pkgDate: 'wrapDateCode', block: 'wrapCodeBlock', printDate: 'wrapCodePrintDate', printLbl: 'wrapCodePrintLbl', letter: 'wrapCodeLetter', stateWrap: null, state: null, useState: false, bos: 'wrapCodeBos', preview: 'wrapCodePreview', text: 'wrapCodeText' };
+DS_DC.onChange = function (type) { showWgTray(type === 'Wicked Grove'); };
+var WG_DEFAULTS = { traySAP: '767474', trayGTIN: '4069366393122' };
+var TRAY_IDS = ['traySAP', 'trayGTIN', 'trayProduct', 'traySize'];
+// "4/6" -> 4x6, "15pk" -> 1x15, "24pk LSE" -> 1x24; size from the leading oz value
+function traySizeFor(cfg) {
+    var m = /^([\d.]+)oz\s+(\d+)\/(\d+)/.exec(cfg || ''), n = /^([\d.]+)oz\s+(\d+)pk/.exec(cfg || '');
+    if (m) return m[2] + 'x' + m[3] + 'x' + m[1] + ' fl. oz.';
+    if (n) return '1x' + n[2] + 'x' + n[1] + ' fl. oz.';
+    return '';
+}
+function gtinValid(g) {
+    if (!/^\d{8}$|^\d{12,14}$/.test(g)) return false;
+    var digits = g.split('').map(Number), check = digits.pop(), sum = 0;
+    digits.reverse().forEach(function (d, i) { sum += d * (i % 2 === 0 ? 3 : 1); });
+    return (10 - sum % 10) % 10 === check;
+}
+function showWgTray(on) {
+    document.getElementById('wgTrayBlock').style.display = on ? '' : 'none';
+    TRAY_IDS.forEach(function (id) { document.getElementById(id).required = on; });
+    if (on) {
+        Object.keys(WG_DEFAULTS).forEach(function (k) { var el = document.getElementById(k); if (!el.value) el.value = WG_DEFAULTS[k]; });
+        var ts = document.getElementById('traySize');
+        if (!ts.dataset.changed || !ts.value) ts.value = traySizeFor(document.getElementById('pkgConfig').value);
+    }
+    onTrayCodes();
+}
+function onTrayCodes() {
+    var v = function (id) { return document.getElementById(id).value.trim(); };
+    var g = v('trayGTIN');
+    document.getElementById('trayGtinMsg').textContent = g && !gtinValid(g) ? 'Check digit does not match - re-check the GTIN' : '';
+    document.getElementById('trayPreview').innerHTML =
+        ['SAP Sellable ' + (v('traySAP') || '___') + ' / Display GTIN ' + (g || '___'), v('trayProduct') || '(product name)', v('traySize') || '(size)']
+        .map(function (l) { return '<div>' + l.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'; }).join('');
+}
 // ── STATE ─────────────────────────────────────────────────
 var checksData  = [];
 var dtRowCount   = 0;
@@ -545,6 +737,8 @@ window.onload = function() {
         updateCheckBadge();
         setNowTime();
         onTrayPackerFormatChange();
+        dcInit(DS_DC);
+        restoreDcRun();
         document.getElementById('dsForm').onsubmit = onSubmit;
         var wdc = document.getElementById('wrapDateCode');
         var cdc = document.getElementById('canDateCode');
@@ -591,6 +785,7 @@ function onConfigChange() {
     document.getElementById('paktechColor').required        = isPT;
     document.getElementById('paktechLotNum').required       = isPT;
     document.getElementById('canDateCode').required         = isPT;
+    if (typeof DS_DC !== 'undefined' && document.getElementById('wgTrayBlock')) dcOnType(DS_DC);
     updateCtxBar();
 }
 // ── TRAY PACKER FORMAT → BYPASS ──────────────────────────
@@ -646,6 +841,12 @@ function onRunDateChange() {
     var cdc = document.getElementById('canDateCode');
     if (wdc && isWrap && !wdc.dataset.changed) { wdc.value = d; calcJulian('wrapDateCode','wrapJulian'); }
     if (cdc && isPT   && !cdc.dataset.changed) { cdc.value = d; calcJulian('canDateCode','canJulian'); }
+    // 2026-10-26: wrap date code was set in code (no change event) - keep the printed date in step
+    if (typeof DS_DC !== 'undefined' && wdc && wdc.value) {
+        var f = DC_FORMATS[document.getElementById('wrapDateCodeType').value], pd = document.getElementById('wrapCodePrintDate');
+        if (f && f.printDate && !pd.dataset.changed) pd.value = dcPlusYear(wdc.value);
+        dcRefresh(DS_DC);
+    }
 }
 function loadRunInfo() {
     var raw = localStorage.getItem(LS_RUNINFO);
@@ -669,10 +870,30 @@ function saveRunInfo() {
         runDate:   document.getElementById('runDate').value,
         batchNum:  document.getElementById('batchNum').value,
         jobNum:    document.getElementById('jobNum').value,
-        pkgConfig: document.getElementById('pkgConfig').value
+        pkgConfig: document.getElementById('pkgConfig').value,
+        // 2026-10-26: code type + Wicked Grove tray codes stay for the whole run
+        wrapDateCodeType: document.getElementById('wrapDateCodeType').value,
+        wrapCodeLetter: document.getElementById('wrapCodeLetter').value,
+        wrapCodePrintDate: document.getElementById('wrapCodePrintDate').value,
+        traySAP: document.getElementById('traySAP').value,
+        trayGTIN: document.getElementById('trayGTIN').value,
+        trayProduct: document.getElementById('trayProduct').value,
+        traySize: document.getElementById('traySize').value
     };
     localStorage.setItem(LS_RUNINFO, JSON.stringify(d));
     updateCtxBar();
+}
+function restoreDcRun() {
+    var d = {}; try { d = JSON.parse(localStorage.getItem(LS_RUNINFO)) || {}; } catch (e) {}
+    var set = function (id, v, flag) { var el = document.getElementById(id); if (el && v) { el.value = v; if (flag) el.dataset.changed = '1'; } };
+    TRAY_IDS.forEach(function (id) { set(id, d[id], id === 'traySize'); });
+    var wrapShown = document.getElementById('wrapLotBlock').classList.contains('show');
+    if (wrapShown && d.wrapDateCodeType) {
+        set('wrapDateCodeType', d.wrapDateCodeType);
+        set('wrapCodePrintDate', d.wrapCodePrintDate, true);
+        if (d.wrapCodeLetter !== undefined) { document.getElementById('wrapCodeLetter').value = d.wrapCodeLetter; document.getElementById('wrapCodeLetter').dataset.changed = '1'; }
+    }
+    dcOnType(DS_DC);
 }
 function updateCtxBar() {
     document.getElementById('ctxDate').textContent   = document.getElementById('runDate').value || '-';
@@ -794,6 +1015,8 @@ function validate() {
         if (condParent && !condParent.classList.contains('show')) return;
         if (!el.value || !el.value.trim()) { el.classList.add('err'); ok = false; }
     });
+    var gt = document.getElementById('trayGTIN');
+    if (gt.required && gt.value.trim() && !gtinValid(gt.value.trim())) { gt.classList.add('err'); ok = false; }
     if (!ok) {
         var first = document.querySelector('#dsForm .err');
         if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -826,6 +1049,7 @@ function onSubmit(e) {
         // fields, so never trust whatever is currently sitting in the DOM.
         calcJulian('wrapDateCode', 'wrapJulian');
         calcJulian('canDateCode', 'canJulian');
+        dcRefresh(DS_DC);
         var isEdit = editingIndex !== null;
         var entry = {
             // Correcting an existing check keeps its original number and
@@ -847,6 +1071,13 @@ function onSubmit(e) {
             wrapDateCode: document.getElementById('wrapDateCode').value,
             wrapJulian: document.getElementById('wrapJulian').value,
             wrapLotNum: document.getElementById('wrapLotNum').value,
+            wrapCodePrintDate: document.getElementById('wrapCodePrintDate').value,
+            wrapCodeLetter: document.getElementById('wrapCodeLetter').value,
+            wrapCodeText: document.getElementById('wrapCodeText').value,
+            traySAP: document.getElementById('traySAP').value,
+            trayGTIN: document.getElementById('trayGTIN').value,
+            trayProduct: document.getElementById('trayProduct').value,
+            traySize: document.getElementById('traySize').value,
             canDateCode: document.getElementById('canDateCode').value,
             canJulian: document.getElementById('canJulian').value,
             paktechLotNum: document.getElementById('paktechLotNum').value,
@@ -923,10 +1154,12 @@ function showConf(c, isEdit) {
     if (c.paktechFormat)    rows.push(['Paktech Format', c.paktechFormat + (c.paktechColor ? ' / ' + c.paktechColor : '')]);
     rows.push(['Tray Packer Format', c.trayPackerFormat]);
     if (c.wrapDateCode) rows.push(['Wrap Date Code', c.wrapDateCode + ' (Jul. ' + c.wrapJulian + ')' + (c.wrapDateCodeType ? ' — ' + c.wrapDateCodeType : '')]);
+    if (c.wrapCodeText) rows.push(['Wrap Code', c.wrapCodeText]);
     if (c.wrapLotNum)   rows.push(['Wrap Lot #', c.wrapLotNum]);
     if (c.canDateCode)  rows.push(['Can Date Code', c.canDateCode + ' (Jul. ' + c.canJulian + ')']);
     if (c.paktechLotNum) rows.push(['Paktech Lot #', c.paktechLotNum]);
     rows.push(['Tray Lot #', c.trayLotNum]);
+    if (c.trayProduct) rows.push(['Tray Codes', 'SAP ' + c.traySAP + ' / GTIN ' + c.trayGTIN + ' / ' + c.trayProduct + ' / ' + c.traySize]);
     if (c.glueSizeSetting) rows.push(['Glue Shot Size', c.glueSizeSetting]);
     rows.push(['Glue Shot Verification (Tray)', c.trayGluePF || '—']);
     rows.push(['Artwork', c.artPF || '—']);
@@ -955,6 +1188,7 @@ function resetForm() {
     // Clear only the per-check fields.
     document.getElementById('dsForm').querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) {
         if (i.id === 'batchNum' || i.id === 'jobNum') return;
+        if (TRAY_IDS.indexOf(i.id) !== -1 || i.id === 'wrapCodeLetter') return;   // run-level, carried to every check
         i.value = (i.type === 'number' && i.id.indexOf('Loss') !== -1) ? '0' : '';
     });
     document.querySelectorAll('.pf-btn').forEach(function(b) { b.className = 'pf-btn'; });
@@ -966,6 +1200,7 @@ function resetForm() {
     document.getElementById('wrapDateCode').dataset.changed = '';
     document.getElementById('canDateCode').dataset.changed = '';
     onRunDateChange();
+    dcOnType(DS_DC);
 }
 // ── END RUN ───────────────────────────────────────────────
 // Aggregates everything logged this run (checksData) into a summary, lets the
@@ -1002,6 +1237,7 @@ function openEndRun() {
         ['Configuration', runInfo.pkgConfig || document.getElementById('pkgConfig').value || '—'],
         ['Checks Logged', checksData.length]
     ];
+    if (runInfo.trayProduct) summaryRows.push(['Tray Codes (Wicked Grove)', 'SAP ' + runInfo.traySAP + ' / GTIN ' + runInfo.trayGTIN + ' / ' + runInfo.trayProduct + ' / ' + runInfo.traySize]);
     document.getElementById('endRunSummaryTable').innerHTML = summaryRows.map(function(r) {
         return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
     }).join('');
@@ -1082,6 +1318,8 @@ function startNextRun() {
     document.getElementById('jobNum').value    = '';
     document.getElementById('pkgConfig').value = '';
     document.getElementById('runDate').value   = isoToday();
+    TRAY_IDS.concat(['wrapCodeLetter', 'wrapCodePrintDate']).forEach(function (id) { var el = document.getElementById(id); el.value = ''; el.dataset.changed = ''; });
+    document.getElementById('wrapDateCodeType').value = '';
     onConfigChange();
     resetForm();
     updateCheckBadge();
