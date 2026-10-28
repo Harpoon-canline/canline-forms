@@ -238,7 +238,8 @@
 
 .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:12px;margin-bottom:14px}
 .sum .l{font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase}.sum .v{font-size:24px;font-weight:800;color:#1F3864}.sum .s{font-size:11px;color:#6c757d}
-.mb-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:8px}
+.mb-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:8px}
+.locked{background:#f1f3f5 !important;color:#495057}
 .mb-row .sched,.mb-row .diff{background:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;min-height:50px;display:flex;align-items:center;justify-content:center;font-weight:800}
 .diff.neg{color:#dc3545}.diff.pos{color:#2e7d32}
 .cond{display:none}.cond.show{display:block}
@@ -248,7 +249,7 @@
 .pfx[data-k="last"] button.f{background:#1F3864;border-color:#1F3864;color:#fff}
 </style></head>
 <body>
-<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-27</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
+<div class="hdr"><div class="hdr-left"><h1>End of Run</h1><p>Harpoon Racking Line &mdash; Close this size run <span style="opacity:.6;font-size:12px">&middot; v2026-10-28</span></p></div><div class="hour-badge">FORM 3 OF 3</div></div>
 <div class="ctx-bar">
   <div class="ctx-item"><span class="ctx-lbl">Job #</span><span class="ctx-val" id="ctxJob">-</span></div>
   <div class="ctx-item"><span class="ctx-lbl">Beer</span><span class="ctx-val" id="ctxBeer">-</span></div>
@@ -283,7 +284,7 @@
   <hr class="divider">
   <div class="row c2"><div class="fg"><label>Scale Totals (optional)</label><input type="number" id="scTot" min="0" placeholder="kegs"></div><div class="fg"><label>Scale Reworks (optional)</label><input type="number" id="scRw" min="0" placeholder="kegs"></div></div>
   <div class="row c2"><div class="fg"><label>Scale Rejects (optional)</label><input type="number" id="scRj" min="0" placeholder="kegs"></div><div class="fg"><label>Dumps (Kegs Dumped) <span class="req">*</span></label><input type="number" id="dumps" min="0" placeholder="kegs" required></div></div>
-  <div class="row c2"><div class="fg"><label>Kegs on Hold <span class="req">*</span></label><input type="number" id="hold" min="0" placeholder="kegs (0 if none)" required></div><div class="fg"><label>Pressure-Faulted Kegs <span class="req">*</span></label><input type="number" id="pfk" min="0" placeholder="kegs" required></div></div>
+  <div class="row c2"><div class="fg"><label>Kegs on Hold <span class="req">*</span></label><input type="number" id="hold" min="0" placeholder="kegs (0 if none)" required></div><div class="fg"><label>Pressure-Faulted Kegs <span class="req">*</span></label><input type="number" id="pfk" min="0" placeholder="kegs" required><span class="hint" id="pfkHint" style="display:none">Total of the product codes above &mdash; not editable</span></div></div>
 </div></div>
 
 <div class="card"><div class="card-hdr"><div class="card-num">3</div><div class="card-title">Flow Meters &amp; Loss</div></div><div class="card-body">
@@ -400,8 +401,12 @@ function loadRun() {
     $('nitroRow').style.display = isNitro() ? '' : 'none'; $('n2').required = $('psi').required = isNitro();
     if (runData.IsMultiBeer && runData.Beers && runData.Beers.length) {
         $('mbBox').style.display = '';
-        $('mbRows').innerHTML = runData.Beers.map((b, i) => '<div class="mb-row"><div class="fg"><label>Product Code</label><div class="static-val" style="font-size:18px">' + b.ProductCode + '</div></div>'
+        $('pfk').readOnly = true; $('pfk').classList.add('locked'); $('pfk').placeholder = 'sum of the codes above';
+        $('pfkHint').style.display = '';
+        // 2026-10-28: each product code gets its own pressure-faulted count; the run total below becomes their sum (locked)
+        $('mbRows').innerHTML = runData.Beers.map((b, i) => '<div class="mb-row"><div class="fg"><label>Product Code</label><div class="static-val" style="font-size:18px">' + b.ProductCode + (b.KegSize && b.KegSize !== runData.KegSize || /Logs$/.test(b.KegSize || '') ? '<div style="font-size:12px;font-weight:600;opacity:.75">' + b.KegSize + '</div>' : '') + '</div></div>'
             + '<div class="fg"><label>Actual Kegs <span class="req">*</span></label><input type="number" min="0" class="mk" data-i="' + i + '" required oninput="calc()" placeholder="0"></div>'
+            + '<div class="fg"><label>Pressure-Faulted <span class="req">*</span></label><input type="number" min="0" class="mpf" data-i="' + i + '" required oninput="calc()" placeholder="0"></div>'
             + '<div class="fg"><label>Scheduled</label><div class="sched">' + (b.ScheduledKegs == null ? '-' : b.ScheduledKegs) + '</div></div>'
             + '<div class="fg"><label>+/&minus;</label><div class="diff">&mdash;</div></div></div>').join('');
     }
@@ -490,6 +495,11 @@ function calc() {
         else { allIn = false; d.textContent = '—'; d.className = 'diff'; }
     });
     c.mbOk = !any || (allIn && fin != null && sum === fin);
+    if (runData && runData.IsMultiBeer && runData.Beers && runData.Beers.length) {
+        let pf = 0, pfAny = false;
+        document.querySelectorAll('#mbRows .mpf').forEach(p => { if (p.value !== '') { pfAny = true; pf += +p.value; } });
+        $('pfk').value = pfAny ? pf : '';
+    }
     const w = $('mbWarn');
     if (any && fin != null) { w.textContent = sum === fin ? '✓ Codes add up to Final Count (' + fin + ')' : 'Codes add up to ' + sum + ' but Final Count is ' + fin + ' — must match to submit'; w.style.color = sum === fin ? '#2e7d32' : '#dc3545'; } else w.textContent = '';
     // flow meters vs physical (gallons per keg by size)
@@ -547,7 +557,8 @@ function collect() {
         EOROpInit: $('opInit').value.trim(),
         // RackRuns has one notes column: operator notes + the last-partial-hour DT narrative
         EORNotes: [notes, narr ? 'DT: ' + narr : ''].filter(Boolean).join(' | ') || null,
-        Beers: runData.IsMultiBeer ? [...document.querySelectorAll('#mbRows .mk')].map(i => ({ ProductCode: runData.Beers[+i.dataset.i].ProductCode, ActualKegs: i.value === '' ? null : parseFloat(i.value) })) : [],
+        Beers: runData.IsMultiBeer ? [...document.querySelectorAll('#mbRows .mk')].map(i => { const b = runData.Beers[+i.dataset.i], p = document.querySelector('#mbRows .mpf[data-i="' + i.dataset.i + '"]');
+            return { ProductCode: b.ProductCode, ActualKegs: i.value === '' ? null : parseFloat(i.value), PressureFaultedKegs: !p || p.value === '' ? null : parseFloat(p.value), KegSize: b.KegSize || runData.KegSize }; }) : [],
         DTEvents: collectDT(),
         HandRacks: collectHR()
     };
