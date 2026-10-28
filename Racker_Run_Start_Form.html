@@ -330,6 +330,8 @@
         .notice { display:none; background:#fff3e0; border-left:4px solid #e65100; color:#7a3b00; padding:10px 14px; border-radius:6px; font-weight:600; margin:10px 0; }
         .notice.show { display:block; }
         .beer-row { display:grid; grid-template-columns: 1fr 1fr 44px; gap:12px; align-items:end; margin-bottom:10px; }
+        .beer-row.logs { grid-template-columns: 1fr 1fr 1fr 44px; }
+        .beer-row select { width:100%; }
         .beer-del { height:44px; border:none; border-radius:8px; background:#eee; font-size:18px; cursor:pointer; }
         .btn-add { width:100%; padding:12px; border:2px dashed #b9c3d3; background:#f7f9fc; border-radius:8px; font-weight:700; cursor:pointer; margin-top:4px; }
     
@@ -344,7 +346,7 @@
 <div class="header">
     <div>
         <h1>Racker Run Start</h1>
-        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-10-26</span></p>
+        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-10-28</span></p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
 </div>
@@ -671,6 +673,7 @@ function onSize() {
     if (s) { $('rUPH').textContent = s.uph; $('rGal').textContent = s.gal; $('ratedPanel').classList.add('show'); }
     else   { $('ratedPanel').classList.remove('show'); }
     $('htNotice').classList.toggle('show', $('kegSize').value === '30 Liter');
+    syncBeerKegs();
     onSched();
 }
 function schedTotal() {
@@ -697,19 +700,36 @@ function setMulti(v) {
     if (v==='Y' && !$('multiRows').children.length) { addRow(); addRow(); }
     onSched();
 }
+// 2026-10-28 (Kyle): on a multi-beer LOG run each product code picks whose kegs it uses
+// (Harpoon Logs or MicroStar Logs), so pressure-faulted kegs can be split by keg owner at End of Run.
+// Other sizes have one owner: the beer rows just take the run's keg size.
+const LOG_SIZES = ['Harpoon Logs', 'MicroStar Logs'];
+function isLogRun() { return LOG_SIZES.includes($('kegSize').value); }
+function syncBeerKegs() {
+    const logs = isLogRun(), run = $('kegSize').value;
+    document.querySelectorAll('#multiRows .beer-row').forEach(r => {
+        const sel = r.querySelector('.mkeg');
+        r.classList.toggle('logs', logs);
+        sel.parentNode.style.display = logs ? '' : 'none';
+        sel.required = logs && vals.multi === 'Y';
+        if (logs && !LOG_SIZES.includes(sel.value)) sel.value = run;
+    });
+}
 function addRow() {
     const d = document.createElement('div');
     d.className = 'beer-row';
     d.innerHTML = '<div class="fg"><label>Product Code</label><input type="text" class="mcode" placeholder="e.g. 99HA" oninput="this.value=this.value.toUpperCase()"></div>'
                 + '<div class="fg"><label>Scheduled Kegs</label><input type="number" class="mkegs" min="0" placeholder="0" oninput="onSched()"></div>'
+                + '<div class="fg"><label>Kegs</label><select class="mkeg"><option value="Harpoon Logs">Harpoon Logs</option><option value="MicroStar Logs">MicroStar Logs</option></select></div>'
                 + '<button type="button" class="beer-del" title="Remove" onclick="this.parentNode.remove();onSched()">&times;</button>';
     $('multiRows').appendChild(d);
+    syncBeerKegs();
 }
 function beerRows() {
-    const out = [];
+    const out = [], logs = isLogRun(), run = $('kegSize').value || null;
     document.querySelectorAll('#multiRows .beer-row').forEach(r => {
         const c = r.querySelector('.mcode').value.trim(), k = r.querySelector('.mkegs').value;
-        if (c || k !== '') out.push({ ProductCode: c, ScheduledKegs: k === '' ? null : parseFloat(k) });
+        if (c || k !== '') out.push({ ProductCode: c, ScheduledKegs: k === '' ? null : parseFloat(k), KegSize: logs ? r.querySelector('.mkeg').value : run });
     });
     return out;
 }
@@ -893,7 +913,7 @@ function showConf(d) {
         ['Deacom Job #', d.JobNumKey], ['Batch', d.BatchNum], ['Beer / Product', d.BeerCode], ['BBT', d.BBT],
         ['Keg Size', d.KegSize], ['Rated Speed', d.RatedPerHour ? d.RatedPerHour + ' kegs/hr' : '—'],
         ['Scheduled Kegs', d.ScheduledKegs], ['Scheduled Gallons', d.ScheduledGallons ? d.ScheduledGallons.toLocaleString() + ' gal' : '—'],
-        ['Multi-Beer', d.IsMultiBeer ? d.Beers.map(b => b.ProductCode + ' ' + b.ScheduledKegs).join(', ') : 'No'],
+        ['Multi-Beer', d.IsMultiBeer ? d.Beers.map(b => b.ProductCode + ' ' + b.ScheduledKegs + (LOG_SIZES.includes(b.KegSize) ? ' (' + b.KegSize + ')' : '')).join(', ') : 'No'],
         ['Date', d.RunDate], ['Julian Date', d.JulianDate], ['Date Code', d.DateCodeType + ' ' + d.DateCode], ['Sticker Code', d.CodeText],
         ['Qualification Time', d.QualTime], ['Pre-Filter', d.PreFilter],
         ['Nitrogen Run', d.IsNitro ? 'Yes' : 'No'],
