@@ -18,6 +18,9 @@
     --live: #9e1a41;
   }
   * { box-sizing: border-box; }
+  /* 2026-11-03: size everything off the screen width. 1920-wide = 16px (same as before);
+     a 4K TV = 32px, so the board fills a big screen instead of shrinking into the middle. */
+  html { font-size: max(16px, calc(100vw / 120)); }
   html, body {
     overscroll-behavior: none;
     height: 100%;
@@ -28,8 +31,8 @@
     font-family: 'Segoe UI', Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding: 24px;
-    font-size: 18px;
+    padding: 1.5rem;
+    font-size: 1.125rem;
     -webkit-user-select: none;
     user-select: none;
     cursor: none;
@@ -47,7 +50,7 @@
   .page {
     position: absolute;
     top: 0; left: 0; right: 0;
-    max-width: 1700px;
+    max-width: 106rem;
     margin: 0 auto;
     transform-origin: top center;
     opacity: 0;
@@ -132,7 +135,7 @@
 
   .split-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
     gap: 20px;
   }
   .split-card {
@@ -194,6 +197,16 @@
     padding: 12px 14px;
     white-space: pre-wrap;
   }
+  /* 2026-11-03: a split card too tall for the screen flows into 2 or 3 columns
+     (set by packSection) before anything is shrunk. */
+  .split-card.cols-2 { column-count: 2; column-gap: 2.5rem; }
+  .split-card.cols-3 { column-count: 3; column-gap: 2.5rem; }
+  .split-card.cols-2 .field, .split-card.cols-3 .field,
+  .split-card.cols-2 .card-heading, .split-card.cols-3 .card-heading { break-inside: avoid; }
+  .split-card.cols-2 > h2.card-heading, .split-card.cols-3 > h2.card-heading,
+  .split-card.cols-2 .notes-heading, .split-card.cols-3 .notes-heading,
+  .split-card.cols-2 .notes-box, .split-card.cols-3 .notes-box { column-span: all; }
+  .split-card.cols-2 .details-heading, .split-card.cols-3 .details-heading { break-before: column; margin-top: 0; }
   .empty-state { text-align: center; font-size: 1.5rem; color: var(--text); margin-top: 60px; }
 
   /* ── Section 2: Efficiency ─────────────────────────────────────── */
@@ -251,7 +264,7 @@
   }
   .empty-state { grid-column: 1 / -1; }
   .recap-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 18px; }
-  .recap-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+  .recap-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 20px; }
   .recap-stat-label { font-size: 1.05rem; color: var(--muted); margin-bottom: 4px; }
   .recap-stat-value { font-size: 2.6rem; font-weight: 800; }
 
@@ -269,7 +282,7 @@
 <body>
   <header>
     <div class="brand">Harpoon Can Line</div>
-    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-20</span></h1>
+    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-03</span></h1>
     <p id="today-date"></p>
   </header>
   <div id="status">Loading...</div>
@@ -345,6 +358,7 @@
     const maxCards = SECTIONS[sectionKey].maxCards;
     const stageH = stage.clientHeight;
     let page = null, grid = null, count = 0;
+    items.forEach(it => it.classList && it.classList.remove('cols-2', 'cols-3')); // re-measure from scratch
 
     const startPage = () => {
       page = makePage(sectionKey);
@@ -362,7 +376,9 @@
       const tooMany = count > maxCards;
       // Only a problem if adding this card made the page grow past the screen
       // (a card that just sits beside another one doesn't add any height).
-      const tooTall = count > 1 && page.offsetHeight > Math.max(stageH, heightBefore);
+      // 2026-11-03: if the page no longer fits, the new card goes to its own page (it then
+      // gets the 2/3-column layout below) instead of shrinking both cards.
+      const tooTall = count > 1 && page.offsetHeight > stageH;
       if (tooMany || tooTall) {
         grid.removeChild(item);
         startPage();
@@ -373,6 +389,16 @@
 
     sectionPages.forEach((p, i) => {
       if (sectionPages.length > 1) p.querySelector('.page-count').textContent = `${i + 1} of ${sectionPages.length}`;
+      // 2026-11-03: a single split card that is taller than the screen goes to 2, then 3
+      // columns before falling back to shrinking.
+      const cards = p.querySelectorAll('.split-grid > .split-card');
+      if (cards.length === 1 && p.offsetHeight > stageH) {
+        for (const cls of ['cols-2', 'cols-3']) {
+          cards[0].classList.remove('cols-2', 'cols-3');
+          cards[0].classList.add(cls);
+          if (p.offsetHeight <= stageH) break;
+        }
+      }
       const h = p.offsetHeight;
       p.style.transform = h > stageH && h > 0 ? `scale(${stageH / h})` : '';
     });
