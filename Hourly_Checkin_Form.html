@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-10-26</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-11-05</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -571,7 +571,7 @@
             <div class="row c2">
               <div class="fg">
                 <label for="eorEndTime">Run End Time <span class="req">*</span></label>
-                <input type="time" id="eorEndTime" name="eorEndTime" required oninput="calcEorEfficiency()">
+                <input type="time" id="eorEndTime" name="eorEndTime" required oninput="calcEorEfficiency(); packOutCheck()">
               </div>
               <div class="fg">
                 <label for="eorFinalCounter">Final Filler Counter <span class="req">*</span></label>
@@ -855,6 +855,14 @@
               <div class="fg">
                 <label for="eorCasesHold">Cases on Hold</label>
                 <input type="number" id="eorCasesHold" name="eorCasesHold" placeholder="0" min="0" value="0" oninput="onEorHoldChange(this.value)">
+              </div>
+            </div>
+            <!-- 2026-11-05: last pallet out of the palletizer (from the tick sheet). Display only: shown as End Time on the recap email; NOT used in any efficiency math. -->
+            <div class="row c2">
+              <div class="fg">
+                <label for="eorPackOutTime">Last Pallet Out of Palletizer <span class="req">*</span></label>
+                <input type="time" id="eorPackOutTime" name="eorPackOutTime" required oninput="packOutCheck()">
+                <span class="hint" id="eorPackOutHint">Time the last pallet left the palletizer (from the tick sheet)</span>
               </div>
             </div>
             <div class="avg-row" style="margin-top:4px;">
@@ -1999,6 +2007,17 @@ function onMixInput() {
     mixCheck();
 }
 
+// 2026-11-05: last pallet out must not be before the filler end time (allows a run that ends after midnight)
+function packOutCheck() {
+    var hint = document.getElementById('eorPackOutHint');
+    var p = document.getElementById('eorPackOutTime').value, e = document.getElementById('eorEndTime').value;
+    if (!p || !e) { hint.textContent = 'Time the last pallet left the palletizer (from the tick sheet)'; hint.style.color = ''; return true; }
+    var m = function (t) { var a = t.split(':'); return (+a[0]) * 60 + (+a[1]); };
+    var diff = m(p) - m(e); if (diff < -720) diff += 1440;
+    if (diff < 0) { hint.textContent = 'Last pallet time is before the Run End Time (' + e + ') \u2014 check both times.'; hint.style.color = '#b71c1c'; return false; }
+    hint.textContent = '\u2713 ' + diff + ' min after the filler end time'; hint.style.color = '#2e7d32'; return true;
+}
+
 function onEorCasesInput(val) {
     // Recalculate net cases whenever the operator changes total cases
     var total = parseInt(val) || 0;
@@ -2034,6 +2053,7 @@ function validateEOR() {
     if (eorDtRem !== null && eorDtRem > 1) { ok = false; msgs.push('assign the remaining ' + eorDtRem + ' min of downtime to a machine'); }
     if (!mixCheck()) { ok = false; msgs.push('Regular + Mix Pack cases must add up to Net Good Cases'); }
     if (!tankCheck()) { ok = false; msgs.push(tankYN.kick ? 'answer Glycol Turned Off and Head Pressure Turned Off' : 'answer Tank Kicked'); }
+    if (!packOutCheck()) { ok = false; document.getElementById('eorPackOutTime').classList.add('err'); msgs.push('Last Pallet Out time is before the Run End Time'); }
     var eb = document.getElementById('eorSubmitErr');
     if (msgs.length) { eb.textContent = 'Please fix: ' + msgs.join('; ') + '.'; eb.className = 'err-bar show'; }
     else if (eb) { eb.className = 'err-bar'; eb.textContent = ''; }
@@ -2121,6 +2141,7 @@ function submitEOR() {
             casesOnHold:   parseInt(document.getElementById('eorCasesHold').value) || 0,
             totalCans:     parseInt(document.getElementById('eorTotalCansHid').value)     || 0,
             totalCases:    parseInt(document.getElementById('eorTotalCasesInput').value)  || 0,
+            packOutTime:   document.getElementById('eorPackOutTime').value,
             netCases:      parseInt(document.getElementById('eorNetCasesHid').value)      || 0,
             netCasesRegular: (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorRegCases').value) || 0) : (parseInt(document.getElementById('eorNetCasesHid').value) || 0),
             netCasesMix:     (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorMixCases').value) || 0) : 0,
@@ -2214,7 +2235,8 @@ function showFinalConf(eor, run) {
       + '<tr><td>Flowmeter End</td><td>' + (eor.flowEnd   || '-') + '</td></tr>'
       + (eor.sleeveCount ? '<tr><td>Sleeve Count</td><td>' + eor.sleeveCount + '</td></tr>' : '')
       + '<tr><td>Hours Logged</td><td>' + run.hourlyEntries.length + '</td></tr>'
-      + '<tr><td>End Time</td><td>' + (eor.endTime || '-') + '</td></tr>'
+      + '<tr><td>Filler End Time</td><td>' + (eor.endTime || '-') + '</td></tr>'
+      + '<tr><td>Last Pallet Out</td><td>' + (eor.packOutTime || '-') + '</td></tr>'
       + '</table>'
       + '<p style="font-size:12px;color:var(--g600);text-align:center;margin-top:10px;">Run archived. Active run data has been cleared.</p>';
 
