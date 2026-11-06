@@ -175,7 +175,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-10-26</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-06</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -446,6 +446,20 @@ textarea      { resize: vertical; min-height: 70px; }
                     <div class="fg">
                         <label for="wrapLossCartoner">Wraps Lost &mdash; Cartoner Damage</label>
                         <input type="number" id="wrapLossCartoner" name="wrapLossCartoner" placeholder="0" min="0" value="0">
+                    </div>
+                </div>
+                <hr class="divider">
+            </div>
+            <div class="cond" id="ptLossBlock">
+                <span class="section-tag tag-pt">Paktech</span>
+                <div class="row c2">
+                    <div class="fg">
+                        <label for="paktechLossMfg">Rings Lost &mdash; Manufacturer</label>
+                        <input type="number" id="paktechLossMfg" name="paktechLossMfg" placeholder="0" min="0" value="0">
+                    </div>
+                    <div class="fg">
+                        <label for="paktechLossPacker">Rings Lost &mdash; Paktech Machine Damage</label>
+                        <input type="number" id="paktechLossPacker" name="paktechLossPacker" placeholder="0" min="0" value="0">
                     </div>
                 </div>
                 <hr class="divider">
@@ -777,6 +791,7 @@ function onConfigChange() {
     toggleCond('shakeTestBlock',  isWrap);
     toggleCond('ptFormatBlock', isPT);
     toggleCond('ptLotBlock',    isPT);
+    toggleCond('ptLossBlock',   isPT);
     document.getElementById('casePackerFormat').required   = isWrap;
     document.getElementById('wrapLotNum').required          = isWrap;
     document.getElementById('wrapDateCode').required        = isWrap;
@@ -1091,6 +1106,8 @@ function onSubmit(e) {
             wrapLossCartoner: parseFloat(document.getElementById('wrapLossCartoner').value) || 0,
             trayLossMfg: parseFloat(document.getElementById('trayLossMfg').value) || 0,
             trayLossPacker: parseFloat(document.getElementById('trayLossPacker').value) || 0,
+            paktechLossMfg: document.getElementById('ptLossBlock').classList.contains('show') ? (parseFloat(document.getElementById('paktechLossMfg').value) || 0) : 0,
+            paktechLossPacker: document.getElementById('ptLossBlock').classList.contains('show') ? (parseFloat(document.getElementById('paktechLossPacker').value) || 0) : 0,
             dtEvents: collectDT(),
             dtNotes: document.getElementById('dtNotes').value,
             _ts: new Date().toISOString()
@@ -1208,7 +1225,7 @@ function resetForm() {
 // two run-scoped localStorage keys so the tablet is ready for whatever comes next.
 function aggregateRunTotals() {
     var totalDT = 0, dtByMachine = {};
-    var wrapMfg = 0, wrapCartoner = 0, trayMfg = 0, trayPacker = 0, fails = 0;
+    var wrapMfg = 0, wrapCartoner = 0, trayMfg = 0, trayPacker = 0, ringMfg = 0, ringPacker = 0, anyPT = false, fails = 0;
     checksData.forEach(function(c) {
         (c.dtEvents || []).forEach(function(e) {
             totalDT += e.mins;
@@ -1218,12 +1235,16 @@ function aggregateRunTotals() {
         wrapCartoner += c.wrapLossCartoner || 0;
         trayMfg      += c.trayLossMfg      || 0;
         trayPacker   += c.trayLossPacker   || 0;
+        ringMfg      += c.paktechLossMfg    || 0;
+        ringPacker   += c.paktechLossPacker || 0;
+        if (c.paktechFormat) anyPT = true;
         ['trayGluePF','artPF','shakePF','cwPF'].forEach(function(k) { if (c[k] === 'fail') fails++; });
     });
     return {
         totalDT: totalDT, dtByMachine: dtByMachine,
         wrapMfg: wrapMfg, wrapCartoner: wrapCartoner,
         trayMfg: trayMfg, trayPacker: trayPacker,
+        ringMfg: ringMfg, ringPacker: ringPacker, anyPT: anyPT,
         fails: fails
     };
 }
@@ -1252,6 +1273,7 @@ function openEndRun() {
         ['Trays Lost (Mfg / Packer)', t.trayMfg + ' / ' + t.trayPacker],
         ['Failed Checks (across run)', t.fails]
     ];
+    if (t.anyPT) totalRows.splice(4, 0, ['Paktech Rings Lost (Mfg / Machine)', t.ringMfg + ' / ' + t.ringPacker]);
     document.getElementById('endRunTotalsTable').innerHTML = totalRows.map(function(r) {
         return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
     }).join('');
@@ -1305,6 +1327,7 @@ function showFinalRecap(run) {
         ['Failed Checks', t.fails],
         ['Closed By', run.endedBy]
     ];
+    if (t.anyPT) rows.splice(5, 0, ['Paktech Rings Lost (Total)', (t.ringMfg + t.ringPacker)]);
     document.getElementById('finalBody').innerHTML = rows.map(function(r) {
         return '<div class="conf-row"><span class="conf-lbl">' + r[0] + '</span><span class="conf-val">' + r[1] + '</span></div>';
     }).join('');
