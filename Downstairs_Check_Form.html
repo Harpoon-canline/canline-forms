@@ -175,7 +175,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-10</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-11</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -352,7 +352,7 @@ textarea      { resize: vertical; min-height: 70px; }
                 <!-- 2026-10-26: Wicked Grove contract tray codes (only when the wrap code is Wicked Grove).
                      Entered once per run and carried to every check + End of Run on this tablet. -->
                 <div id="wgTrayBlock" style="display:none">
-                    <span class="section-tag tag-tray">Aldi &mdash; Tray Codes (3 lines)</span>
+                    <span class="section-tag tag-tray">Aldi &mdash; Tray Code (1 line)</span>
                     <div class="row c2">
                         <div class="fg">
                             <label for="traySAP">SAP Sellable # <span class="req">*</span></label>
@@ -367,13 +367,13 @@ textarea      { resize: vertical; min-height: 70px; }
                     <div class="row c2">
                         <div class="fg">
                             <label for="trayProduct">Product Name <span class="req">*</span></label>
-                            <input type="text" id="trayProduct" name="trayProduct" placeholder="e.g. Fruit Theory Blueberry Ale" oninput="onTrayCodes()">
+                            <input type="text" id="trayProduct" name="trayProduct" placeholder="e.g. FT Blueberry Ale" oninput="onTrayCodes()">
                             <span class="hint">Type once &mdash; stays filled for the rest of this run</span>
                         </div>
                         <div class="fg">
                             <label for="traySize">Size Line <span class="req">*</span></label>
                             <input type="text" id="traySize" name="traySize" oninput="this.dataset.changed='1';onTrayCodes()">
-                            <span class="hint">Auto from Configuration (packs x cans x fl. oz.) &middot; editable</span>
+                            <span class="hint">Auto from Configuration (packs x cans x oz, e.g. 4x6x12oz) &middot; editable</span>
                         </div>
                     </div>
                     <div class="row c1">
@@ -708,8 +708,8 @@ var TRAY_IDS = ['traySAP', 'trayGTIN', 'trayProduct', 'traySize'];
 // "4/6" -> 4x6, "15pk" -> 1x15, "24pk LSE" -> 1x24; size from the leading oz value
 function traySizeFor(cfg) {
     var m = /^([\d.]+)oz\s+(\d+)\/(\d+)/.exec(cfg || ''), n = /^([\d.]+)oz\s+(\d+)pk/.exec(cfg || '');
-    if (m) return m[2] + 'x' + m[3] + 'x' + m[1] + ' fl. oz.';
-    if (n) return '1x' + n[2] + 'x' + n[1] + ' fl. oz.';
+    if (m) return m[2] + 'x' + m[3] + 'x' + m[1] + 'oz';
+    if (n) return '1x' + n[2] + 'x' + n[1] + 'oz';
     return '';
 }
 function gtinValid(g) {
@@ -733,7 +733,7 @@ function onTrayCodes() {
     var g = v('trayGTIN');
     document.getElementById('trayGtinMsg').textContent = g && !gtinValid(g) ? 'Check digit does not match - re-check the GTIN' : '';
     document.getElementById('trayPreview').innerHTML =
-        ['SAP Sellable ' + (v('traySAP') || '___') + ' / Display GTIN ' + (g || '___'), v('trayProduct') || '(product name)', v('traySize') || '(size)']
+        ['SAP ' + (v('traySAP') || '___') + ' GTIN ' + (g || '___') + ' ' + (v('trayProduct') || '(product name)') + ' ' + (v('traySize') || '(size)')]
         .map(function (l) { return '<div>' + l.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'; }).join('');
 }
 // ── STATE ─────────────────────────────────────────────────
