@@ -175,7 +175,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-06</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-10</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -273,7 +273,7 @@ textarea      { resize: vertical; min-height: 70px; }
                             <option>Canned On</option>
                             <option>Best By</option>
                         <option>B&auml;st F&ouml;re</option>
-                        <option>Wicked Grove</option>
+                        <option value="Wicked Grove">Aldi</option>
                         </select>
                         <span class="hint">Same convention as the Run Start form &mdash; which date the printed code reflects</span>
                     </div>
@@ -352,7 +352,7 @@ textarea      { resize: vertical; min-height: 70px; }
                 <!-- 2026-10-26: Wicked Grove contract tray codes (only when the wrap code is Wicked Grove).
                      Entered once per run and carried to every check + End of Run on this tablet. -->
                 <div id="wgTrayBlock" style="display:none">
-                    <span class="section-tag tag-tray">Wicked Grove &mdash; Tray Codes (3 lines)</span>
+                    <span class="section-tag tag-tray">Aldi &mdash; Tray Codes (3 lines)</span>
                     <div class="row c2">
                         <div class="fg">
                             <label for="traySAP">SAP Sellable # <span class="req">*</span></label>
@@ -1258,7 +1258,7 @@ function openEndRun() {
         ['Configuration', runInfo.pkgConfig || document.getElementById('pkgConfig').value || '—'],
         ['Checks Logged', checksData.length]
     ];
-    if (runInfo.trayProduct) summaryRows.push(['Tray Codes (Wicked Grove)', 'SAP ' + runInfo.traySAP + ' / GTIN ' + runInfo.trayGTIN + ' / ' + runInfo.trayProduct + ' / ' + runInfo.traySize]);
+    if (runInfo.trayProduct) summaryRows.push(['Tray Codes (Aldi)', 'SAP ' + runInfo.traySAP + ' / GTIN ' + runInfo.trayGTIN + ' / ' + runInfo.trayProduct + ' / ' + runInfo.traySize]);
     document.getElementById('endRunSummaryTable').innerHTML = summaryRows.map(function(r) {
         return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
     }).join('');
