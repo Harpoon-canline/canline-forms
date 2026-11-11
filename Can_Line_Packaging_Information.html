@@ -227,6 +227,11 @@
   .split-card.cols-2 .notes-heading, .split-card.cols-3 .notes-heading,
   .split-card.cols-2 .notes-box, .split-card.cols-3 .notes-box { column-span: all; }
   .split-card.cols-2 .details-heading, .split-card.cols-3 .details-heading { break-before: column; margin-top: 0; }
+  /* 2026-11-11 (Mike L.): keep "Cans This Run" and its bar together, full width, on the live card */
+  .split-card.cols-2 .progress-block, .split-card.cols-3 .progress-block { column-span: all; break-inside: avoid; }
+  .progress-block { break-inside: avoid; }
+  body.held #nav-hold { display: inline-block; }
+  #nav-hold.on { background: var(--live); color: #fff; }
   /* 2026-11-09: in 2/3-column mode the batch name must be a block so column-span works.
      As an inline-block it stayed in the left column only and pushed the left rows
      down, so they no longer lined up with the Packaging Details column. */
@@ -327,7 +332,7 @@
 <body>
   <header>
     <div class="brand">Harpoon Can Line</div>
-    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-09</span></h1>
+    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-11</span></h1>
     <p id="today-date"></p>
   </header>
   <div id="status">Loading...</div>
@@ -335,7 +340,7 @@
 
   <!-- Pages are built by buildPages() and injected here, one visible at a time. -->
   <div id="stage"></div>
-  <div id="pager"><button class="nav-btn" id="nav-prev" title="Previous page (Left arrow)">&#8249; Prev</button><div class="dots" id="pager-dots"></div><span class="page-label" id="pager-label"></span><button class="nav-btn" id="nav-next" title="Next page (Right arrow)">Next &#8250;</button><button class="nav-btn" id="nav-home" title="Back to the live run (Home key)">Live run</button><span id="manual-note"></span></div>
+  <div id="pager"><button class="nav-btn" id="nav-prev" title="Previous page (Left arrow)">&#8249; Prev</button><div class="dots" id="pager-dots"></div><span class="page-label" id="pager-label"></span><button class="nav-btn" id="nav-next" title="Next page (Right arrow)">Next &#8250;</button><button class="nav-btn" id="nav-home" title="Back to the live run (Home key)">Live run</button><button class="nav-btn" id="nav-hold" title="Keep this page up until you press Release (H key)">Hold page</button><span id="manual-note"></span></div>
 
 <script>
   // Section 1 (Today's Packaging Splits) -- "Packaging Split - Read for Tablet" flow.
@@ -357,6 +362,7 @@
   // The board is split into pages that rotate on a timer instead of scrolling.
   // Tune these three numbers to taste:
   const PAGE_DWELL_MS        = 15 * 1000; // how long each page stays up
+  const LIVE_TOUR_EVERY_MS   = 10 * 60 * 1000; // 2026-11-11 (Mike L.): while a run is live, every 10 min show the other pages once, then back to the live run
   const MAX_SPLITS_PER_PAGE  = 2;         // split cards shown side by side per page
   const MAX_RUNS_PER_PAGE    = 8;           // cards per Efficiency page (the day recap counts as one)
 
@@ -366,6 +372,9 @@
   let pollTimer = null;
   let resizeTimer = null;
   let rotateTimer = null;
+  let held = false;          // 2026-11-11: "Hold page" button / H key stops all page changes
+  let touring = false;       // true while the 10-minute tour of the other pages is running
+  let lastTour = Date.now();
 
   // The latest good card elements from each feed. Kept separately so that if one
   // feed fails, the other still refreshes and the failed one keeps its last cards.
@@ -492,7 +501,7 @@
     if (currentPage >= pages.length) currentPage = 0;
     // After a refresh: stay where someone is browsing; otherwise the live run if there is one.
     const h = homePageIndex();
-    showPage(!inManual() && h !== null ? h : currentPage);
+    showPage(!inManual() && !touring && !held && h !== null ? h : currentPage);
   }
 
   function showPage(index) {
@@ -509,6 +518,7 @@
     const h = homePageIndex();
     label.textContent = `Page ${currentPage + 1} of ${pages.length}` + (h !== null && currentPage === h ? ' · Live run' : '');
     const note = document.getElementById('manual-note');
+    if (note && held) { note.textContent = 'Held on this page. Press Release (or H) to go back to normal.'; return; }
     if (note) {
       const left = manualUntil - Date.now();
       note.textContent = left > 0 && h !== null
@@ -532,7 +542,7 @@
   }
   function inManual() { return Date.now() < manualUntil; }
   function goHome() {
-    manualUntil = 0;
+    manualUntil = 0; touring = false; lastTour = Date.now();
     const h = homePageIndex();
     if (h !== null) showPage(h);
     renderPager();
@@ -554,11 +564,26 @@
     // One-second tick: handles the idle return promptly; turns the page every PAGE_DWELL_MS.
     rotateTimer = setInterval(() => {
       if (isScrollMode()) return;
+      if (held) { renderPager(); return; }
       if (manualUntil && !inManual()) { goHome(); sinceTurn = 0; return; }
       renderPager();
       if (inManual()) return;
       const h = homePageIndex();
-      if (h !== null) { if (currentPage !== h) showPage(h); return; }
+      if (h !== null) {
+        if (!touring) {
+          if (currentPage !== h) showPage(h);
+          if (pages.length > 1 && Date.now() - lastTour >= LIVE_TOUR_EVERY_MS) { touring = true; sinceTurn = 0; showPage((h + 1) % pages.length); }
+          return;
+        }
+        sinceTurn += 1000;
+        if (sinceTurn >= PAGE_DWELL_MS) {
+          sinceTurn = 0;
+          const next = (currentPage + 1) % pages.length;
+          if (next === h) { touring = false; lastTour = Date.now(); }
+          showPage(next);
+        }
+        return;
+      }
       sinceTurn += 1000;
       if (sinceTurn >= PAGE_DWELL_MS) {
         sinceTurn = 0;
@@ -572,6 +597,7 @@
     if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { manualStep(1); e.preventDefault(); }
     else if (['ArrowLeft', 'PageUp'].includes(e.key)) { manualStep(-1); e.preventDefault(); }
     else if (['Home', 'Escape'].includes(e.key)) { goHome(); e.preventDefault(); }
+    else if (e.key === 'h' || e.key === 'H') { toggleHold(); e.preventDefault(); }
   });
   document.addEventListener('mousemove', showInteractive);
   document.addEventListener('click', e => {
@@ -579,11 +605,21 @@
     if (e.target.id === 'nav-prev') manualStep(-1);
     else if (e.target.id === 'nav-next') manualStep(1);
     else if (e.target.id === 'nav-home') goHome();
+    else if (e.target.id === 'nav-hold') toggleHold();
     else if (e.target.classList && e.target.classList.contains('dot')) {
       manualUntil = Date.now() + IDLE_RETURN_MS;
       showPage(Number(e.target.dataset.i));
     }
   });
+
+  function toggleHold() {
+    held = !held;
+    document.body.classList.toggle('held', held);
+    const b = document.getElementById('nav-hold');
+    if (b) { b.textContent = held ? 'Release' : 'Hold page'; b.classList.toggle('on', held); }
+    if (!held) { manualUntil = Date.now() + IDLE_RETURN_MS; }   // releasing: normal 2-minute return to the live run
+    renderPager();
+  }
 
   function formatDateHeader() {
     const today = new Date();
@@ -810,6 +846,9 @@
       const heading = run.BatchNum || run.JobNumKey || '';
       const startedTime = formatStartTime(run.QualTime);
       const startedField = startedTime ? `<div class="field"><span>Started</span><span>${startedTime}</span></div>` : '';
+      // 2026-11-11 (Kyle): closed runs also show Last Pallet Out (Runs.PackOutTime). Hidden until the feed sends it.
+      const packOut = !isActive ? formatStartTime(run.PackOutTime) : null;
+      const packOutField = packOut ? `<div class="field"><span>Last Pallet Out</span><span>${packOut}</span></div>` : '';
 
       const card = document.createElement('div');
       card.className = 'split-card run-card' + (isActive ? ' is-active' : '');
@@ -820,6 +859,7 @@
         <div class="field"><span>Deacom Job</span><span>${run.JobNumKey ?? ''}</span></div>
         <div class="field"><span>Size</span><span>${run.PkgConfig ?? ''}</span></div>
         ${startedField}
+        ${packOutField}
       `;
 
       if (isActive) {
