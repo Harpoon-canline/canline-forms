@@ -69,6 +69,8 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--n
 input.err, select.err { border-color: var(--red); }
 input.readonly { background: var(--g100); color: var(--g600); }
 .hint { font-size: 11px; color: var(--g600); font-style: italic; }
+#dcChangeWarn button { margin:8px 8px 0 0; padding:8px 12px; border-radius:6px; border:1px solid #7a1218; background:#fff; color:#7a1218; font-weight:700; font-size:13px; cursor:pointer; }
+#dcChangeWarn button.primary { background:#7a1218; color:#fff; }
 .req  { color: var(--red); }
 .divider { border: none; border-top: 1px solid var(--g200); margin: 16px 0; }
 /* CONDITIONAL SECTIONS (Wrap / Paktech) */
@@ -175,7 +177,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-11</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-12</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -202,13 +204,15 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <div class="fg">
                     <label for="batchNum">Batch # <span class="req">*</span></label>
-                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. B26-0714" required>
+                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. WABB28A-D" required>
+                    <span class="hint">No spaces. Copy it exactly as it is on the split.</span>
                 </div>
             </div>
             <div class="row c2">
                 <div class="fg">
                     <label for="jobNum">Job # (Deacom) <span class="req">*</span></label>
-                    <input type="text" id="jobNum" name="jobNum" placeholder="e.g. 12345" required>
+                    <input type="text" id="jobNum" name="jobNum" placeholder="e.g. 2026-21181" required>
+                    <span class="hint">Copy it from the split: year, dash, 5 digits.</span>
                 </div>
                 <div class="fg">
                     <label for="pkgConfig">Configuration <span class="req">*</span></label>
@@ -276,6 +280,7 @@ textarea      { resize: vertical; min-height: 70px; }
                         <option value="Wicked Grove">Aldi</option>
                         </select>
                         <span class="hint">Same convention as the Run Start form &mdash; which date the printed code reflects</span>
+                        <div id="dcChangeWarn" style="display:none;margin-top:8px;padding:10px 12px;border:2px solid #b3262e;border-radius:8px;background:#fae3e4;color:#7a1218;font-size:13px;line-height:1.4"></div>
                     </div>
                 </div>
                 <div class="row c2">
@@ -754,6 +759,7 @@ window.onload = function() {
         dcInit(DS_DC);
         restoreDcRun();
         document.getElementById('dsForm').onsubmit = onSubmit;
+        document.getElementById('wrapDateCodeType').addEventListener('change', function () { dcChangeAck = false; dcChangeOk(true); });
         var wdc = document.getElementById('wrapDateCode');
         var cdc = document.getElementById('canDateCode');
         wdc.addEventListener('change', function() { this.dataset.changed = '1'; });
@@ -986,6 +992,30 @@ function collectDT() {
 }
 // ── HISTORY ───────────────────────────────────────────────
 function currentCheckNum() { return checksData.length + 1; }
+
+// 2026-11-12 (Kyle): date code safeguard A. A later check may not silently use a
+// different wrap date code type than check #1 of the same run (11/10: check 1
+// Packaged On, check 2 Best By). The crew must keep check #1's type or confirm the change.
+var dcChangeAck = false;
+function dcLabel(v) { var o = document.querySelector('#wrapDateCodeType option[value="' + v + '"]'); return o ? o.textContent : v; }
+function dcFirstType() {
+    var others = checksData.filter(function (c, i) { return i !== editingIndex && c.wrapDateCodeType; });
+    return others.length ? others[0].wrapDateCodeType : '';
+}
+function dcChangeOk(showOnly) {
+    var box = document.getElementById('dcChangeWarn'), sel = document.getElementById('wrapDateCodeType');
+    var first = dcFirstType(), cur = sel.value, shown = sel.offsetParent !== null;
+    if (!shown || !first || !cur || cur === first || dcChangeAck) { box.style.display = 'none'; return true; }
+    box.innerHTML = '<b>Check #1 of this run used ' + dcLabel(first) + '.</b> This check says ' + dcLabel(cur) +
+        '. The date code type should stay the same for the whole run.<br>' +
+        '<button type="button" class="primary" id="dcKeep">Use ' + dcLabel(first) + '</button>' +
+        '<button type="button" id="dcConfirm">Yes, change it for this check</button>';
+    box.style.display = '';
+    document.getElementById('dcKeep').onclick = function () { sel.value = first; sel.dispatchEvent(new Event('change')); box.style.display = 'none'; };
+    document.getElementById('dcConfirm').onclick = function () { dcChangeAck = true; box.style.display = 'none'; };
+    if (!showOnly) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+}
 function updateCheckBadge() {
     document.getElementById('checkBadge').textContent = 'CHECK ' + currentCheckNum();
 }
@@ -1058,6 +1088,7 @@ function onSubmit(e) {
     e.preventDefault();
     try {
         if (!validate()) return;
+        if (!dcChangeOk(false)) return;
         saveRunInfo();
         // Recompute Julian dates fresh at submit time. A hidden/shown section
         // toggle earlier in the session (see toggleCond) clears these readonly
@@ -1117,6 +1148,7 @@ function onSubmit(e) {
             editingIndex = null;
         } else {
             checksData.push(entry);
+            dcChangeAck = false;
         }
         localStorage.setItem(LS_CHECKS, JSON.stringify(checksData));
         submitToFlowDownstairs(entry, isEdit);
