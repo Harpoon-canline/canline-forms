@@ -78,7 +78,9 @@ button:focus-visible{outline:2px solid #f5c04a;outline-offset:2px}
 .tabs button{border:0;background:none;font:600 .9rem var(--body);color:var(--muted);padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--red)}
 main{padding-block:18px 40px;display:flex;flex-direction:column;gap:18px}
-#p-week,#p-start,#p-dt{display:flex;flex-direction:column;gap:16px}
+#p-week,#p-start,#p-dt,#p-oee,#p-co{display:flex;flex-direction:column;gap:16px}
+.kpi.good strong{color:var(--ok)} .kpi.mid strong{color:var(--warn)} .kpi.low strong{color:var(--bad)}
+.kpi em{font-style:normal;font-size:.72rem;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .card h2{font:600 1.05rem/1.2 var(--display);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -138,12 +140,16 @@ td.n,th.n{text-align:right}
   <nav class="tabs" role="tablist">
     <button role="tab" id="t-live" aria-selected="true" data-tab="live">Live</button>
     <button role="tab" id="t-week" aria-selected="false" data-tab="week">Plan vs actual</button>
+    <button role="tab" id="t-oee" aria-selected="false" data-tab="oee">OEE &amp; TEEP</button>
+    <button role="tab" id="t-co" aria-selected="false" data-tab="co">Changeovers</button>
     <button role="tab" id="t-start" aria-selected="false" data-tab="start">Startup</button>
     <button role="tab" id="t-dt" aria-selected="false" data-tab="dt">Downtime</button>
   </nav>
   <main>
     <section id="p-live" class="grid"></section>
     <section id="p-week" hidden></section>
+    <section id="p-oee" hidden></section>
+    <section id="p-co" hidden></section>
     <section id="p-start" hidden></section>
     <section id="p-dt" hidden></section>
   </main>
@@ -184,10 +190,10 @@ function model(raw){
   const runs = [];
   (raw.Runs||[]).forEach(r=>runs.push({ line:'can', id:r.ID, day:dayKey(r.RunDate), batch:r.field_2, pkg:pkgShort(r.PkgConfig),
     qual:toMin(r.field_8), end:toMin(r.field_43), packOut:toMin(r.PackOutTime), rated:num(r.field_12), sched:num(r.field_14), unit:'cases',
-    out:num(r.field_56), dt:num(r.field_45), eff:num(r.field_59), open:r.RunStatus==='Open' }));
+    out:num(r.field_56), good:num(r.field_57), dt:num(r.field_45), eff:num(r.field_59), open:r.RunStatus==='Open' }));
   (raw.RackRuns||[]).forEach(r=>runs.push({ line:'rack', id:r.ID, day:dayKey(r.RunDate), batch:r.BatchNum, pkg:String(r.KegSize||''),
     qual:toMin(r.QualTime), end:toMin(r.EndTime), packOut:null, rated:num(r.RatedPerHour), sched:num(r.ScheduledKegs), unit:'kegs',
-    out:num(r.FinalCount), dt:num(r.GrandTotalDT), eff:num(r.RunEffPct), open:r.RunStatus==='Open' }));
+    out:num(r.FinalCount), filler:num(r.FillerCount), dt:num(r.GrandTotalDT), eff:num(r.RunEffPct), open:r.RunStatus==='Open' }));
   const hours = [];
   (raw.HourlyEntries||[]).forEach(h=>hours.push({ line:'can', run:h.RunId, hour:num(h.field_2), start:toMin(h.field_3), end:toMin(h.field_4), units:num(h.field_6)/CANS_PER_CASE, eff:num(h.field_7), dt:num(h.field_8) }));
   (raw.RackHourlyEntries||[]).forEach(h=>hours.push({ line:'rack', run:h.RunID, hour:num(h.HourNum), start:toMin(h.WindowStart), end:toMin(h.WindowEnd), units:num(h.KegsThisHour), eff:num(h.EffPct), dt:num(h.DTMinsThisHour) }));
@@ -328,7 +334,7 @@ function renderWeek(){
     });
     wrap.append(svg); attachHover(wrap,svg,items,W); card.append(wrap);
     // day table
-    const t=el('table'); t.append(el('thead',{},el('tr',{},[el('th',{text:'Day'}),el('th',{text:'Projected'}),el('th',{text:'Actual'}),el('th',{class:'n',text:'Proj. '+(ln==='can'?'cases':'kegs')}),el('th',{class:'n',text:'Actual'}),el('th',{class:'n',text:'Diff'}),el('th',{class:'n',text:'Proj. end'}),el('th',{class:'n',text:'Actual end'})])));
+    const t=el('table'); t.append(el('thead',{},el('tr',{},[el('th',{text:'Day'}),el('th',{text:'Projected'}),el('th',{text:'Actual'}),el('th',{class:'n',text:'Proj. '+(ln==='can'?'cases':'kegs')}),el('th',{class:'n',text:'Actual total'}),el('th',{class:'n',text:'Diff'}),el('th',{class:'n',text:'Proj. end'}),el('th',{class:'n',text:'Actual end'})])));
     const tb=el('tbody');
     days.forEach(d=>{
       const pr=plan.filter(b=>b.day===d&&b.kind==='run'), ar=D.runs.filter(r=>r.line===ln&&r.day===d);
@@ -337,7 +343,7 @@ function renderWeek(){
       const au=ar.reduce((s,r)=>s+(r.open?0:(r.out||0)),0);
       const pe=pr.length?Math.max(...pr.map(b=>b.end)):null, ae=ar.length&&!anyOpen?Math.max(...ar.map(r=>r.end<r.qual?r.end+1440:r.end)):null;
       const diff=(d<todayKey()||!anyOpen)&&ar.length? au-pu : null;
-      tb.append(el('tr',{},[ el('td',{text:dayName(d)}), el('td',{text:pr.map(b=>b.label).join(', ')||'—'}), el('td',{text:ar.map(r=>r.batch+(r.open?' (running)':'')).join(', ')||(d<todayKey()?'No run':'—')}),
+      tb.append(el('tr',{},[ el('td',{text:dayName(d)}), el('td',{text:pr.map(b=>b.label).join(', ')||'—'}), el('td',{text:ar.map(r=>r.batch+(r.open?' (running)':' · '+fmt(r.out))).join(', ')||(d<todayKey()?'No run':'—')}),
         el('td',{class:'n',text:pu?fmt(pu):'—'}), el('td',{class:'n',text:anyOpen?'running':(ar.length?fmt(au):'—')}),
         el('td',{class:'n',html:diff==null?'—':`<span class="chip ${diff>=0?'c-open':'c-bad'}">${diff>=0?'+':''}${fmt(diff)}</span>`}),
         el('td',{class:'n',text:hhmm(pe)}), el('td',{class:'n',text:anyOpen?'—':hhmm(ae)}) ]));
@@ -346,6 +352,88 @@ function renderWeek(){
     p.append(card);
   });
   p.append(el('div',{class:'sqlnote',html:'Projection frozen 11/5 from the week\'s schedule and tablet run rates. With SQL: <code>rpt.v_plan_vs_actual</code> joins the saved plan to the runs as they close, so this fills itself in every day.'}));
+}
+
+
+/* ===== OEE & TEEP tab =====
+   Same definitions as the 11/5 Packaging Performance Dashboard (Definitions tab):
+   line efficiency (volume weighted) = Availability x Performance; OEE = line efficiency x Quality;
+   Availability = (run time - downtime) / run time; Performance = line efficiency / Availability;
+   Quality: Can = net / total cases, Racker = final / filler kegs; TEEP = OEE x run hours / 168 per week. */
+const runMins = r => (r.qual==null||r.end==null) ? 0 : ((r.end - r.qual + 1440) % 1440);
+const weekKey = d => { const x=new Date(d+'T12:00:00'); const dow=(x.getDay()+6)%7; x.setDate(x.getDate()-dow); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+function oeeOf(rows, ln){
+  let output=0, good=0, cap=0, mins=0, dt=0;
+  rows.forEach(r=>{ const o = ln==='can' ? (r.out||0) : (r.filler||r.out||0); const g = ln==='can' ? (r.good!=null?r.good:r.out||0) : Math.min(r.out||0, o);
+    output+=o; good+=g; mins+=runMins(r); dt+=(r.dt||0); if(r.eff>0) cap+=o/(r.eff/100); });
+  const eff = cap? Math.min(1, output/cap) : null, Q = output? good/output : null, A = mins? Math.max(0,(mins-dt)/mins) : null;
+  const P = eff!=null && A ? Math.min(1, eff/A) : null, OEE = eff!=null && Q!=null ? eff*Q : null;
+  return { runs:rows.length, output, mins, dt, A, P, Q, OEE, eff, TEEP: OEE!=null ? OEE*(mins/60)/168 : null };
+}
+const pct = v => v==null ? '—' : fmt(v*100,1)+'%';
+const tier = v => v==null ? '' : v>=.85 ? 'good' : v>=.70 ? 'mid' : 'low';
+function renderOEE(){
+  const p=$('#p-oee'); p.replaceChildren(); const D=state.data;
+  lines().forEach(ln=>{
+    const closed = D.runs.filter(r=>r.line===ln && !r.open && r.qual!=null && r.end!=null);
+    const card=el('div',{class:'card'}); card.append(el('h2',{text:LINE_NAME[ln]+' · OEE and TEEP'}));
+    if(!closed.length){ card.append(el('div',{class:'empty',text:'No closed runs in this period.'})); p.append(card); return; }
+    const weeks=[...new Set(closed.map(r=>weekKey(r.day)))].sort(); const wk=weeks[weeks.length-1];
+    const cur=oeeOf(closed.filter(r=>weekKey(r.day)===wk), ln);
+    card.append(el('div',{class:'sub',text:'Week of '+dayName(wk)+' · '+cur.runs+' run'+(cur.runs===1?'':'s')+' · '+fmt(cur.mins/60,1)+' running hours'}));
+    const tile=(lbl,v,note)=>el('div',{class:'kpi '+tier(v)},[el('span',{text:lbl}),el('strong',{text:pct(v)}),note?el('em',{text:note}):null]);
+    card.append(el('div',{class:'kpis',style:'grid-template-columns:repeat(auto-fit,minmax(110px,1fr))'},[
+      tile('OEE',cur.OEE,'world class 85%'), tile('Availability',cur.A,'running ÷ run time'), tile('Performance',cur.P,'speed vs rated'), tile('Quality',cur.Q,ln==='can'?'net ÷ total cases':'final ÷ filler kegs'),
+      el('div',{class:'kpi'},[el('span',{text:'TEEP'}),el('strong',{text:pct(cur.TEEP)}),el('em',{text:'of all 168 week hours'})]) ]));
+    // weekly table
+    const t=el('table'); t.append(el('thead',{},el('tr',{},['Week','Runs','Run h','Avail.','Perf.','Quality','OEE','TEEP'].map((h,i)=>el('th',{class:i?'n':'',text:h})))));
+    const tb=el('tbody'); weeks.slice().reverse().forEach(w=>{ const o=oeeOf(closed.filter(r=>weekKey(r.day)===w), ln);
+      tb.append(el('tr',{},[el('td',{text:dayName(w)}),el('td',{class:'n',text:String(o.runs)}),el('td',{class:'n',text:fmt(o.mins/60,1)}),el('td',{class:'n',text:pct(o.A)}),el('td',{class:'n',text:pct(o.P)}),el('td',{class:'n',text:pct(o.Q)}),el('td',{class:'n',html:`<span class="chip ${o.OEE>=.85?'c-open':o.OEE>=.7?'c-warn':'c-bad'}">${pct(o.OEE)}</span>`}),el('td',{class:'n',text:pct(o.TEEP)})])); });
+    t.append(tb); card.append(el('h3',{text:'By week'}), el('div',{class:'scroll'},t));
+    // by run
+    const t2=el('table'); t2.append(el('thead',{},el('tr',{},['Day','Batch','Package','Run h','DT min','Avail.','Perf.','Quality','OEE'].map((h,i)=>el('th',{class:i>2?'n':'',text:h})))));
+    const tb2=el('tbody'); closed.slice().reverse().slice(0,12).forEach(r=>{ const o=oeeOf([r],ln);
+      tb2.append(el('tr',{},[el('td',{text:dayName(r.day)}),el('td',{text:r.batch}),el('td',{text:r.pkg}),el('td',{class:'n',text:fmt(o.mins/60,1)}),el('td',{class:'n',text:fmt(r.dt)}),el('td',{class:'n',text:pct(o.A)}),el('td',{class:'n',text:pct(o.P)}),el('td',{class:'n',text:pct(o.Q)}),el('td',{class:'n',html:`<span class="chip ${o.OEE>=.85?'c-open':o.OEE>=.7?'c-warn':'c-bad'}">${pct(o.OEE)}</span>`})])); });
+    t2.append(tb2); card.append(el('h3',{text:'Recent runs'}), el('div',{class:'scroll'},t2));
+    p.append(card);
+  });
+  p.append(el('div',{class:'card'},[el('h2',{text:'How to read it'}), el('div',{class:'sub',html:
+    '<b>OEE</b> = Availability × Performance × Quality: good output compared with what the line could make in the time it ran. 85% is world class for packaging; 60% is typical.<br>'+
+    '<b>Availability</b> = (run time − downtime) ÷ run time: breakdowns and stops. <b>Performance</b> = speed while running compared with rated speed: slow running and short stops nobody logs. <b>Quality</b> = good output ÷ total output.<br>'+
+    '<b>TEEP</b> = OEE × the share of all 168 hours in a week the line ran: how much more the same equipment could make with more running time, before buying equipment.<br>'+
+    'Run time is qual to filler end. Same definitions as the 11/5 dashboard; each run uses the efficiency it recorded.<br>'+
+    '<b>Performance near 100%</b> means almost all lost time is logged as downtime. If Performance drops while downtime stays low, the line is running slow or stopping without anyone logging it.'})]));
+  p.append(el('div',{class:'sqlnote',html:'With SQL: <code>rpt.v_oee_week</code> and <code>rpt.v_oee_run</code> hold these numbers for every line and week, so any dashboard or report shows the same OEE.'}));
+}
+
+/* ===== Changeovers tab (Lean: SMED target) ===== */
+const CO_STD = { can:{ same:60, size:60 }, rack:{ beer:45, size:15 } };
+function changeovers(ln){
+  const D=state.data, out=[]; const rs=D.runs.filter(r=>r.line===ln && r.qual!=null);
+  const days=[...new Set(rs.map(r=>r.day))].sort();
+  days.forEach(d=>{ const dr=rs.filter(r=>r.day===d).sort((a,b)=>a.qual-b.qual);
+    for(let i=1;i<dr.length;i++){ const a=dr[i-1], b=dr[i]; if(a.end==null) continue; const gap=b.qual-a.end; if(gap<=0||gap>240) continue;
+      let type,std; if(ln==='can'){ if(a.pkg===b.pkg){type='Beer change, same package';std=CO_STD.can.same;} else {type='Package change';std=CO_STD.can.size;} }
+      else { if(a.batch===b.batch){type='Keg size change';std=CO_STD.rack.size;} else {type='Beer change';std=CO_STD.rack.beer;} }
+      out.push({day:d,from:a.batch+' '+a.pkg,to:b.batch+' '+b.pkg,type,min:gap,std,over:gap-std}); } });
+  return out;
+}
+function renderCO(){
+  const p=$('#p-co'); p.replaceChildren();
+  lines().forEach(ln=>{
+    const co=changeovers(ln); const card=el('div',{class:'card'}); card.append(el('h2',{text:LINE_NAME[ln]+' · changeovers vs standard'}));
+    if(!co.length){ card.append(el('div',{class:'empty',text:'No same-day changeovers in this period.'})); p.append(card); return; }
+    const over=co.filter(c=>c.over>0), lost=over.reduce((s,c)=>s+c.over,0), med=[...co.map(c=>c.min)].sort((a,b)=>a-b)[Math.floor(co.length/2)];
+    card.append(el('div',{class:'kpis'},[
+      el('div',{class:'kpi'},[el('span',{text:'Changeovers'}),el('strong',{text:String(co.length)})]),
+      el('div',{class:'kpi'},[el('span',{text:'Median'}),el('strong',{text:med+' min'})]),
+      el('div',{class:'kpi '+(over.length?'mid':'good')},[el('span',{text:'Over standard'}),el('strong',{text:over.length+' of '+co.length})]),
+      el('div',{class:'kpi '+(lost>60?'low':lost?'mid':'good')},[el('span',{text:'Minutes over'}),el('strong',{text:String(lost)})]) ]));
+    const t=el('table'); t.append(el('thead',{},el('tr',{},['Day','From','To','Type','Min','Std','Over'].map((h,i)=>el('th',{class:i>3?'n':'',text:h})))));
+    const tb=el('tbody'); co.slice().reverse().forEach(c=>tb.append(el('tr',{},[el('td',{text:dayName(c.day)}),el('td',{text:c.from}),el('td',{text:c.to}),el('td',{text:c.type}),el('td',{class:'n',text:String(c.min)}),el('td',{class:'n',text:String(c.std)}),el('td',{class:'n',html:c.over>0?`<span class="chip c-bad">+${c.over}</span>`:`<span class="chip c-open">${c.over}</span>`})])));
+    t.append(tb); card.append(el('div',{class:'scroll'},t)); p.append(card);
+  });
+  p.append(el('div',{class:'sqlnote',html:'Changeover = next run qual − previous run filler end, same line, same day. Standards: Can Line 60 min (bright to bright or size change; hot flush 90 once the Run Start records it), Racker 45 min beer change, 15 min keg size change. Lean (SMED) target: every minute over standard is crew time paid while the line makes nothing. With SQL: <code>rpt.v_changeover</code>.'}));
 }
 
 /* ===== Startup tab ===== */
@@ -384,17 +472,19 @@ function renderDT(){
   const card=el('div',{class:'card'}); const runIds=new Set(D.runs.filter(r=>lines().includes(r.line)).map(r=>r.line+r.run+r.id));
   const ev=D.dts.filter(d=>lines().includes(d.line)&&!d.planned&&d.machine!=='Changeover');
   const first=D.runs.length?D.runs[0].day:null;
-  card.append(el('h2',{text:'Unplanned downtime by machine'+(first?' · since '+dayName(first):'')}));
+  card.append(el('h2',{text:'Unplanned downtime by machine (Pareto)'+(first?' · since '+dayName(first):'')}));
   const agg={}; ev.forEach(d=>{ const k=d.line+'|'+d.machine; agg[k]=agg[k]||{line:d.line,machine:d.machine,min:0,n:0}; agg[k].min+=d.min||0; agg[k].n++; });
   const rows=Object.values(agg).sort((a,b)=>b.min-a.min);
   if(!rows.length){ card.append(el('div',{class:'empty',text:'No downtime recorded.'})); p.append(card); return; }
-  const W=900,rowH=26,L=210,R=90,T=8,H=T+rows.length*rowH+4, max=rows[0].min; const x=m=>L+(W-L-R)*m/max;
+  const totalMin=rows.reduce((s,r)=>s+r.min,0); let cum=0; rows.forEach(r=>{ cum+=r.min; r.cum=cum/totalMin; }); const vital=rows.filter((r,i)=>i===0||rows[i-1].cum<0.8).length;
+  card.append(el('div',{class:'sub',html:`<b>Pareto (80/20):</b> the top ${vital} of ${rows.length} machines cause ${fmt(rows[vital-1].cum*100)}% of unplanned downtime (${fmt(totalMin)} min). Fix those first.`}));
+  const W=900,rowH=26,L=210,R=150,T=8,H=T+rows.length*rowH+4, max=rows[0].min; const x=m=>L+(W-L-R)*m/max;
   const wrap=el('div',{class:'chart scroll'}); const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,style:'min-width:560px'}); const items=[];
   rows.forEach((r,i)=>{
     const y0=T+i*rowH; const tl=svgEl('text',{x:L-8,y:y0+15,'text-anchor':'end','font-size':11,fill:'var(--fg)'}); tl.textContent=(state.line==='both'?(r.line==='can'?'Can · ':'Rack · '):'')+r.machine; svg.append(tl);
-    svg.append(svgEl('rect',{x:L,y:y0+4,width:Math.max(2,x(r.min)-L),height:16,rx:3,fill:'var(--'+r.line+')'}));
-    const vt=svgEl('text',{x:x(r.min)+6,y:y0+16,'font-size':11,fill:'var(--fg)'}); vt.textContent=r.min+' min'; svg.append(vt);
-    items.push({x:x(r.min)/2+L/2,y:y0+4,tip:`<b>${LINE_NAME[r.line]} · ${r.machine}</b><br>${r.min} min over ${r.n} event${r.n>1?'s':''}`});
+    svg.append(svgEl('rect',{x:L,y:y0+4,width:Math.max(2,x(r.min)-L),height:16,rx:3,fill:'var(--'+r.line+')','fill-opacity':i<vital?1:.35}));
+    const vt=svgEl('text',{x:x(r.min)+6,y:y0+16,'font-size':11,fill:'var(--fg)'}); vt.textContent=r.min+' min · '+fmt(r.cum*100)+'%'; svg.append(vt);
+    items.push({x:x(r.min)/2+L/2,y:y0+4,tip:`<b>${LINE_NAME[r.line]} · ${r.machine}</b><br>${r.min} min over ${r.n} event${r.n>1?'s':''}<br>Cumulative ${fmt(r.cum*100)}% of downtime`});
   });
   // hover by row: snap on y instead of x
   wrap.append(svg); attachRowHover(wrap,svg,items,W,rowH,T); card.append(wrap);
@@ -422,13 +512,13 @@ function renderTicker(){
 
 function render(){
   renderTicker();
-  ({live:renderLive,week:renderWeek,start:renderStart,dt:renderDT})[state.tab]();
+  ({live:renderLive,week:renderWeek,oee:renderOEE,co:renderCO,start:renderStart,dt:renderDT})[state.tab]();
 }
 
 /* ===== Controls ===== */
 document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{ state.line=b.dataset.line; document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b)); render(); }));
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{ state.tab=b.dataset.tab; document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
-  ['live','week','start','dt'].forEach(t=>$('#p-'+t).hidden = t!==state.tab); render(); }));
+  ['live','week','oee','co','start','dt'].forEach(t=>$('#p-'+t).hidden = t!==state.tab); render(); }));
 $('#refresh').addEventListener('click',load);
 let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(render,150); });
 if (LIVE_FEED_URL) setInterval(load, AUTO_REFRESH_MIN*60*1000);
