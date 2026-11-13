@@ -86,6 +86,7 @@ main{padding-block:18px 40px;display:flex;flex-direction:column;gap:18px}
 .card h2{font:600 1.05rem/1.2 var(--display);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h3{font:600 .8rem/1.2 var(--body);margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .sub{color:var(--muted);font-size:.85rem}
+.mono{font:600 .85rem/1.4 ui-monospace,Consolas,monospace;background:rgba(127,127,127,.12);border-radius:6px;padding:6px 8px}
 .chip{font:600 .72rem/1 var(--body);padding:5px 8px;border-radius:999px;white-space:nowrap}
 .c-open{background:var(--ok-soft);color:var(--ok)} .c-closed{background:var(--soft);color:var(--muted)}
 .c-warn{background:var(--warn-soft);color:var(--warn)} .c-bad{background:var(--bad-soft);color:var(--bad)}
@@ -144,6 +145,7 @@ td.n,th.n{text-align:right}
     <button role="tab" id="t-co" aria-selected="false" data-tab="co">Changeovers</button>
     <button role="tab" id="t-start" aria-selected="false" data-tab="start">Startup</button>
     <button role="tab" id="t-dt" aria-selected="false" data-tab="dt">Downtime</button>
+    <button role="tab" id="t-defs" aria-selected="false" data-tab="defs">Definitions</button>
   </nav>
   <main>
     <section id="p-live" class="grid"></section>
@@ -152,6 +154,7 @@ td.n,th.n{text-align:right}
     <section id="p-co" hidden></section>
     <section id="p-start" hidden></section>
     <section id="p-dt" hidden></section>
+    <section id="p-defs" hidden></section>
   </main>
 </div>
 
@@ -403,7 +406,7 @@ function renderOEE(){
     '<b>TEEP</b> = OEE × the share of all 168 hours in a week the line ran: how much more the same equipment could make with more running time, before buying equipment.<br>'+
     'Run time is qual to filler end. Same definitions as the 11/5 dashboard; each run uses the efficiency it recorded.<br>'+
     '<b>Performance near 100%</b> means almost all lost time is logged as downtime. If Performance drops while downtime stays low, the line is running slow or stopping without anyone logging it.'})]));
-  p.append(el('div',{class:'sqlnote',html:'With SQL: <code>rpt.v_oee_week</code> and <code>rpt.v_oee_run</code> hold these numbers for every line and week, so any dashboard or report shows the same OEE.'}));
+  p.append(el('div',{class:'sqlnote',html:'With SQL: <code>rpt.v_line_week_oee</code> and <code>rpt.v_run_oee</code> hold these numbers for every line and week, so any dashboard or report shows the same OEE.'}));
 }
 
 /* ===== Changeovers tab (Lean: SMED target) ===== */
@@ -512,13 +515,68 @@ function renderTicker(){
 
 function render(){
   renderTicker();
-  ({live:renderLive,week:renderWeek,oee:renderOEE,co:renderCO,start:renderStart,dt:renderDT})[state.tab]();
+  ({live:renderLive,week:renderWeek,oee:renderOEE,co:renderCO,start:renderStart,dt:renderDT,defs:renderDefs})[state.tab]();
+}
+
+
+/* ===== Definitions tab (v2026-11-12) ===== */
+const DEFS = [
+ ['OEE (Overall Equipment Effectiveness)','Availability × Performance × Quality',
+  'How much good product the line made compared with what it could have made in the time it ran. 85% is world class for packaging lines; 60% is typical.',
+  'One number that captures stops, slow running and rejects together. Here OEE = line efficiency × Quality, because line efficiency already combines Availability and Performance.'],
+ ['TEEP (Total Effective Equipment Performance)','OEE × run hours ÷ 168 hours in a week',
+  'How much of the equipment\'s total possible output we actually get, counting every hour of the week.',
+  'OEE says how well we run when we run. TEEP says how much more the same equipment could make with more running time, before buying equipment.'],
+ ['Availability','(Run time − downtime) ÷ run time',
+  'The share of run time the line was actually running.',
+  'Points to breakdowns and stops. The Downtime tab shows which machines cost the most.'],
+ ['Performance','Line efficiency ÷ Availability (capped at 100%)',
+  'How fast the line ran compared with its rated speed while it was running.',
+  'Catches slow running and short stops that never get logged as downtime. Near 100% means almost all lost time is logged.'],
+ ['Quality','Can Line: net cases ÷ total cases · Racker: final kegs ÷ filler kegs',
+  'The share of output that was good on the first pass.',
+  'Product on hold or rejected uses the same time and materials as good product.'],
+ ['Line efficiency','Output ÷ (rated speed × (run minutes − planned downtime))',
+  'The number on the recap email and TV board. Run time is qual to filler end. Capped at 100%; over 100% on short runs means cases in transit were counted after the clock stopped.',
+  'The daily scorecard for each run. Weekly by package size is the plain average of its runs; weekly overall is weighted by cases across sizes.'],
+ ['Planned vs unplanned downtime','Planned: changeovers, PAA, meetings · Unplanned: breakdowns and slowdowns',
+  'Unplanned downtime is logged by machine on each hourly check-in.',
+  'Planned time is removed from efficiency so runs are judged fairly; unplanned time is what improvement work targets.'],
+ ['Changeover','Next run qual time − previous run filler end (same line, same day)',
+  'Standards: Can Line 60 min bright to bright, 90 min hot flush, 60 min size change or tank switch. Racker 45 min beer change, 60 min hot flush, 15 min keg size change.',
+  'Every minute over standard is time the line makes nothing. Hot flush vs bright to bright is shown once the Run Start records the run type.'],
+ ['Startup','5:00 AM → first qual of the day',
+  'Running-by standard: Can Line 7:15 Tuesday to Friday, 7:30 Monday; Racker 8:00.',
+  'A late start pushes every run after it and is the most common cause of carryover.'],
+ ['Downtime Pareto','Machines sorted by unplanned minutes, with a running total %',
+  'The highlighted machines are the "vital few" that add up to about 80% of the lost time.',
+  'Shows where a fix pays back first, instead of spreading effort across every machine.'],
+ ['Plan vs actual','Frozen weekly plan compared with what each run actually made',
+  'The plan is fixed at the start of the week so it does not move as the week runs. Actual shows each run\'s count.',
+  'Shows early whether the week will finish, so the schedule can change before the hard stop.'],
+ ['Carryover','Cases or kegs a day cannot finish before the hard stop or CIP, rolled to the next day',
+  'Comes from the plan for the day and the line\'s rated speed.',
+  'Early warning to adjust the schedule, start earlier or move runs before the week starts.']
+];
+function renderDefs(){
+  const p = $('#p-defs'); p.innerHTML = '';
+  p.append(el('div',{class:'card'},[el('h2',{text:'Definitions'}),
+    el('div',{class:'sub',text:'How every number on this page is calculated. All figures come from the tablet forms; nothing is typed in by hand. Same definitions as the Packaging Performance Dashboard.'})]));
+  const g = el('div',{class:'grid'});
+  DEFS.forEach(([name, formula, what, why]) => g.append(el('div',{class:'card'},[
+    el('h2',{text:name}),
+    el('div',{class:'mono',text:formula}),
+    el('div',{class:'sub',text:what}),
+    el('div',{class:'sub',html:'<b>Why it matters:</b> '}),
+  ])));
+  g.querySelectorAll('.card').forEach((c,i) => c.lastChild.append(document.createTextNode(DEFS[i][3])));
+  p.append(g);
 }
 
 /* ===== Controls ===== */
 document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{ state.line=b.dataset.line; document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b)); render(); }));
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{ state.tab=b.dataset.tab; document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
-  ['live','week','oee','co','start','dt'].forEach(t=>$('#p-'+t).hidden = t!==state.tab); render(); }));
+  ['live','week','oee','co','start','dt','defs'].forEach(t=>$('#p-'+t).hidden = t!==state.tab); render(); }));
 $('#refresh').addEventListener('click',load);
 let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(render,150); });
 if (LIVE_FEED_URL) setInterval(load, AUTO_REFRESH_MIN*60*1000);
