@@ -51,7 +51,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-bottom:env(safe-area-inset-bottom,0px)}
 .band{background:var(--navy);color:#fff;padding-top:env(safe-area-inset-top,0px)}
-.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:min(1880px,100%);margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:14px}
 .logo{height:40px;width:auto;display:block}
 .title{display:flex;flex-direction:column;gap:2px;margin-right:auto}
@@ -81,7 +81,10 @@ main{padding-block:18px 40px;display:flex;flex-direction:column;gap:18px}
 #p-week,#p-start,#p-dt,#p-oee,#p-co{display:flex;flex-direction:column;gap:16px}
 .kpi.good strong{color:var(--ok)} .kpi.mid strong{color:var(--warn)} .kpi.low strong{color:var(--bad)}
 .kpi em{font-style:normal;font-size:.72rem;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px}
+/* wide screens: use the space (v2026-11-12b) */
+@media (min-width:1500px){html{font-size:17px}.wrap{padding-left:32px;padding-right:32px}}
+@media (min-width:1900px){html{font-size:18px}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .card h2{font:600 1.05rem/1.2 var(--display);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h3{font:600 .8rem/1.2 var(--body);margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
@@ -289,6 +292,8 @@ function renderLive(){
     }
     p.append(card);
   });
+  const nCards=p.querySelectorAll(':scope > .card').length;   // line cards share the full width on wide screens
+  p.style.gridTemplateColumns = innerWidth>=1000 && nCards ? 'repeat('+nCards+',minmax(0,1fr))' : '';
   p.append(el('div',{class:'sqlnote',style:'grid-column:1/-1',html:'With SQL: this tab reads <code>rpt.v_live_runs</code> and <code>rpt.v_run_hours</code>. Refresh asks the database for the latest rows; nothing is typed in first.'}));
 }
 function hourChart(hrs, dts, ln, run){
