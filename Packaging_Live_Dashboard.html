@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <!--
-  Packaging Live  v2026-11-11  (demo of the SQL-era dashboard)
+  Packaging Live  v2026-11-16  (demo of the SQL-era dashboard)
   ------------------------------------------------------------
   Data: one read-only feed (LIVE_FEED_URL below). Until it is set, the page shows the
   built-in snapshot (pulled from SharePoint 11/11 ~9:50 AM) and says so in the header.
@@ -35,17 +35,17 @@
 /* Layout: navy header band with logo and controls; tabbed panels below; cards wrap to one column on phones */
 :root{
   --navy:#204667; --red:#9e1a41; --bg:#f3f5f8; --panel:#ffffff; --fg:#17212e; --muted:#5d6a7c; --line:#dbe1ea;
-  --soft:#e8eef6; --ok:#2e7d4f; --ok-soft:#e3f2e8; --warn:#b26a00; --warn-soft:#fbefd9; --bad:#b3262e; --bad-soft:#fae3e4;
+  --soft:#e8eef6; --ok:#2e7d4f; --ok-soft:#e3f2e8; --warn:#b26a00; --cip:#0f7c80; --warn-soft:#fbefd9; --bad:#b3262e; --bad-soft:#fae3e4;
   --can:#204667; --rack:#9e1a41; --plan:#aab6c6;
   --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f141c; --panel:#18202c; --fg:#e6ebf2; --muted:#98a4b6; --line:#2a3443; --soft:#1e2938;
-  --ok:#74c795; --ok-soft:#183324; --warn:#e3a54a; --warn-soft:#3a2c14; --bad:#ef7a80; --bad-soft:#3a1d21;
+  --ok:#74c795; --ok-soft:#183324; --warn:#e3a54a; --cip:#4cc3c7; --warn-soft:#3a2c14; --bad:#ef7a80; --bad-soft:#3a1d21;
   --can:#7fa8dc; --rack:#e58aa5; --plan:#4c5a6e; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f141c; --panel:#18202c; --fg:#e6ebf2; --muted:#98a4b6; --line:#2a3443; --soft:#1e2938;
-  --ok:#74c795; --ok-soft:#183324; --warn:#e3a54a; --warn-soft:#3a2c14; --bad:#ef7a80; --bad-soft:#3a1d21;
+  --ok:#74c795; --ok-soft:#183324; --warn:#e3a54a; --cip:#4cc3c7; --warn-soft:#3a2c14; --bad:#ef7a80; --bad-soft:#3a1d21;
   --can:#7fa8dc; --rack:#e58aa5; --plan:#4c5a6e; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -331,7 +331,7 @@ function renderWeek(){
   lines().forEach(ln=>{
     const lname=LINE_NAME[ln]; const plan=BL.filter(b=>b.line===lname);
     const card=el('div',{class:'card'}); card.append(el('h2',{text:lname+' · week of '+dayName(days[0])}));
-    card.append(el('div',{class:'legend',html:'<span><i style="background:var(--plan)"></i>Projected (frozen '+BASELINES[PLAN_WEEK].frozen+')</span><span><i style="background:var(--'+ln+')"></i>Actual run</span><span><i style="background:var(--warn)"></i>Change / CIP (projected)</span>'}));
+    card.append(el('div',{class:'legend',html:'<span><i style="background:var(--plan)"></i>Projected (frozen '+BASELINES[PLAN_WEEK].frozen+')</span><span><i style="background:var(--'+ln+')"></i>Actual run</span><span><i style="background:var(--warn)"></i>Changeover (projected)</span><span><i style="background:var(--cip)"></i>CIP (projected)</span>'}));
     // gantt
     const W=900,rowH=46,L=74,R=10,T=22,H=T+rowH*days.length+6, x0=5*60, x1=24*60; const x=m=>L+(W-L-R)*(Math.min(Math.max(m,x0),x1)-x0)/(x1-x0);
     const wrap=el('div',{class:'chart scroll'}); const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,style:'min-width:640px'});
@@ -340,7 +340,7 @@ function renderWeek(){
     days.forEach((d,i)=>{
       const y0=T+i*rowH; const tl=svgEl('text',{x:4,y:y0+rowH/2+4,'font-size':11,fill:'var(--fg)'}); tl.textContent=dayName(d); svg.append(tl);
       plan.filter(b=>b.day===d).forEach(b=>{
-        const fill=b.kind==='run'?'var(--plan)':'var(--warn)'; const xx=x(b.start), ww=Math.max(2,x(b.end)-xx);
+        const fill=b.kind==='run'?'var(--plan)':(b.kind==='cip'?'var(--cip)':'var(--warn)'); /* v2026-11-16 CIP own color */ const xx=x(b.start), ww=Math.max(2,x(b.end)-xx);
         svg.append(svgEl('rect',{x:xx,y:y0+4,width:ww,height:15,rx:3,fill,'fill-opacity':b.kind==='run'?1:.55}));
         items.push({x:xx+ww/2,y:y0+4,tip:`<b>Projected · ${dayName(d)}</b><br>${b.label}${b.package?' · '+b.package:''}<br>${hhmm(b.start)}–${hhmm(b.end)}${b.units?'<br>'+fmt(b.units)+(ln==='can'?' cases':' kegs'):''}`});
       });
