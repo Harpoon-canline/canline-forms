@@ -177,7 +177,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-12</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-16</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -204,7 +204,7 @@ textarea      { resize: vertical; min-height: 70px; }
                 </div>
                 <div class="fg">
                     <label for="batchNum">Batch # <span class="req">*</span></label>
-                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. WABB28A-D" required>
+                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. WABB28A-D" required autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase().replace(/\s+/g,'')">
                     <span class="hint">No spaces. Copy it exactly as it is on the split.</span>
                 </div>
             </div>
@@ -1053,6 +1053,9 @@ function renderHistory() {
 // ── VALIDATION ────────────────────────────────────────────
 function validate() {
     var ok = true;
+    // 2026-11-16: batch safeguard - uppercase, no spaces (also catches pasted / restored values)
+    var bn = document.getElementById('batchNum');
+    bn.value = bn.value.toUpperCase().replace(/\s+/g, '');
     document.querySelectorAll('#dsForm [required]').forEach(function(el) {
         el.classList.remove('err');
         // Skip required check on fields inside a hidden .cond section
