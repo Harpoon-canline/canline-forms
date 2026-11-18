@@ -335,7 +335,7 @@
 <!-- HEADER -->
 <div class="header">
     <div>
-        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-10</span></h1>
+        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-16</span></h1>
         <p>Harpoon Can Line &mdash; Fill at Qualification</p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
@@ -430,7 +430,7 @@
                 </div>
                 <div class="fg">
                     <label for="batchNum">Batch # <span class="req">*</span></label>
-                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. LTALE13" required oninput="this.value=this.value.toUpperCase()">
+                    <input type="text" id="batchNum" name="batchNum" placeholder="e.g. LTALE13" required autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase().replace(/\s+/g,'')">
                     <span class="hint">Same batch code Downstairs records &mdash; the join key across both tablets</span>
                 </div>
             </div>
@@ -622,19 +622,20 @@
 
             <hr class="divider">
 
-            <span class="check-lbl">Bowl Dump Readings</span>
+            <!-- 2026-11-16: relabeled - these are bowl dump COUNTS by reason (same as the hourly form), not readings -->
+            <span class="check-lbl">Number of Bowl Dumps by Reason</span>
             <div class="row col-3">
                 <div class="fg">
-                    <label for="bowlDO">Bowl DO (ppm)</label>
-                    <input type="number" id="bowlDO" name="bowlDO" placeholder="0.000" step="0.001">
+                    <label for="bowlDO">Bowl Dump DO</label>
+                    <input type="number" id="bowlDO" name="bowlDO" placeholder="0" min="0" step="1" inputmode="numeric">
                 </div>
                 <div class="fg">
-                    <label for="bowlCO2">Bowl CO2 (vol)</label>
-                    <input type="number" id="bowlCO2" name="bowlCO2" placeholder="0.00" step="0.01">
+                    <label for="bowlCO2">Bowl Dump CO2</label>
+                    <input type="number" id="bowlCO2" name="bowlCO2" placeholder="0" min="0" step="1" inputmode="numeric">
                 </div>
                 <div class="fg">
-                    <label for="bowlBeerTemp">Bowl Beer Temp</label>
-                    <input type="number" id="bowlBeerTemp" name="bowlBeerTemp" placeholder="0.0" step="0.1">
+                    <label for="bowlBeerTemp">Bowl Dump Temp</label>
+                    <input type="number" id="bowlBeerTemp" name="bowlBeerTemp" placeholder="0" min="0" step="1" inputmode="numeric">
                 </div>
             </div>
 
@@ -752,7 +753,22 @@
                     </select>
                 </div>
             </div>
-            <p class="hint" style="margin-top:4px;">Lid Plant and Lid Lot are recorded each hour on the Hourly Check-In form. Wrap, Tray, and Paktech lot numbers are recorded by downstairs ops on Pages 6&ndash;7.</p>
+            <!-- 2026-11-16: lid plant / lid lot / can lot captured at qualification; pre-filled on each Hourly Check-In -->
+            <div class="row col-3">
+                <div class="fg">
+                    <label for="lidPlant">Lid Plant <span class="req">*</span></label>
+                    <input type="text" id="lidPlant" name="lidPlant" maxlength="10" required oninput="this.value=this.value.toUpperCase()" placeholder="e.g. ENF">
+                </div>
+                <div class="fg">
+                    <label for="lidLot">Lid Lot # <span class="req">*</span></label>
+                    <input type="text" id="lidLot" name="lidLot" maxlength="20" required placeholder="e.g. N531140052">
+                </div>
+                <div class="fg">
+                    <label for="canLot">Can Lot # <span class="req">*</span></label>
+                    <input type="text" id="canLot" name="canLot" maxlength="20" required autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" placeholder="e.g. L25072501">
+                </div>
+            </div>
+            <p class="hint" style="margin-top:4px;">Lid Plant, Lid Lot and Can Lot carry into each Hourly Check-In (If different, edit there). Wrap, Tray, and Paktech lot numbers are recorded by downstairs ops on Pages 6&ndash;7.</p>
 
             <hr class="divider">
 
@@ -1248,6 +1264,9 @@ function submitToFlow(data) {
 
 function validate() {
     let ok = true;
+    // 2026-11-16: batch safeguard - uppercase, no spaces (also catches pasted / restored values)
+    const bn = document.getElementById('batchNum');
+    bn.value = bn.value.toUpperCase().replace(/\s+/g, '');
     document.querySelectorAll('#form [required]').forEach(el => {
         el.classList.remove('error');
         if (!el.value.trim()) { el.classList.add('error'); ok = false; }
@@ -1301,9 +1320,9 @@ function showConf(d) {
         ['Nitrogen Run',         d.isNitro === 'Y' ? 'Yes' : 'No'],
         ...(d.isNitro === 'Y' ? [['N2 (ppb)', d.n2Ppb], ['Pressure (psi)', d.pressurePsi]] : [['Shaken DO', d.shakenDO || '—']]),
         ['Haze EBC',             d.hazeEBC  || '—'],
-        ['Bowl DO',              d.bowlDO   || '—'],
-        ['Bowl CO2',             d.bowlCO2  || '—'],
-        ['Bowl Beer Temp',       d.bowlBeerTemp || '—'],
+        ['Bowl Dump DO',         d.bowlDO   || '0'],
+        ['Bowl Dump CO2',        d.bowlCO2  || '0'],
+        ['Bowl Dump Temp',       d.bowlBeerTemp || '0'],
         ['Filler Hours',         d.fillerHours  || '—'],
         ['Head Pressure',        d.headPressure || '—'],
         ['CO2 on at BBT',        d.co2BbtYN     || '—'],
@@ -1312,6 +1331,9 @@ function showConf(d) {
         ['Beginning Sensory',    cap(d.sensoryPF) + (d.sensoryOpInit ? '  Op: ' + d.sensoryOpInit + ' / Vr: ' + d.sensoryVrInit : '')],
         ['Beginning Seam Check', cap(d.seamPF)    + (d.seamOpInit    ? '  Op: ' + d.seamOpInit    + ' / Vr: ' + d.seamVrInit    : '')],
         ['Lid Type',             d.lidType],
+        ['Lid Plant',            d.lidPlant || '—'],
+        ['Lid Lot #',            d.lidLot   || '—'],
+        ['Can Lot #',            d.canLot   || '—'],
         ['Scheduled Cases',      d.schedCases],
         ...(d.mixPacks === 'Y' ? [['  Regular (sched.)', d.schedCasesRegular], ['  Mix Pack (sched.)', d.schedCasesMix]] : []),
         ['Pallet Tags (Op)',      d.ptOpInit],
