@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <!--
-  Packaging Live  v2026-11-16  (demo of the SQL-era dashboard)
+  Packaging Live  v2026-11-18  (demo of the SQL-era dashboard)
   ------------------------------------------------------------
   Data: one read-only feed (LIVE_FEED_URL below). Until it is set, the page shows the
   built-in snapshot (pulled from SharePoint 11/11 ~9:50 AM) and says so in the header.
@@ -108,6 +108,7 @@ main{padding-block:18px 40px;display:flex;flex-direction:column;gap:18px}
 .chart text{font-family:var(--body);fill:var(--muted)}
 .tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-size:.78rem;line-height:1.35;padding:7px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);margin-top:-8px;opacity:0;transition:opacity .1s;z-index:5}
 .tip.on{opacity:1}
+.tip.below{transform:translate(-50%,0);margin-top:8px} /* v2026-11-18 flip under the bar near the top */
 table{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{font:600 .7rem/1.2 var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -240,18 +241,32 @@ async function load(){
 /* ===== Hover-snapping chart helper =====
    Any x position over the chart snaps to the nearest item, with one tooltip. */
 function attachHover(wrap, svg, items, W){
+  /* v2026-11-18: items with a box (bx,by,bw,bh) only show while the pointer is ON that box/row;
+     items without a box (hourly line chart points) keep the nearest-x snap. */
   const tip = el('div',{class:'tip'}); wrap.append(tip);
-  const guide = svgEl('line',{y1:0,y2:svg.viewBox.baseVal.height,stroke:'currentColor','stroke-opacity':'.25','stroke-dasharray':'3 3',visibility:'hidden'});
+  const H = svg.viewBox.baseVal.height;
+  const boxed = items.some(it=>it.bw!=null);
+  const guide = svgEl('line',{y1:0,y2:H,stroke:'currentColor','stroke-opacity':'.25','stroke-dasharray':'3 3',visibility:'hidden'});
   svg.append(guide);
-  const move = ev => {
-    const r = svg.getBoundingClientRect(); const x = (('touches' in ev ? ev.touches[0].clientX : ev.clientX) - r.left) * (W / r.width);
-    let best=null, bd=1e9; items.forEach(it=>{ const d=Math.abs(it.x-x); if(d<bd){bd=d;best=it;} });
-    if(!best) return;
-    guide.setAttribute('x1',best.x); guide.setAttribute('x2',best.x); guide.setAttribute('visibility','visible');
-    tip.innerHTML = best.tip; tip.classList.add('on');
-    const px = best.x * r.width / W; tip.style.left = Math.min(Math.max(px,80), r.width-80)+'px'; tip.style.top = (best.y * r.height / svg.viewBox.baseVal.height)+'px';
-  };
   const out = () => { tip.classList.remove('on'); guide.setAttribute('visibility','hidden'); };
+  const move = ev => {
+    const r = svg.getBoundingClientRect(); const pt = 'touches' in ev ? ev.touches[0] : ev;
+    const x = (pt.clientX - r.left) * (W / r.width), y = (pt.clientY - r.top) * (H / r.height);
+    let best=null;
+    if (boxed) {
+      const pad=2; best = items.find(it=>x>=it.bx-pad && x<=it.bx+it.bw+pad && y>=it.by-pad && y<=it.by+it.bh+pad) || null;
+      if(!best){ out(); return; }
+    } else {
+      let bd=1e9; items.forEach(it=>{ const d=Math.abs(it.x-x); if(d<bd){bd=d;best=it;} });
+      if(!best) return;
+      guide.setAttribute('x1',best.x); guide.setAttribute('x2',best.x); guide.setAttribute('visibility','visible');
+    }
+    tip.innerHTML = best.tip; tip.classList.add('on');
+    const px = (boxed ? x : best.x) * r.width / W; tip.style.left = Math.min(Math.max(px,90), r.width-90)+'px';
+    const topY = boxed ? best.by : best.y, botY = boxed ? best.by + best.bh : best.y;
+    const below = topY * r.height / H < 75; tip.classList.toggle('below', below);
+    tip.style.top = ((below ? botY : topY) * r.height / H)+'px';
+  };
   svg.addEventListener('mousemove',move); svg.addEventListener('touchstart',move,{passive:true}); svg.addEventListener('touchmove',move,{passive:true});
   svg.addEventListener('mouseleave',out);
 }
@@ -342,13 +357,13 @@ function renderWeek(){
       plan.filter(b=>b.day===d).forEach(b=>{
         const fill=b.kind==='run'?'var(--plan)':(b.kind==='cip'?'var(--cip)':'var(--warn)'); /* v2026-11-16 CIP own color */ const xx=x(b.start), ww=Math.max(2,x(b.end)-xx);
         svg.append(svgEl('rect',{x:xx,y:y0+4,width:ww,height:15,rx:3,fill,'fill-opacity':b.kind==='run'?1:.55}));
-        items.push({x:xx+ww/2,y:y0+4,tip:`<b>Projected · ${dayName(d)}</b><br>${b.label}${b.package?' · '+b.package:''}<br>${hhmm(b.start)}–${hhmm(b.end)}${b.units?'<br>'+fmt(b.units)+(ln==='can'?' cases':' kegs'):''}`});
+        items.push({x:xx+ww/2,y:y0+4,bx:xx,by:y0+4,bw:ww,bh:15,tip:`<b>Projected · ${dayName(d)}</b><br>${b.label}${b.package?' · '+b.package:''}<br>${hhmm(b.start)}–${hhmm(b.end)}${b.units?'<br>'+fmt(b.units)+(ln==='can'?' cases':' kegs'):''}`});
       });
       D.runs.filter(r=>r.line===ln && r.day===d).forEach(r=>{
         const end = r.open ? (d===todayKey()?nowMin():r.qual+60) : (r.end<r.qual?r.end+1440:r.end);
         const xx=x(r.qual), ww=Math.max(3,x(end)-xx);
         svg.append(svgEl('rect',{x:xx,y:y0+23,width:ww,height:15,rx:3,fill:'var(--'+ln+')','fill-opacity':r.open?.6:1}));
-        items.push({x:xx+ww/2,y:y0+23,tip:`<b>Actual · ${dayName(d)}</b><br>${r.batch} · ${r.pkg}<br>${hhmm(r.qual)}–${r.open?'now':hhmm(r.end)}<br>${fmt(r.open?null:r.out)} of ${fmt(r.sched)} ${r.unit}${r.open?' (running)':''}`});
+        items.push({x:xx+ww/2,y:y0+23,bx:xx,by:y0+23,bw:ww,bh:15,tip:`<b>Actual · ${dayName(d)}</b><br>${r.batch} · ${r.pkg}<br>${hhmm(r.qual)}–${r.open?'now':hhmm(r.end)}<br>${fmt(r.open?null:r.out)} of ${fmt(r.sched)} ${r.unit}${r.open?' (running)':''}`});
       });
     });
     wrap.append(svg); attachHover(wrap,svg,items,W); card.append(wrap);
@@ -477,7 +492,7 @@ function renderStart(){
     svg.append(svgEl('rect',{x:L,y:y0+4,width:Math.max(2,x(r.mins)-L),height:16,rx:3,fill:col}));
     svg.append(svgEl('line',{x1:x(r.std),x2:x(r.std),y1:y0+1,y2:y0+23,stroke:'var(--muted)','stroke-width':2,'stroke-dasharray':'3 2'}));
     const vt=svgEl('text',{x:x(r.mins)+6,y:y0+16,'font-size':11,fill:'var(--fg)'}); vt.textContent=dur(r.mins); svg.append(vt);
-    items.push({x:x(r.mins),y:y0+4,tip:`<b>${LINE_NAME[r.ln]} · ${dayName(r.d)}</b><br>First qual ${hhmm(r.q)}<br>Startup ${dur(r.mins)} (standard ${dur(r.std)})<br>${late<=0?'On time':dur(late)+' over'}`});
+    items.push({x:x(r.mins),y:y0+4,bx:0,by:y0,bw:W,bh:rowH,tip:`<b>${LINE_NAME[r.ln]} · ${dayName(r.d)}</b><br>First qual ${hhmm(r.q)}<br>Startup ${dur(r.mins)} (standard ${dur(r.std)})<br>${late<=0?'On time':dur(late)+' over'}`});
   });
   wrap.append(svg); attachHover(wrap,svg,items,W); card.append(wrap);
   card.append(el('div',{class:'note',text:'A late first qual can be planned (a later shift start, a tank not ready) or a problem (palletizer down 11/9). The Run Start run-type section will record the reason.'}));
@@ -514,7 +529,7 @@ function attachRowHover(wrap,svg,items,W,rowH,T){
   const tip=el('div',{class:'tip'}); wrap.append(tip);
   const H=svg.viewBox.baseVal.height; const hl=svgEl('rect',{x:0,width:W,height:rowH,fill:'currentColor','fill-opacity':'.06',visibility:'hidden'}); svg.prepend(hl);
   const move=ev=>{ const r=svg.getBoundingClientRect(); const cy=('touches' in ev?ev.touches[0].clientY:ev.clientY)-r.top; const yy=cy*H/r.height; let i=Math.floor((yy-T)/rowH); i=Math.max(0,Math.min(items.length-1,i));
-    hl.setAttribute('y',T+i*rowH); hl.setAttribute('visibility','visible'); tip.innerHTML=items[i].tip; tip.classList.add('on'); tip.style.left=Math.min(Math.max((items[i].x)*r.width/W,90),r.width-90)+'px'; tip.style.top=((T+i*rowH+2)*r.height/H)+'px'; };
+    hl.setAttribute('y',T+i*rowH); hl.setAttribute('visibility','visible'); tip.innerHTML=items[i].tip; tip.classList.add('on'); tip.style.left=Math.min(Math.max((items[i].x)*r.width/W,90),r.width-90)+'px'; const below=(T+i*rowH)*r.height/H<75; tip.classList.toggle('below',below); tip.style.top=((below?T+(i+1)*rowH:T+i*rowH+2)*r.height/H)+'px'; };
   svg.addEventListener('mousemove',move); svg.addEventListener('touchstart',move,{passive:true}); svg.addEventListener('mouseleave',()=>{tip.classList.remove('on');hl.setAttribute('visibility','hidden');});
 }
 
