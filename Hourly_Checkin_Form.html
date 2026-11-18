@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-11-05</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-11-16</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -391,6 +391,38 @@
                 </div>
             </div>
 
+            <!-- 2026-11-16: bowl dump this hour - Yes/No, then how many dumps for each reason (DO / CO2 / Temp) -->
+            <hr class="divider">
+            <span class="check-lbl" style="display:block;font-weight:700;margin-bottom:8px;">Bowl Dump</span>
+            <div class="row c1">
+                <div class="fg">
+                    <label>Bowl Dump This Hour?</label>
+                    <div class="yn-wrap">
+                        <button type="button" class="yn-btn" id="bowlDumpY" onclick="setBowlDump('Y')">&#10003; Yes</button>
+                        <button type="button" class="yn-btn" id="bowlDumpN" onclick="setBowlDump('N')">&#10007; No</button>
+                    </div>
+                    <input type="hidden" id="bowlDumpYN" name="bowlDumpYN">
+                </div>
+            </div>
+            <div class="bowl-yes" style="display:none;">
+                <label style="display:block;margin-bottom:6px;">Number of Bowl Dumps by Reason <span style="color:var(--red)">*</span></label>
+                <div class="row c3">
+                    <div class="fg">
+                        <label for="bowlDumpDO">Bowl Dump DO</label>
+                        <input type="number" id="bowlDumpDO" name="bowlDumpDO" min="0" step="1" inputmode="numeric" placeholder="0" oninput="bowlDumpTotal()">
+                    </div>
+                    <div class="fg">
+                        <label for="bowlDumpCO2">Bowl Dump CO2</label>
+                        <input type="number" id="bowlDumpCO2" name="bowlDumpCO2" min="0" step="1" inputmode="numeric" placeholder="0" oninput="bowlDumpTotal()">
+                    </div>
+                    <div class="fg">
+                        <label for="bowlDumpTemp">Bowl Dump Temp</label>
+                        <input type="number" id="bowlDumpTemp" name="bowlDumpTemp" min="0" step="1" inputmode="numeric" placeholder="0" oninput="bowlDumpTotal()">
+                    </div>
+                </div>
+                <span class="hint" id="bowlDumpMsg">Enter how many dumps for each reason (0 if none). Total: 0</span>
+            </div>
+
             <hr class="divider">
 
             <label style="display:block; font-weight:700; font-size:12px; color:var(--g600); text-transform:uppercase; letter-spacing:.3px; margin-bottom:8px;">Sensory Check</label>
@@ -450,6 +482,9 @@
                     <tr>
                         <td class="check-name">Can Lot #</td>
                         <td><input type="text" name="canLot" maxlength="20" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" placeholder="e.g. L25072501" class="wide-input"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="hint">Lid Plant, Lid Lot and Can Lot are pre-filled from Run Start (or the last hour). If different, edit.</td>
                     </tr>
                 </tbody>
             </table>
@@ -726,6 +761,7 @@
               <div class="fg">
                 <label for="eorFcCanLot">Can Lot #</label>
                 <input type="text" id="eorFcCanLot" name="eorFcCanLot" maxlength="20" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" placeholder="e.g. L25072501">
+                <span class="hint">Pre-filled from the last hour. If different, edit.</span>
               </div>
             </div>
 
@@ -1029,6 +1065,7 @@ window.onload = function() {
         loadRunContext();
         loadHourlyHistory();
         prefillTargetWeight();
+        prefillLots();
         updateHourBadge();
         updateWindowDisplay();
         document.getElementById('hourlyForm').onsubmit = onSubmit;
@@ -1049,6 +1086,32 @@ function applyNitroLayout() {
 
 // Numbers that must stay BLANK in SharePoint when not entered (not turned into 0):
 // the N2 / Pressure readings, and Shaken DO on Nitrogen runs.
+// 2026-11-16: bowl dump this hour. Yes shows how many dumps for each reason (DO / CO2 / Temp);
+// the total must be at least 1. No (or nothing picked) clears them and sends 0s.
+var BOWL_IDS = ['bowlDumpDO', 'bowlDumpCO2', 'bowlDumpTemp'];
+function bowlNum(id) { return Math.max(0, parseInt(document.getElementById(id).value, 10) || 0); }
+function bowlDumpTotal() {
+    var t = 0; BOWL_IDS.forEach(function(id){ t += bowlNum(id); document.getElementById(id).classList.remove('err'); });
+    var m = document.getElementById('bowlDumpMsg');
+    m.textContent = 'Enter how many dumps for each reason (0 if none). Total: ' + t; m.style.color = '';
+    return t;
+}
+function setBowlDump(val) {
+    document.getElementById('bowlDumpYN').value = val;
+    document.getElementById('bowlDumpY').className = 'yn-btn' + (val === 'Y' ? ' yes' : '');
+    document.getElementById('bowlDumpN').className = 'yn-btn' + (val === 'N' ? ' no'  : '');
+    document.querySelectorAll('.bowl-yes').forEach(function(el){ el.style.display = val === 'Y' ? '' : 'none'; });
+    if (val !== 'Y') { BOWL_IDS.forEach(function(id){ document.getElementById(id).value = ''; }); }
+    bowlDumpTotal();
+}
+function bowlDumpCheck() {
+    if (document.getElementById('bowlDumpYN').value !== 'Y') return true;
+    if (bowlDumpTotal() >= 1) return true;
+    BOWL_IDS.forEach(function(id){ document.getElementById(id).classList.add('err'); });
+    var m = document.getElementById('bowlDumpMsg');
+    m.textContent = 'Bowl dump is Yes - enter at least 1 dump (DO, CO2 or Temp).'; m.style.color = 'var(--red)';
+    return false;
+}
 function setOptionalNum(payload, key) {
     var v = payload[key];
     if (v === undefined || v === null || String(v).trim() === '') { delete payload[key]; }
@@ -1133,6 +1196,27 @@ function prefillTargetWeight() {
     var tw = lastTargetWeight(), el = document.getElementById('targetWeight');
     if (tw && !el.value) { el.value = tw; }
     onTargetWeight(el.value);
+}
+// 2026-11-16: lid plant / lid lot / can lot are captured at Run Start qualification and
+// pre-filled on every hour (still editable - "If different, edit"). The latest hour that has a
+// value wins, so a mid-run lot change carries forward; otherwise the Run Start value is used.
+var LOT_KEYS = ['lidPlant', 'lidLot', 'canLot'];
+function currentLot(key) {
+    for (var i = hourlyData.length - 1; i >= 0; i--) { if (hourlyData[i][key]) return hourlyData[i][key]; }
+    return (runData && runData[key]) || '';
+}
+function prefillLots() {
+    LOT_KEYS.forEach(function(k) {
+        var el = document.querySelector('#hourlyForm [name=' + k + ']');
+        if (el && !el.value) el.value = currentLot(k);
+    });
+}
+function prefillEorLots() {
+    var map = { lidPlant: 'eorFcLidPlant', lidLot: 'eorFcLidLot', canLot: 'eorFcCanLot' };
+    LOT_KEYS.forEach(function(k) {
+        var el = document.getElementById(map[k]);
+        if (el && !el.value) el.value = currentLot(k);
+    });
 }
 function onTargetWeight(val) {
     var tol = getWeightTol();
@@ -1393,6 +1477,7 @@ function validate() {
         els[i].classList.remove('err');
         if (!els[i].value.trim()) { els[i].classList.add('err'); ok = false; }
     }
+    if (!bowlDumpCheck()) ok = false;  // 2026-11-16
     var dtMsg = '';
     if (badDtRows('#dtRows .dt-event-row')) { ok = false; dtMsg = 'Each downtime row needs a machine and minutes.'; }
     var ds = dtStatus();
@@ -1455,6 +1540,10 @@ function onSubmit(ev) {
             canCO2:        document.getElementById('canCO2').value,
             n2Ppb:         isNitroRun() ? document.getElementById('n2Ppb').value       : '',
             pressurePsi:   isNitroRun() ? document.getElementById('pressurePsi').value : '',
+            bowlDump:      document.getElementById('bowlDumpYN').value === 'Y',
+            bowlDumpDO:    document.getElementById('bowlDumpYN').value === 'Y' ? bowlNum('bowlDumpDO')   : 0,
+            bowlDumpCO2:   document.getElementById('bowlDumpYN').value === 'Y' ? bowlNum('bowlDumpCO2')  : 0,
+            bowlDumpTemp:  document.getElementById('bowlDumpYN').value === 'Y' ? bowlNum('bowlDumpTemp') : 0,
             sensoryPoint:  document.getElementById('sensoryPoint').value,
             sensoryPF:     document.getElementById('sensoryPF').value,
             artOp:         document.querySelector('[name=artOp]').value,
@@ -1483,7 +1572,7 @@ function onSubmit(ev) {
 
         // — SUBMIT TO POWER AUTOMATE (Hourly) ─────────────────────
         function submitToFlowHourly(data) {
-            var intFields = ['hourNum','dtMins'];
+            var intFields = ['hourNum','dtMins','bowlDumpDO','bowlDumpCO2','bowlDumpTemp'];
                     var numFields = ['fillerCounter','unitsThisHour','effPct','avgWeight','targetWeight','canDO','shakenDO','canCO2'];
                     var payload = {};
             for (var k in data) { payload[k] = data[k]; }
@@ -1539,6 +1628,7 @@ function showConf(e) {
         ['Units This Hour', (parseInt(e.unitsThisHour) || 0).toLocaleString(), ''],
         ['Efficiency',      (parseFloat(e.effPct) || 0).toFixed(1) + '%', cls],
         ['Downtime',        e.dtMins + ' min', ''],
+        ['Bowl Dumps',      e.bowlDump ? 'DO ' + e.bowlDumpDO + ' / CO2 ' + e.bowlDumpCO2 + ' / Temp ' + e.bowlDumpTemp : 'No', ''],
         ['Avg Can Weight',  e.avgWeight ? e.avgWeight + ' g' : '-', ''],
         ['Sensory',         (e.sensoryPoint && e.sensoryPoint !== 'N') ? e.sensoryPoint + ' - ' + e.sensoryPF : 'N/A', ''],
         ['Filtec',          e.filtecPF ? cap(e.filtecPF) : '-', ''],
@@ -1598,6 +1688,8 @@ function resetForm() {
     document.getElementById('avgDisplay').textContent= '- g';
     onTargetWeight(''); // reset range display to just ± tolerance
     prefillTargetWeight();
+    prefillLots();
+    setBowlDump('');
     dtStatus();
 
     var btns = ['sB','sM','sE','sN'];
@@ -1770,6 +1862,7 @@ function openEOR() {
     var fcTw = document.getElementById('eorFcTargetWeight');
     if (!fcTw.value) fcTw.value = lastTargetWeight();
     onEorFcWeight(fcTw.value);
+    prefillEorLots();  // 2026-11-16
 
     // Pre-set cans/case from config (before counter is entered)
     var cpc = CANS_PER_CASE[config] || 24;
