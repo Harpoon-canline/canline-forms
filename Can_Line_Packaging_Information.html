@@ -332,7 +332,7 @@
 <body>
   <header>
     <div class="brand">Harpoon Can Line</div>
-    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-11</span></h1>
+    <h1>Can Line Packaging Information <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-20 (run + last hour eff, projected finish - not pushed)</span></h1>
     <p id="today-date"></p>
   </header>
   <div id="status">Loading...</div>
@@ -749,7 +749,8 @@
   // output exactly:
   //   Closed run: RunOrder, JobNumKey, PkgConfig, RunStatus, OverallPkgLineEff,
   //               GrandTotalDT, NetCases, BatchNum, RunStartTimestamp, QualTime
-  //   Open run:   RunOrder, JobNumKey, PkgConfig, RunStatus, OverallFillerEff,
+  //   Open run:   RunOrder, JobNumKey, PkgConfig, RunStatus, OverallFillerEff (= LAST HOUR only),
+  //               HoursLogged, RatedUPH, RatedCPM, LastHourEnd (added 2026-11-20),
   //               DTSoFar, DTNotesSoFar (pipe-joined text), FillerCounter,
   //               TotalScheduledCans, BatchNum, RunStartTimestamp, QualTime
   // "Started" is driven by QualTime, not RunStartTimestamp -- QualTime is the
@@ -822,6 +823,31 @@
     return (v === null || v === undefined || isNaN(v)) ? v : Math.min(100, Number(v));
   }
 
+  // 2026-11-20: projected finish = remaining scheduled cans / (rated CPM x efficiency), counted from the
+  // end of the last logged hour (LastHourEnd "HH:MM"). Three rates: 100%, run efficiency, last hour.
+  function projectedFinishRows(run, cpm, runEff, lastHr) {
+    if (!(cpm > 0) || !(run.TotalScheduledCans > 0) || run.FillerCounter == null) return '';
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(run.LastHourEnd || '').trim());
+    if (!m) return '';
+    const remaining = run.TotalScheduledCans - Number(run.FillerCounter);
+    if (remaining <= 0) return `<div class="dt-row"><span>Projected Finish</span><span>Scheduled cans reached</span></div>`;
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(m[1], 10), parseInt(m[2], 10));
+    if (base - now > 60 * 60000) base.setDate(base.getDate() - 1);   // hour ended before midnight, board after midnight
+    const at = eff => {
+      if (!(eff > 0)) return null;
+      const t = new Date(base.getTime() + (remaining / (cpm * eff / 100)) * 60000);
+      return t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    };
+    const rows = [['At 100%', at(100)],
+                  [runEff != null ? `At run rate (${runEff.toFixed(0)}%)` : null, at(runEff)],
+                  [lastHr != null ? `At last hour (${Number(lastHr).toFixed(0)}%)` : null, at(lastHr)]]
+      .filter(r => r[0] && r[1]);
+    if (!rows.length) return '';
+    return `<div class="notes-heading card-heading">Projected Finish</div>` +
+      rows.map(r => `<div class="dt-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  }
+
   function renderEfficiencySection(runs) {
     if (runs && runs.length) {
       runs = runs.map(r => Object.assign({}, r, {
@@ -876,13 +902,29 @@
             </div>
           `;
         }
+        // 2026-11-20 (Mike L. request): the feed's OverallFillerEff for an open run is the LAST HOURLY ROW's
+        // efficiency (that hour only), so it is labelled Last Hour. Run efficiency = filler counter /
+        // (rated UPH x hours logged) -- needs HoursLogged + RatedUPH from the feed; hidden until sent.
+        // Same hourly math as the tablet (planned DT is only taken off at End of Run).
+        const lastHr = run.OverallFillerEff;
+        const hrs = Number(run.HoursLogged), uph = Number(run.RatedUPH), cpm = Number(run.RatedCPM);
+        const runEff = (hrs > 0 && uph > 0 && run.FillerCounter != null)
+          ? cap100((Number(run.FillerCounter) / (uph * hrs)) * 100) : null;
+        if (runEff !== null) {
+          body += `
+          <div class="eff-row">
+            <span class="eff-label">Run Efficiency</span>
+            <span class="eff-value ${effTier(runEff)}">${fmtPct(runEff)}</span>
+          </div>`;
+        }
         body += `
           <div class="eff-row">
-            <span class="eff-label">Filler Efficiency</span>
-            <span class="eff-value ${effTier(run.OverallFillerEff)}">${fmtPct(run.OverallFillerEff)}</span>
+            <span class="eff-label">Last Hour Efficiency</span>
+            <span class="eff-value ${effTier(lastHr)}">${fmtPct(lastHr)}</span>
           </div>
           <div class="dt-row"><span>Downtime So Far</span><span>${run.DTSoFar ?? 0} min</span></div>
         `;
+        body += projectedFinishRows(run, cpm, runEff, lastHr);
         if (run.DTNotesSoFar) {
           body += `
             <div class="notes-heading card-heading">DT Notes So Far</div>
