@@ -144,6 +144,17 @@ textarea      { resize: vertical; min-height: 70px; }
 .btn-eor-cancel { flex: 1; padding: 14px; background: var(--g100); border: 1.5px solid var(--g400); border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .btn-eor-submit { flex: 2; padding: 14px; background: var(--red); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
 /* SUMMARY TABLE */
+/* 2026-11-20: Last Pallet Out run picker on End Run */
+.lpo-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.lpo-run { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: white; border: 2px solid var(--g200); border-radius: 8px; cursor: pointer; font-size: 14px; text-align: left; width: 100%; }
+.lpo-run .lpo-main { font-weight: 800; }
+.lpo-run .lpo-sub { font-size: 12px; color: var(--g600); }
+.lpo-run.sel { border-color: var(--red); background: #fff4f4; }
+.lpo-run .lpo-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--g400); flex: none; }
+.lpo-run.sel .lpo-dot { border-color: var(--red); background: var(--red); }
+.lpo-msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; background: var(--g100); margin-bottom: 10px; }
+.lpo-msg.bad { background: #fde8e8; color: #b71c1c; font-weight: 700; }
+.lpo-skip { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 400; margin-top: 8px; display: flex; gap: 8px; align-items: flex-start; }
 .sum-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
 .sum-table td { padding: 8px 14px; border-bottom: 1px solid var(--g200); font-size: 13px; }
 .sum-table tr:last-child td { border-bottom: none; }
@@ -177,7 +188,7 @@ textarea      { resize: vertical; min-height: 70px; }
 <!-- HEADER -->
 <div class="hdr">
     <div class="hdr-left">
-        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-16</span></h1>
+        <h1>Downstairs Check <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-20 (Last Pallet Out build - not pushed)</span></h1>
         <p>Harpoon Can Line &mdash; Pages 6&ndash;7 &mdash; Fill Every Hour</p>
     </div>
     <div class="hour-badge" id="checkBadge">CHECK &mdash;</div>
@@ -211,8 +222,8 @@ textarea      { resize: vertical; min-height: 70px; }
             <div class="row c2">
                 <div class="fg">
                     <label for="jobNum">Job # (Deacom) <span class="req">*</span></label>
-                    <input type="text" id="jobNum" name="jobNum" placeholder="e.g. 2026-21181" required>
-                    <span class="hint">Copy it from the split: year, dash, 5 digits.</span>
+                    <input type="text" id="jobNum" name="jobNum" placeholder="2026-21181" required inputmode="numeric" maxlength="10" autocorrect="off" spellcheck="false" oninput="fmtJob(this)">
+                    <span class="hint" id="jobHint">Type the numbers only - the dash goes in by itself (4 digits, dash, 5 digits).</span>
                 </div>
                 <div class="fg">
                     <label for="pkgConfig">Configuration <span class="req">*</span></label>
@@ -549,6 +560,23 @@ textarea      { resize: vertical; min-height: 70px; }
         </div>
       </div>
       <div class="card">
+        <div class="card-hdr"><div class="card-title">Last Pallet Out</div></div>
+        <div class="card-body">
+          <div class="hint" style="margin-bottom:8px;">Tap the run you are finishing. The list comes from the upstairs tablet, so nothing is typed.</div>
+          <div class="lpo-msg" id="lpoMsg">Loading runs...</div>
+          <div class="lpo-list" id="lpoRunList"></div>
+          <button type="button" class="btn-eor-cancel" id="lpoRetry" style="display:none;margin-bottom:10px;" onclick="loadLpoRuns()">&#8635; Reload runs</button>
+          <div class="row c1">
+            <div class="fg">
+              <label for="lpoTime">Last Pallet Out of Palletizer <span class="req">*</span></label>
+              <input type="time" id="lpoTime" oninput="lpoTimeCheck()">
+              <span class="hint" id="lpoTimeHint">Time the last pallet left the palletizer (from the tick sheet)</span>
+            </div>
+          </div>
+          <label class="lpo-skip"><input type="checkbox" id="lpoSkip" onchange="lpoSkipChange()"> <span>Run not in the list or list will not load: end without Last Pallet Out. <b>Tell your supervisor</b> so the time gets entered - the recap email waits until it is.</span></label>
+        </div>
+      </div>
+      <div class="card">
         <div class="card-hdr"><div class="card-title">Sign-Off</div></div>
         <div class="card-body">
           <div class="row c1">
@@ -749,6 +777,7 @@ var dtRowCount   = 0;
 var editingIndex = null;
 // ── INIT ──────────────────────────────────────────────────
 window.onload = function() {
+    try { retryPendingLpo(); } catch (e) {}
     try {
         populateConfigDropdowns();
         loadRunInfo();
@@ -1056,6 +1085,10 @@ function validate() {
     // 2026-11-16: batch safeguard - uppercase, no spaces (also catches pasted / restored values)
     var bn = document.getElementById('batchNum');
     bn.value = bn.value.toUpperCase().replace(/\s+/g, '');
+    // 2026-11-20: Job # locked to 4 digits - dash - 5 digits (e.g. 2026-21181)
+    var jn = document.getElementById('jobNum');
+    fmtJob(jn);
+    if (jn.value && !/^\d{4}-\d{5}$/.test(jn.value)) { jn.classList.add('err'); ok = false; }
     document.querySelectorAll('#dsForm [required]').forEach(function(el) {
         el.classList.remove('err');
         // Skip required check on fields inside a hidden .cond section
@@ -1063,6 +1096,7 @@ function validate() {
         if (condParent && !condParent.classList.contains('show')) return;
         if (!el.value || !el.value.trim()) { el.classList.add('err'); ok = false; }
     });
+    if (jn.value && !/^\d{4}-\d{5}$/.test(jn.value)) { jn.classList.add('err'); ok = false; }
     var gt = document.getElementById('trayGTIN');
     if (gt.required && gt.value.trim() && !gtinValid(gt.value.trim())) { gt.classList.add('err'); ok = false; }
     if (!ok) {
@@ -1314,6 +1348,10 @@ function openEndRun() {
     }).join('');
     document.getElementById('endRunOpInit').value = '';
     document.getElementById('endRunOpInit').classList.remove('err');
+    document.getElementById('lpoTime').value = '';
+    document.getElementById('lpoSkip').checked = false;
+    lpoSelected = null;
+    loadLpoRuns();
     document.getElementById('endRunOverlay').classList.add('show');
 }
 function closeEndRun() {
@@ -1327,18 +1365,35 @@ function submitEndRun() {
         initEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
+    // 2026-11-20: Last Pallet Out - a picked run and a time are required unless the skip box is ticked
+    var skip = document.getElementById('lpoSkip').checked;
+    var lpoT = document.getElementById('lpoTime').value;
+    if (!skip) {
+        if (!lpoSelected) { lpoShowMsg('Tap the run you are finishing.', true); document.getElementById('lpoMsg').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        if (!lpoT) { document.getElementById('lpoTime').classList.add('err'); document.getElementById('lpoTime').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        if (!lpoTimeCheck()) { document.getElementById('lpoTime').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    }
     var runInfo = {};
     try { runInfo = JSON.parse(localStorage.getItem(LS_RUNINFO)) || {}; } catch(e) {}
+    var lpo = null;
+    if (!skip) {
+        lpo = { runId: lpoSelected.id, jobNumKey: lpoSelected.job, batchNum: lpoSelected.batch, packOutTime: lpoT, opInit: init,
+                downstairsJob: runInfo.jobNum || document.getElementById('jobNum').value || '', downstairsBatch: runInfo.batchNum || document.getElementById('batchNum').value || '',
+                submittedAt: new Date().toISOString() };
+        sendLpo(lpo);
+    }
     var completedRun = {
         runInfo: runInfo,
         checks: checksData,
         totals: aggregateRunTotals(),
         endedBy: init,
-        endedAt: new Date().toISOString()
+        endedAt: new Date().toISOString(),
+        lastPalletOut: lpo ? { runId: lpo.runId, batch: lpo.batchNum, time: lpo.packOutTime } : 'skipped - supervisor to enter'
     };
     var completed = [];
     try { completed = JSON.parse(localStorage.getItem(LS_COMPLETED)) || []; } catch(e) { completed = []; }
     completed.push(completedRun);
+    completed = completed.slice(-30);   // 2026-11-20: keep only the last 30 runs on the tablet (all runs are in SharePoint)
     localStorage.setItem(LS_COMPLETED, JSON.stringify(completed));
     showFinalRecap(completedRun);
     // Clear this run's two keys — next page load (or Start Next Run) begins fresh
@@ -1391,6 +1446,109 @@ function endDay() {
         'Day complete &mdash; thanks! This tablet is ready for the next run whenever you are.</p>';
 }
 // ── ERROR DISPLAY ─────────────────────────────────────────
+// ── LAST PALLET OUT (2026-11-20) ───────────────────────────
+// The End Run screen lists the upstairs runs that still need a Last Pallet Out (read-only feed flow),
+// downstairs taps one and enters the time, and the form sends it to the Last Pallet Out flow, which
+// writes PackOutTime on that exact Runs item (by its SharePoint ID - no job / batch typing to match).
+// The recap email then sends once the run is Closed AND PackOutTime is filled (RecapSent guard).
+// Both URLs stay empty until the flows are built; the screen then says the list is not set up yet.
+const LPO_FEED_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/17/workflows/19d0019215654aeb9d30c91ad04a7f74/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ObjUri05ckULUO6G4fmYz63ySsl6MRRmnvpkfuLraIU';   // flow: Last Pallet Out - Runs Needing (read-only), returns { runs: [...] }
+const LPO_FLOW_URL = 'https://default5328b7ec2d7849d9a10e7c197feb0b.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/10/workflows/a65c2f797480493a86e80124fd41cae6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=jw3v6b5U75D8uf8-ommmr3tQw84KSDLLd-QPBCyYfLs';   // flow: Last Pallet Out to SharePoint
+var LS_LPO_PENDING = 'harpoon_downstairs_lpo_pending_v1';
+var lpoRuns = [], lpoSelected = null;
+// Job # mask: digits only, dash added after the 4th digit, max 4 + 5 digits. Typing 202621181 gives 2026-21181.
+function fmtJob(el) {
+    var d = String(el.value || '').replace(/\D/g, '').slice(0, 9);
+    el.value = d.length > 4 ? d.slice(0, 4) + '-' + d.slice(4) : d;
+    var h = document.getElementById('jobHint');
+    if (h) { var full = /^\d{4}-\d{5}$/.test(el.value); h.textContent = !el.value ? 'Type the numbers only - the dash goes in by itself (4 digits, dash, 5 digits).' : (full ? 'Job # looks right.' : 'Job # needs 4 digits, dash, 5 digits (' + d.length + ' of 9 digits so far).'); h.style.color = (el.value && !full) ? '#b71c1c' : ''; }
+    if (/^\d{4}-\d{5}$/.test(el.value)) el.classList.remove('err');
+}
+function lpoNorm(s) { return String(s || '').replace(/[\s\-]+/g, '').toUpperCase(); }
+function lpoShowMsg(t, bad) { var m = document.getElementById('lpoMsg'); m.textContent = t; m.className = 'lpo-msg' + (bad ? ' bad' : ''); m.style.display = t ? 'block' : 'none'; }
+function loadLpoRuns() {
+    document.getElementById('lpoRunList').innerHTML = '';
+    document.getElementById('lpoRetry').style.display = 'none';
+    if (!LPO_FEED_URL) { lpoShowMsg('Run list not set up yet (Last Pallet Out flow not connected). Tick the box below and tell your supervisor.', true); return; }
+    lpoShowMsg('Loading runs...', false);
+    fetch(LPO_FEED_URL, { cache: 'no-store' })   /* GET, same as the split feed (its trigger is a copy of Packaging Split - Read for Tablet) */
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(body) {
+            var list = (body && body.runs) || [];
+            if (!Array.isArray(list)) list = [];
+            // Feed returns raw Runs items (field_1 job, field_2 batch, field_10 beer, field_43 filler end); choice columns come as {Value}.
+            function v(x) { return (x && typeof x === 'object' && 'Value' in x) ? (x.Value || '') : (x == null ? '' : String(x)); }
+            lpoRuns = list.map(function(r) { return { id: r.ID || r.Id || r.id, job: v(r.field_1 || r.job), batch: v(r.field_2 || r.batch), beer: v(r.field_10 || r.beer), pkgConfig: v(r.PkgConfig || r.pkgConfig), fillerEnd: v(r.field_43 || r.fillerEnd), runDate: v(r.RunDate || r.runDate).slice(0, 10), status: v(r.RunStatus || r.status) }; })
+                .filter(function(r) { return r.id && !/^TEST-/i.test(r.job); });
+            renderLpoRuns();
+        })
+        .catch(function(err) {
+            lpoShowMsg('Could not load the run list (' + err.message + '). Check the connection and tap Reload, or tick the box below and tell your supervisor.', true);
+            document.getElementById('lpoRetry').style.display = 'block';
+        });
+}
+function renderLpoRuns() {
+    var box = document.getElementById('lpoRunList');
+    if (!lpoRuns.length) { lpoShowMsg('No upstairs runs are waiting for a Last Pallet Out. If your run should be here, tap Reload, or tick the box below and tell your supervisor.', true); document.getElementById('lpoRetry').style.display = 'block'; return; }
+    var ri = {}; try { ri = JSON.parse(localStorage.getItem(LS_RUNINFO)) || {}; } catch (e) {}
+    var myJob = lpoNorm(ri.jobNum || document.getElementById('jobNum').value), myBatch = lpoNorm(ri.batchNum || document.getElementById('batchNum').value);
+    var guess = lpoRuns.filter(function(r) { return (myJob && lpoNorm(r.job) === myJob) || (myBatch && lpoNorm(r.batch) === myBatch); });
+    lpoShowMsg(guess.length === 1 ? 'Your run looks like the highlighted one. Check it, then enter the time.' : 'Tap your run.', false);
+    box.innerHTML = lpoRuns.map(function(r, i) {
+        return '<button type="button" class="lpo-run" id="lpoRun' + i + '" onclick="selectLpoRun(' + i + ')"><span class="lpo-dot"></span><span><span class="lpo-main">' +
+            esc(r.batch) + ' &middot; ' + esc(r.job) + '</span><br><span class="lpo-sub">' + esc(r.beer) + ' &middot; ' + esc(r.pkgConfig) +
+            ' &middot; filler end ' + (r.fillerEnd ? esc(r.fillerEnd) : 'still running') + '</span></span></button>';
+    }).join('');
+    if (guess.length === 1) selectLpoRun(lpoRuns.indexOf(guess[0]));
+}
+function esc(t) { return String(t).replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function selectLpoRun(i) {
+    lpoSelected = lpoRuns[i] || null;
+    lpoRuns.forEach(function(r, k) { var b = document.getElementById('lpoRun' + k); if (b) b.classList.toggle('sel', k === i); });
+    document.getElementById('lpoSkip').checked = false;
+    lpoTimeCheck();
+}
+function lpoSkipChange() {
+    if (document.getElementById('lpoSkip').checked) { lpoSelected = null; lpoRuns.forEach(function(r, k) { var b = document.getElementById('lpoRun' + k); if (b) b.classList.remove('sel'); }); }
+}
+// Last pallet must not be before the filler end (same rule as the upstairs End of Run; allows a run ending after midnight)
+function lpoTimeCheck() {
+    var el = document.getElementById('lpoTime'), hint = document.getElementById('lpoTimeHint');
+    el.classList.remove('err');
+    var p = el.value, e = lpoSelected ? lpoSelected.fillerEnd : '';
+    var toM = function(t) { var m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+    var pm = toM(p), em = toM(e);
+    if (pm === null || em === null) { hint.textContent = 'Time the last pallet left the palletizer (from the tick sheet)'; hint.style.color = ''; return true; }
+    var d = pm - em;
+    if (d < 0 && d > -720) { hint.textContent = 'Last pallet cannot be before the filler end (' + e + '). Check the tick sheet.'; hint.style.color = '#b71c1c'; el.classList.add('err'); return false; }
+    var mins = d < 0 ? d + 1440 : d;
+    hint.textContent = mins + ' min after the filler end (' + e + ').'; hint.style.color = '';
+    return true;
+}
+function sendLpo(lpo) {
+    if (!LPO_FLOW_URL) { savePendingLpo(lpo); showErr('Last Pallet Out for ' + lpo.batchNum + ' not sent: flow not connected yet. Saved on this tablet -- tell your supervisor.'); return; }
+    fetch(LPO_FLOW_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lpo) })
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); })
+        .catch(function(err) { savePendingLpo(lpo); showErr('Last Pallet Out for ' + lpo.batchNum + ' did not reach SharePoint (' + err.message + '). Saved on this tablet; it retries next time the page opens -- tell your supervisor.'); });
+}
+function savePendingLpo(lpo) {
+    var q = []; try { q = JSON.parse(localStorage.getItem(LS_LPO_PENDING)) || []; } catch (e) {}
+    if (!q.some(function(x) { return x.runId === lpo.runId; })) q.push(lpo);
+    localStorage.setItem(LS_LPO_PENDING, JSON.stringify(q));
+}
+function retryPendingLpo() {
+    var q = []; try { q = JSON.parse(localStorage.getItem(LS_LPO_PENDING)) || []; } catch (e) {}
+    if (!q.length || !LPO_FLOW_URL) return;
+    q.forEach(function(lpo) {
+        fetch(LPO_FLOW_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lpo) })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var cur = []; try { cur = JSON.parse(localStorage.getItem(LS_LPO_PENDING)) || []; } catch (e) {}
+                localStorage.setItem(LS_LPO_PENDING, JSON.stringify(cur.filter(function(x) { return x.runId !== lpo.runId; })));
+            })
+            .catch(function() { showErr('A saved Last Pallet Out (' + lpo.batchNum + ') still has not reached SharePoint -- tell your supervisor.'); });
+    });
+}
 function showErr(msg) {
     var el = document.getElementById('errBar');
     el.textContent = msg;
