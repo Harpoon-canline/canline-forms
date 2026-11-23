@@ -335,11 +335,13 @@
 <!-- HEADER -->
 <div class="header">
     <div>
-        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-16</span></h1>
+        <h1>Run Start Form <span style="opacity:.6;font-size:12px;font-weight:400">v2026-11-20c (job # lock + send retry + Can Code label - not pushed)</span></h1>
         <p>Harpoon Can Line &mdash; Fill at Qualification</p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
 </div>
+
+<div id="pendingBar" style="display:none;background:#fff3cd;color:#664d03;border:1.5px solid #ffcd39;border-radius:8px;padding:10px 12px;margin:8px 12px;font-size:14px;font-weight:600;"></div>
 
 <!-- EXISTING RUN BANNER -->
 <div class="banner" id="banner">
@@ -384,7 +386,7 @@
                     </select>
                 </div>
                 <div class="fg">
-                    <label for="packagedOn">Date Packaged <span class="req">*</span></label>
+                    <label for="packagedOn">Can Code <span class="req">*</span></label>
                     <input type="date" id="packagedOn" name="packagedOn" required>
                 </div>
             </div>
@@ -395,7 +397,7 @@
                     <div class="fg">
                         <label for="codePrintDate" id="codePrintLbl">Printed Date</label>
                         <input type="date" id="codePrintDate" name="codePrintDate">
-                        <span class="hint">Auto = Date Packaged + 1 year &middot; editable</span>
+                        <span class="hint">Auto = Can Code + 1 year &middot; editable</span>
                     </div>
                     <div class="fg">
                         <label for="codeLetter">Plant Letter</label>
@@ -426,7 +428,8 @@
                 </div>
                 <div class="fg">
                     <label for="deacomJobNum">Deacom Job Number <span class="req">*</span></label>
-                    <input type="text" id="deacomJobNum" name="deacomJobNum" placeholder="e.g. 12345" required>
+                    <input type="text" id="deacomJobNum" name="deacomJobNum" placeholder="2026-21181" required inputmode="numeric" maxlength="10" autocorrect="off" spellcheck="false" oninput="fmtJob(this)">
+                    <span class="hint" id="jobHint">Type the numbers only - the dash goes in by itself (4 digits, dash, 5 digits).</span>
                 </div>
                 <div class="fg">
                     <label for="batchNum">Batch # <span class="req">*</span></label>
@@ -1038,6 +1041,7 @@ function setNitro(val) {
 // INIT
 // ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    pendingBanner(); pendingFlush();   // 2026-11-20b
     initDate();
     setNitro('N');
     checkSaved();
@@ -1253,24 +1257,77 @@ function submitToFlow(data) {
                             if (payload[f] !== undefined && payload[f] !== '') payload[f] = parseFloat(payload[f]);
             });
             intFields.concat(numFields).forEach(f => { if (payload[f] === '') delete payload[f]; });
-    fetch(FLOW_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).catch(err => {
-        console.error('Run Start flow submit failed (data is still saved locally):', err);
-    });
+    // 2026-11-20b: queued + retried; the Hourly page keeps retrying it after the crew moves on
+    pendingAdd('runstart', FLOW_URL, payload, 'Run Start ' + (data.batchNum || ''));
+    pendingFlush();
 }
 
+// ── SEND QUEUE (v2026-11-20b) ─────────────────────────────
+// Every Run Start / hourly send goes through one queue saved on this tablet (shared by both pages).
+// Sends go in order (Run Start before its hours); a failed send stays queued and is retried on page
+// load, every 2 minutes, and when the connection comes back. Nothing is lost if WiFi drops.
+var LS_PENDING = 'harpoon_pending_sends_v1';
+var pendingBusy = null;
+function pendingGet() { try { return JSON.parse(localStorage.getItem(LS_PENDING)) || []; } catch (e) { return []; } }
+function pendingSet(q) { localStorage.setItem(LS_PENDING, JSON.stringify(q)); }
+function pendingAdd(kind, url, payload, label) {
+    var q = pendingGet();
+    q.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), kind: kind, url: url, payload: payload, label: label, ts: new Date().toISOString(), tries: 0 });
+    pendingSet(q); pendingBanner();
+}
+function pendingBanner() {
+    var el = document.getElementById('pendingBar'); if (!el) return;
+    var q = pendingGet();
+    if (!q.length) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.textContent = q.length + (q.length === 1 ? ' entry is' : ' entries are') + ' waiting to reach SharePoint (' + q.map(function (x) { return x.label; }).join(', ') +
+        '). Saved on this tablet and retrying automatically - keep working. If this is still here after an hour, tell Kyle.';
+}
+// Sends queued items oldest first; stops at the first failure. Resolves to the number still waiting.
+function pendingFlush() {
+    if (pendingBusy) return pendingBusy;
+    pendingBusy = new Promise(function (resolve) {
+        (function next() {
+            var q = pendingGet();
+            if (!q.length) { pendingBanner(); resolve(0); return; }
+            var it = q[0];
+            if (!it.url) { pendingSet(q.slice(1)); next(); return; }
+            fetch(it.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(it.payload) })
+                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); pendingSet(pendingGet().filter(function (x) { return x.id !== it.id; })); next(); })
+                .catch(function (e) {
+                    var q2 = pendingGet(); if (q2.length && q2[0].id === it.id) { q2[0].tries++; q2[0].lastErr = e.message; pendingSet(q2); }
+                    pendingBanner(); resolve(pendingGet().length);
+                });
+        })();
+    }).then(function (n) { pendingBusy = null; return n; });
+    return pendingBusy;
+}
+setInterval(function () { if (pendingGet().length) pendingFlush(); }, 120000);
+window.addEventListener('online', function () { pendingFlush(); });
+
+
+// Job # mask (2026-11-20): digits only, dash added after the 4th digit, max 4 + 5 digits. 202621181 -> 2026-21181.
+function fmtJob(el) {
+    const d = String(el.value || '').replace(/\D/g, '').slice(0, 9);
+    el.value = d.length > 4 ? d.slice(0, 4) + '-' + d.slice(4) : d;
+    const h = document.getElementById('jobHint');
+    const full = /^\d{4}-\d{5}$/.test(el.value);
+    if (h) { h.textContent = !el.value ? 'Type the numbers only - the dash goes in by itself (4 digits, dash, 5 digits).' : (full ? 'Job # looks right.' : 'Job # needs 4 digits, dash, 5 digits (' + d.length + ' of 9 digits so far).'); h.style.color = (el.value && !full) ? '#b71c1c' : ''; }
+    if (full) el.classList.remove('error');
+}
 function validate() {
     let ok = true;
     // 2026-11-16: batch safeguard - uppercase, no spaces (also catches pasted / restored values)
     const bn = document.getElementById('batchNum');
     bn.value = bn.value.toUpperCase().replace(/\s+/g, '');
+    // 2026-11-20: Job # locked to 4 digits - dash - 5 digits (e.g. 2026-21181)
+    const jn = document.getElementById('deacomJobNum');
+    fmtJob(jn);
     document.querySelectorAll('#form [required]').forEach(el => {
         el.classList.remove('error');
         if (!el.value.trim()) { el.classList.add('error'); ok = false; }
     });
+    if (jn.value && !/^\d{4}-\d{5}$/.test(jn.value)) { jn.classList.add('error'); ok = false; }
     // 2026-10-20b: 2/12 runs must answer the mix packs question; Yes needs Mix > 0
     if (document.getElementById('pkgConfig').value.indexOf('12oz 2/12') === 0) {
         const mp = document.getElementById('mixPacksYN').value;
@@ -1305,7 +1362,7 @@ function showConf(d) {
         ['Date',                 d.runDate],
         ['Julian Date',          d.julianDate],
         ['Date Code Type',       d.dateCode],
-        ['Date Packaged',        d.packagedOn],
+        ['Can Code',             d.packagedOn],
         ['Can Date Code',        d.codeText],
         ['Deacom Job #',         d.deacomJobNum],
         ['Qual. Start Time',     d.qualTime],
