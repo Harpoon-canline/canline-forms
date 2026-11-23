@@ -248,7 +248,7 @@
 <div class="hdr">
     <div class="hdr-left">
         <h1>Hourly Check-In</h1>
-        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-11-16</span></p>
+        <p>Harpoon Can Line &mdash; Fill at End of Each Hour <span style="opacity:.6;font-size:12px">&middot; v2026-11-20b (Last Pallet Out moved downstairs + send retry - not pushed)</span></p>
     </div>
     <div class="hour-badge" id="hourBadge">HOUR &mdash;</div>
 </div>
@@ -275,6 +275,8 @@
 
 <!-- ERROR BAR: shows any JS errors visibly so we can diagnose on iPad -->
 <div class="err-bar" id="errBar"></div>
+<div id="pendingBar" style="display:none;background:#fff3cd;color:#664d03;border:1.5px solid #ffcd39;border-radius:8px;padding:10px 12px;margin:8px 12px;font-size:14px;font-weight:600;"></div>
+
 
 <!-- FORM -->
 <div class="container">
@@ -606,7 +608,7 @@
             <div class="row c2">
               <div class="fg">
                 <label for="eorEndTime">Run End Time <span class="req">*</span></label>
-                <input type="time" id="eorEndTime" name="eorEndTime" required oninput="calcEorEfficiency(); packOutCheck()">
+                <input type="time" id="eorEndTime" name="eorEndTime" required oninput="calcEorEfficiency()">
               </div>
               <div class="fg">
                 <label for="eorFinalCounter">Final Filler Counter <span class="req">*</span></label>
@@ -893,14 +895,7 @@
                 <input type="number" id="eorCasesHold" name="eorCasesHold" placeholder="0" min="0" value="0" oninput="onEorHoldChange(this.value)">
               </div>
             </div>
-            <!-- 2026-11-05: last pallet out of the palletizer (from the tick sheet). Display only: shown as End Time on the recap email; NOT used in any efficiency math. -->
-            <div class="row c2">
-              <div class="fg">
-                <label for="eorPackOutTime">Last Pallet Out of Palletizer <span class="req">*</span></label>
-                <input type="time" id="eorPackOutTime" name="eorPackOutTime" required oninput="packOutCheck()">
-                <span class="hint" id="eorPackOutHint">Time the last pallet left the palletizer (from the tick sheet)</span>
-              </div>
-            </div>
+            <!-- 2026-11-20: Last Pallet Out moved to the downstairs tablet (End Run). No longer asked here. -->
             <div class="avg-row" style="margin-top:4px;">
               <span>Net Good Cases</span>
               <span class="avg-val" id="eorNetDisplay">&mdash;</span>
@@ -1069,10 +1064,55 @@ window.onload = function() {
         updateHourBadge();
         updateWindowDisplay();
         document.getElementById('hourlyForm').onsubmit = onSubmit;
+        pendingBanner(); pendingFlush();   // 2026-11-20b: resend anything a dropped connection left behind
     } catch(e) {
         showErr('Init error: ' + e.message);
     }
 };
+
+
+// ── SEND QUEUE (v2026-11-20b) ─────────────────────────────
+// Every Run Start / hourly send goes through one queue saved on this tablet (shared by both pages).
+// Sends go in order (Run Start before its hours); a failed send stays queued and is retried on page
+// load, every 2 minutes, and when the connection comes back. Nothing is lost if WiFi drops.
+var LS_PENDING = 'harpoon_pending_sends_v1';
+var pendingBusy = null;
+function pendingGet() { try { return JSON.parse(localStorage.getItem(LS_PENDING)) || []; } catch (e) { return []; } }
+function pendingSet(q) { localStorage.setItem(LS_PENDING, JSON.stringify(q)); }
+function pendingAdd(kind, url, payload, label) {
+    var q = pendingGet();
+    q.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), kind: kind, url: url, payload: payload, label: label, ts: new Date().toISOString(), tries: 0 });
+    pendingSet(q); pendingBanner();
+}
+function pendingBanner() {
+    var el = document.getElementById('pendingBar'); if (!el) return;
+    var q = pendingGet();
+    if (!q.length) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.textContent = q.length + (q.length === 1 ? ' entry is' : ' entries are') + ' waiting to reach SharePoint (' + q.map(function (x) { return x.label; }).join(', ') +
+        '). Saved on this tablet and retrying automatically - keep working. If this is still here after an hour, tell Kyle.';
+}
+// Sends queued items oldest first; stops at the first failure. Resolves to the number still waiting.
+function pendingFlush() {
+    if (pendingBusy) return pendingBusy;
+    pendingBusy = new Promise(function (resolve) {
+        (function next() {
+            var q = pendingGet();
+            if (!q.length) { pendingBanner(); resolve(0); return; }
+            var it = q[0];
+            if (!it.url) { pendingSet(q.slice(1)); next(); return; }
+            fetch(it.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(it.payload) })
+                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); pendingSet(pendingGet().filter(function (x) { return x.id !== it.id; })); next(); })
+                .catch(function (e) {
+                    var q2 = pendingGet(); if (q2.length && q2[0].id === it.id) { q2[0].tries++; q2[0].lastErr = e.message; pendingSet(q2); }
+                    pendingBanner(); resolve(pendingGet().length);
+                });
+        })();
+    }).then(function (n) { pendingBusy = null; return n; });
+    return pendingBusy;
+}
+setInterval(function () { if (pendingGet().length) pendingFlush(); }, 120000);
+window.addEventListener('online', function () { pendingFlush(); });
 
 // ── NITROGEN RUN LAYOUT ───────────────────────────────────
 function isNitroRun() { return !!(runData && runData.isNitro === 'Y'); }
@@ -1581,17 +1621,9 @@ function onSubmit(ev) {
                     setOptionalNum(payload, 'n2Ppb');
                     setOptionalNum(payload, 'pressurePsi');
                     if (isNitroRun()) { delete payload.shakenDO; }  // no Shaken DO on N2 runs -- leave it blank, not 0
-                            fetch(FLOW_URL_HOURLY, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(payload)
-                            }).then(function(r){
-                                            if (!r.ok) { throw new Error('HTTP ' + r.status); }
-                                            document.getElementById('errBar').classList.remove('show');
-                            }).catch(function(e){
-                                            console.warn('Hourly flow submit failed', e);
-                                            showErr('Hour ' + data.hourNum + ' did not sync to SharePoint (' + e.message + '). Saved on this tablet -- let Kyle know.');
-                            });
+                            // 2026-11-20b: queued + retried (was a single send; a WiFi drop lost hour 1 of REC17 on 11/19)
+                            pendingAdd('hourly', FLOW_URL_HOURLY, payload, 'Hour ' + data.hourNum + ' ' + (data.batchNum || ''));
+                            pendingFlush();
             }
 
     // --- SUBMIT TO POWER AUTOMATE (End of Run) ---
@@ -2100,16 +2132,8 @@ function onMixInput() {
     mixCheck();
 }
 
-// 2026-11-05: last pallet out must not be before the filler end time (allows a run that ends after midnight)
-function packOutCheck() {
-    var hint = document.getElementById('eorPackOutHint');
-    var p = document.getElementById('eorPackOutTime').value, e = document.getElementById('eorEndTime').value;
-    if (!p || !e) { hint.textContent = 'Time the last pallet left the palletizer (from the tick sheet)'; hint.style.color = ''; return true; }
-    var m = function (t) { var a = t.split(':'); return (+a[0]) * 60 + (+a[1]); };
-    var diff = m(p) - m(e); if (diff < -720) diff += 1440;
-    if (diff < 0) { hint.textContent = 'Last pallet time is before the Run End Time (' + e + ') \u2014 check both times.'; hint.style.color = '#b71c1c'; return false; }
-    hint.textContent = '\u2713 ' + diff + ' min after the filler end time'; hint.style.color = '#2e7d32'; return true;
-}
+// 2026-11-20: Last Pallet Out now entered downstairs; check kept as a no-op so nothing else breaks
+function packOutCheck() { return true; }
 
 function onEorCasesInput(val) {
     // Recalculate net cases whenever the operator changes total cases
@@ -2146,7 +2170,6 @@ function validateEOR() {
     if (eorDtRem !== null && eorDtRem > 1) { ok = false; msgs.push('assign the remaining ' + eorDtRem + ' min of downtime to a machine'); }
     if (!mixCheck()) { ok = false; msgs.push('Regular + Mix Pack cases must add up to Net Good Cases'); }
     if (!tankCheck()) { ok = false; msgs.push(tankYN.kick ? 'answer Glycol Turned Off and Head Pressure Turned Off' : 'answer Tank Kicked'); }
-    if (!packOutCheck()) { ok = false; document.getElementById('eorPackOutTime').classList.add('err'); msgs.push('Last Pallet Out time is before the Run End Time'); }
     var eb = document.getElementById('eorSubmitErr');
     if (msgs.length) { eb.textContent = 'Please fix: ' + msgs.join('; ') + '.'; eb.className = 'err-bar show'; }
     else if (eb) { eb.className = 'err-bar'; eb.textContent = ''; }
@@ -2234,7 +2257,7 @@ function submitEOR() {
             casesOnHold:   parseInt(document.getElementById('eorCasesHold').value) || 0,
             totalCans:     parseInt(document.getElementById('eorTotalCansHid').value)     || 0,
             totalCases:    parseInt(document.getElementById('eorTotalCasesInput').value)  || 0,
-            packOutTime:   document.getElementById('eorPackOutTime').value,
+            // 2026-11-20: packOutTime no longer sent (downstairs writes PackOutTime); leaving it out so End of Run can't blank it
             netCases:      parseInt(document.getElementById('eorNetCasesHid').value)      || 0,
             netCasesRegular: (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorRegCases').value) || 0) : (parseInt(document.getElementById('eorNetCasesHid').value) || 0),
             netCasesMix:     (isTwoTwelve() && eorMix === 'Y') ? (parseInt(document.getElementById('eorMixCases').value) || 0) : 0,
@@ -2270,6 +2293,7 @@ function submitEOR() {
         var archive    = [];
         if (archiveRaw) { try { archive = JSON.parse(archiveRaw); } catch(e3) {} }
         archive.push(completedRun);
+        archive = archive.slice(-30);   // 2026-11-20: keep the last 30 runs on the tablet (older ones are in SharePoint)
         localStorage.setItem('harpoon_completed_runs_v1', JSON.stringify(archive));
 
     var eorSubmitBtn = document.querySelector('.btn-eor-submit');
@@ -2277,7 +2301,11 @@ function submitEOR() {
     if (eorErrBox)    { eorErrBox.className = 'err-bar'; eorErrBox.textContent = ''; }
     if (eorSubmitBtn) { eorSubmitBtn.disabled = true; eorSubmitBtn.textContent = 'Saving...'; }
 
-    submitToFlowEOR(eorEntry).then(function(){
+    // 2026-11-20b: send any queued Run Start / hourly entries first, so the recap and totals see every hour
+    pendingFlush().then(function(left){
+        if (left > 0) throw new Error(left + ' earlier entr' + (left === 1 ? 'y is' : 'ies are') + ' still waiting to reach SharePoint (yellow bar at the top)');
+        return submitToFlowEOR(eorEntry);
+    }).then(function(){
         // Only clear active run keys once the save is CONFIRMED -- this is the fix.
         // Previously this ran unconditionally right after firing the request, so a
         // failed/slow save still wiped local data and showed "Run Complete."
@@ -2329,7 +2357,7 @@ function showFinalConf(eor, run) {
       + (eor.sleeveCount ? '<tr><td>Sleeve Count</td><td>' + eor.sleeveCount + '</td></tr>' : '')
       + '<tr><td>Hours Logged</td><td>' + run.hourlyEntries.length + '</td></tr>'
       + '<tr><td>Filler End Time</td><td>' + (eor.endTime || '-') + '</td></tr>'
-      + '<tr><td>Last Pallet Out</td><td>' + (eor.packOutTime || '-') + '</td></tr>'
+      + '<tr><td>Last Pallet Out</td><td>Entered downstairs</td></tr>'
       + '</table>'
       + '<p style="font-size:12px;color:var(--g600);text-align:center;margin-top:10px;">Run archived. Active run data has been cleared.</p>';
 
