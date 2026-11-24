@@ -346,7 +346,7 @@
 <div class="header">
     <div>
         <h1>Racker Run Start</h1>
-        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-11-10</span></p>
+        <p>Harpoon Racking Line &mdash; Fill at Qualification (one per keg size) <span style="opacity:.6;font-size:12px">&middot; v2026-11-24</span></p>
     </div>
     <div class="header-badge">FORM 1 OF 3</div>
 </div>
@@ -953,6 +953,42 @@ document.addEventListener('DOMContentLoaded', () => {
     $('form').addEventListener('submit', onSubmit);
     ['input','change'].forEach(ev => $('form').addEventListener(ev, e => { if (e.target.classList) e.target.classList.remove('error'); }));
 });
+
+// 2026-11-24 STALE-DATE GUARD: a Run Start page left open from an earlier day (or opened from an
+// old "Next Size" link) kept that day's Date. If the Date is not today, the first Submit stops and
+// says so; tapping Submit again (date unchanged) means "yes, this run really was on that date".
+(function () {
+    var PKG = 'dateCode', okFor = null;
+    function fmt(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? (+p[1]) + '/' + (+p[2]) : iso; }
+    function box() {
+        var b = document.getElementById('staleDateMsg');
+        if (!b) {
+            b = document.createElement('div'); b.id = 'staleDateMsg';
+            b.style.cssText = 'display:none;background:#fde8e8;color:#b71c1c;font-weight:700;padding:12px 14px;border-radius:8px;margin:10px 0;font-size:15px;';
+            var rd = document.getElementById('runDate'); var host = rd.closest('.row') || rd.parentNode;
+            host.parentNode.insertBefore(b, host);
+        }
+        return b;
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('form'); if (!form) return;
+        document.addEventListener('submit', function (e) {
+            if (e.target !== form) return;
+            var rd = document.getElementById('runDate'), pk = document.getElementById(PKG), t = isoToday();
+            var stale = rd && rd.value && rd.value !== t;
+            if (!stale) { box().style.display = 'none'; return; }
+            if (okFor === rd.value) { box().style.display = 'none'; return; }   // second tap: confirmed
+            e.preventDefault(); e.stopImmediatePropagation(); okFor = rd.value;
+            var extra = (pk && pk.value && pk.value !== t) ? ' The ' + (PKG === 'dateCode' ? 'Date Code / Pkg Date' : 'Can Code') + ' also shows ' + fmt(pk.value) + '.' : '';
+            var b = box();
+            b.textContent = 'Check the date: this form says ' + fmt(rd.value) + ' but today is ' + fmt(t) + '.' + extra +
+                ' If that is wrong, change it to today. If this run really was on ' + fmt(rd.value) + ', tap Submit again.';
+            b.style.display = 'block'; rd.classList.add('error'); if (pk && pk.value !== t) pk.classList.add('error');
+            b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, true);
+        ['runDate', PKG].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', function () { okFor = null; }); });
+    });
+})();
 </script>
 </body>
 </html>
