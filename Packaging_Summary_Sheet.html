@@ -56,7 +56,7 @@ td.num input{text-align:right}
 </head>
 <body>
 <div class="bar">
-  <h1>Packaging Summary Sheet <span>v2026-10-21</span></h1>
+  <h1>Packaging Summary Sheet <span>v2026-11-24</span></h1>
   <button class="sbtn" type="button" onclick="addRow()">+ Add line</button>
   <button class="sbtn" type="button" onclick="clearSheet()">Clear</button>
   <button class="pbtn" type="button" onclick="window.print()">&#128424; Print</button>
@@ -71,11 +71,11 @@ td.num input{text-align:right}
   <div class="hdrgrid">
     <div class="f"><label>Date Packaged</label><input type="date" id="pkDate"></div>
     <div class="f"><label>Batch #</label><input type="text" id="batch" autocapitalize="characters" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="f"><label>Beer / Product</label><input type="text" id="beer" oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="f"><label>Job #</label><input type="text" id="jobNum" inputmode="numeric" maxlength="10" placeholder="2026-21181" oninput="fmtJob(this)"></div>
     <div class="f"><label>Day</label><div class="dayof"><input type="number" id="dayN" min="1"><span>of</span><input type="number" id="dayT" min="1"></div></div>
   </div>
   <table>
-    <thead><tr><th class="c-line">Line</th><th class="c-job">Job #</th><th class="c-size">Size / Package</th><th class="c-tot">Total Produced</th><th class="c-unit">Unit</th><th class="c-hold">On Hold</th></tr></thead>
+    <thead><tr><th class="c-line">Line</th><th class="c-job">Packaging Style</th><th class="c-size">Size / Package</th><th class="c-tot">Total Produced</th><th class="c-unit">Unit</th><th class="c-hold">On Hold</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <datalist id="sizes"><option value="12oz 4/6 Wrap NS"><option value="12oz 4/6 Wrap SLV"><option value="12oz 4/6 PT NS"><option value="12oz 4/6 PT SLV"><option value="12oz 6/4 PT NS"><option value="12oz 6/4 PT SLV"><option value="12oz 2/12 Wrap NS"><option value="12oz 2/12 Wrap SLV"><option value="12oz 15pk Wrap NS"><option value="12oz 15pk Wrap SLV"><option value="12oz 24pk LSE NS"><option value="12oz 24pk LSE SLV"><option value="16oz 6/4 PT NS"><option value="16oz 6/4 PT SLV"><option value="16oz 2/12 Wrap NS"><option value="16oz 2/12 Wrap SLV"><option value="16oz 24pk LSE NS"><option value="16oz 24pk LSE SLV"><option value="19.2oz 12pk NS"><option value="19.2oz 12pk SLV"><option value="19.2oz 6/4 PT NS"><option value="19.2oz 6/4 PT SLV"><option value="12oz 2/12 Mix Pack"><option value="Kegs - Logs (1/6 bbl)"><option value="Kegs - 13.2 gal (1/4 bbl)"><option value="Kegs - 15.5 gal (1/2 bbl)"><option value="Kegs - 30L"></datalist>
@@ -85,7 +85,7 @@ td.num input{text-align:right}
     <div class="f"><label>Verified By</label><input type="text"></div>
     <div class="f"><label>Date</label><input type="text"></div>
   </div>
-  <div class="foot"><span>Harpoon Brewery &middot; Packaging</span><span>Packaging Summary v2026-10-21</span></div>
+  <div class="foot"><span>Harpoon Brewery &middot; Packaging</span><span>Packaging Summary v2026-11-24</span></div>
 </div>
 
 <script>
@@ -93,13 +93,15 @@ var MAX_ROWS = 10;
 function rowHtml(){
   return '<tr>'
    + '<td><select onchange="setUnit(this)"><option value=""></option><option>Can Line</option><option>Racker</option><option>Hand Rack</option></select></td>'
-   + '<td><input type="text" inputmode="numeric"></td>'
+   + '<td><input type="text"></td>'
    + '<td><input type="text" list="sizes"></td>'
    + '<td class="num"><input type="number" min="0"></td>'
    + '<td><input type="text" class="unit"></td>'
    + '<td class="num"><input type="number" min="0"></td>'
    + '</tr>';
 }
+// 2026-11-24 (Dylan): Job # moved to the header (digits only, dash added like the tablet forms)
+function fmtJob(el){ var d=String(el.value||'').replace(/\D/g,'').slice(0,9); el.value = d.length>4 ? d.slice(0,4)+'-'+d.slice(4) : d; }
 function setUnit(sel){
   var u = sel.closest('tr').querySelector('.unit');
   if (!u.value || u.value === 'Cases' || u.value === 'Kegs') u.value = sel.value === 'Can Line' ? 'Cases' : (sel.value ? 'Kegs' : '');
